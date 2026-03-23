@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GeoJSON Viewer</title>
+    <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.css' />
+    <script src='https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.js'></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0f0f11;
+            --surface: #1a1a1f;
+            --surface2: #22222a;
+            --border: #2e2e38;
+            --accent: #6ee7b7;
+            --accent2: #f472b6;
+            --red: #ff4d6d;
+            --yellow: #fbbf24;
+            --text: #e8e8f0;
+            --text-muted: #6b6b80;
+            --text-dim: #9999b0;
+            --mono: 'DM Mono', monospace;
+            --sans: 'DM Sans', sans-serif;
+        }
+
+        body { margin: 0; padding: 0; background: var(--bg); font-family: var(--sans); color: var(--text); }
+        html, body, #map { height: 100%; }
+
+        /* ── LEFT PANEL ── */
+        #sidebar {
+            position: absolute;
+            top: 12px; left: 12px;
+            width: 272px;
+            max-height: calc(100vh - 100px);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        #sidebar-header {
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        #sidebar-header-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        #sidebar-header h2 {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+
+        #sidebar-header p {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        #sort-controls { display: flex; gap: 4px; }
+
+        .sort-btn {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-family: var(--sans);
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .sort-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(110,231,183,0.08); }
+        .sort-btn:hover:not(.active) { color: var(--text); border-color: var(--text-muted); }
+
+        #prop-search-wrap { position: relative; margin-bottom: 2px; }
+
+        #prop-search {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 12px;
+            padding: 6px 10px 6px 28px;
+            border-radius: 6px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        #prop-search:focus { border-color: var(--accent); }
+        #prop-search::placeholder { color: var(--text-muted); }
+
+        #prop-search-icon {
+            position: absolute;
+            left: 9px; top: 50%;
+            transform: translateY(-50%);
+            font-size: 11px;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        #props-list { overflow-y: auto; flex: 1; }
+        #props-list::-webkit-scrollbar { width: 4px; }
+        #props-list::-webkit-scrollbar-track { background: transparent; }
+        #props-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .prop-item {
+            padding: 9px 16px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .prop-item:hover { background: var(--surface2); }
+        .prop-item.open { background: rgba(110,231,183,0.08); }
+
+        .prop-name {
+            font-family: var(--mono);
+            font-size: 13px;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: color 0.15s;
+        }
+        .prop-item.has-highlight .prop-name { color: var(--accent); }
+        .prop-item.has-filter .prop-name { color: var(--yellow); }
+
+        .prop-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+        .prop-count-badge {
+            font-size: 10px;
+            color: var(--text-muted);
+            background: var(--surface2);
+            padding: 1px 5px;
+            border-radius: 3px;
+        }
+
+        .prop-arrow {
+            font-size: 10px;
+            color: var(--text-muted);
+            transition: transform 0.2s;
+        }
+        .prop-item.open .prop-arrow { transform: rotate(90deg); color: var(--accent); }
+
+        .values-panel {
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            max-height: 180px;
+            overflow-y: auto;
+            display: none;
+        }
+        .values-panel.open { display: block; }
+        .values-panel::-webkit-scrollbar { width: 3px; }
+        .values-panel::-webkit-scrollbar-thumb { background: var(--border); }
+
+        .value-item {
+            padding: 7px 16px 7px 24px;
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--text-dim);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            transition: background 0.1s, color 0.1s;
+            border-bottom: 1px solid rgba(46,46,56,0.5);
+        }
+        .value-item:hover { background: var(--surface2); color: var(--text); }
+        .value-item.state-highlight { color: var(--accent); background: rgba(110,231,183,0.06); }
+        .value-item.state-filter    { color: var(--yellow); background: rgba(251,191,36,0.06); }
+
+        .value-count {
+            font-size: 10px;
+            color: var(--text-muted);
+            background: var(--surface);
+            padding: 1px 5px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        .value-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        #sidebar-empty {
+            padding: 24px 16px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        /* ── DROP OVERLAY ── */
+        #drop-overlay {
+            position: absolute; inset: 0;
+            background: rgba(15,15,17,0.85);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: none; opacity: 0;
+            transition: opacity 0.2s;
+        }
+        #drop-overlay.active { opacity: 1; pointer-events: all; }
+
+        .drop-box {
+            border: 2px dashed var(--accent);
+            border-radius: 16px;
+            padding: 48px 64px;
+            text-align: center;
+            color: var(--accent);
+        }
+        .drop-box .icon { font-size: 40px; margin-bottom: 12px; }
+        .drop-box h3 { font-size: 20px; font-weight: 500; margin-bottom: 6px; }
+        .drop-box p { font-size: 15px; color: var(--text-muted); }
+
+        /* ── UPLOAD BUTTON ── */
+        #upload-btn {
+            position: absolute;
+            top: 12px; right: 52px;
+            z-index: 10;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex; align-items: center; gap: 6px;
+            transition: background 0.15s, border-color 0.15s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        #upload-btn:hover { background: var(--surface2); border-color: var(--accent); color: var(--accent); }
+
+        /* ── POPUP ── */
+        .maplibregl-popup-content {
+            background: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 10px !important;
+            padding: 0 !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+            min-width: 220px; max-width: 340px;
+            font-family: var(--sans) !important;
+            color: var(--text) !important;
+            overflow: hidden;
+        }
+        .maplibregl-popup-tip { display: none !important; }
+
+        .popup-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 12px 6px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface2);
+        }
+        .popup-header-label {
+            font-size: 11px; font-weight: 600;
+            letter-spacing: 0.08em; text-transform: uppercase;
+            color: var(--text-muted);
+        }
+        .popup-close-btn {
+            background: none; border: none;
+            color: var(--text-muted); font-size: 14px;
+            cursor: pointer; padding: 0 2px; line-height: 1;
+            transition: color 0.1s;
+        }
+        .popup-close-btn:hover { color: var(--text); }
+
+        .popup-inner {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .popup-inner::-webkit-scrollbar { width: 4px; }
+        .popup-inner::-webkit-scrollbar-track { background: transparent; }
+        .popup-inner::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .popup-row {
+            display: flex; align-items: baseline; gap: 8px;
+            padding: 7px 12px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        .popup-row:last-child { border-bottom: none; }
+        .popup-row:hover { background: var(--surface2); }
+        .popup-row.state-highlight { background: rgba(110,231,183,0.07); }
+        .popup-row.state-highlight .popup-val { color: var(--accent); }
+        .popup-row.state-filter { background: rgba(251,191,36,0.07); }
+        .popup-row.state-filter .popup-val { color: var(--yellow); }
+
+        /* hover popup rows are not clickable */
+        .popup-row.no-click { cursor: default; }
+        .popup-row.no-click:hover { background: transparent; }
+
+        .popup-key {
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--text-muted);
+            min-width: 90px;
+            flex-shrink: 0;
+        }
+        .popup-val {
+            font-size: 13px;
+            color: var(--text);
+            word-break: break-word;
+            transition: color 0.1s;
+        }
+        .popup-hint {
+            padding: 6px 12px;
+            font-size: 11px;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border);
+            text-align: center;
+            background: var(--surface2);
+        }
+
+        /* ── SELECTION BAR ── */
+        #selection-bar {
+            position: absolute;
+            bottom: 28px; left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 16px;
+            display: flex; align-items: center; gap: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            transition: opacity 0.2s, transform 0.2s;
+            opacity: 0; pointer-events: none;
+            transform: translateX(-50%) translateY(8px);
+            white-space: nowrap;
+        }
+        #selection-bar.visible {
+            opacity: 1; pointer-events: all;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        #selection-count {
+            font-size: 15px; color: var(--text);
+            display: flex; align-items: center; gap: 8px;
+        }
+        #selection-count .num {
+            font-family: var(--mono);
+            font-size: 22px; font-weight: 500;
+            color: var(--red); line-height: 1;
+        }
+        #selection-count .label {
+            font-size: 13px; color: var(--text-muted); line-height: 1.3;
+        }
+
+        .sel-divider { width: 1px; height: 28px; background: var(--border); }
+
+        #clear-btn {
+            background: none; border: 1px solid var(--border);
+            color: var(--text-muted); font-family: var(--sans);
+            font-size: 13px; padding: 5px 10px;
+            border-radius: 6px; cursor: pointer; transition: all 0.15s;
+        }
+        #clear-btn:hover { border-color: var(--text-muted); color: var(--text); }
+
+        #save-btn {
+            background: var(--red); border: none; color: white;
+            font-family: var(--sans); font-size: 14px; font-weight: 600;
+            padding: 7px 16px; border-radius: 7px; cursor: pointer;
+            transition: opacity 0.15s, transform 0.1s;
+            letter-spacing: 0.02em;
+        }
+        #save-btn:hover { opacity: 0.85; }
+        #save-btn:active { transform: scale(0.97); }
+
+        /* ── MAPLIBRE OVERRIDES ── */
+        .maplibregl-ctrl-top-right { top: 12px; right: 12px; }
+        .maplibregl-ctrl-group {
+            background: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important; overflow: hidden;
+        }
+        .maplibregl-ctrl-group button { background: var(--surface) !important; }
+        .maplibregl-ctrl-group button:hover { background: var(--surface2) !important; }
+
+        #file-input { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="drop-overlay">
+    <div class="drop-box">
+        <div class="icon">⬇</div>
+        <h3>Drop GeoJSON file</h3>
+        <p>.geojson or .geojsonl accepted</p>
+    </div>
+</div>
+
+<div id="sidebar">
+    <div id="sidebar-header">
+        <div id="sidebar-header-top">
+            <h2>Properties</h2>
+            <div id="sort-controls">
+                <button class="sort-btn active" id="sort-count-btn"># Count</button>
+                <button class="sort-btn" id="sort-alpha-btn">A–Z</button>
+            </div>
+        </div>
+        <p id="sidebar-subtitle">No file loaded</p>
+        <div id="prop-search-wrap">
+            <span id="prop-search-icon">⌕</span>
+            <input type="text" id="prop-search" placeholder="Filter properties…">
+        </div>
+    </div>
+    <div id="props-list">
+        <div id="sidebar-empty">Upload a GeoJSON file to explore properties and filter features.</div>
+    </div>
+</div>
+
+<button id="upload-btn" onclick="document.getElementById('file-input').click()">
+    ↑ Upload GeoJSON
+</button>
+<input type="file" id="file-input" accept=".geojson,.json,.geojsonl">
+
+<div id="selection-bar">
+    <div id="selection-count">
+        <div class="num" id="sel-num">0</div>
+        <div class="label">features<br>selected</div>
+    </div>
+    <div class="sel-divider"></div>
+    <button id="clear-btn">Clear</button>
+    <button id="save-btn">⬇ Save GeoJSON</button>
+</div>
+
+<script>
+const styleUrl = 'https://api.protomaps.com/styles/v5/white/en.json?key=ffc24a4325d458ce';
+
+const map = new maplibregl.Map({
+    container: 'map',
+    style: styleUrl,
+    center: [0, 20],
+    zoom: 2
+});
+
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+// ── STATE ──
+let allFeatures = [];
+let selectedIds = new Set();
+// activeFilter: { prop, value, mode: 'highlight' | 'filter' } | null
+let activeFilter = null;
+let highlightedIds = new Set();   // ids in 'highlight' mode (green, not in selectedIds)
+
+let hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 });
+let frozenPopup = null;
+let frozenFeatureProps = null;
+// popup row states: { [propKey]: 0 | 1 | 2 }  0=none, 1=highlight, 2=filter
+let popupRowStates = {};
+
+let sortMode = 'count';
+let propData = {};   // key -> { valueCounts:{val->count}, totalWithValue }
+let openPropKey = null;
+
+// ── FILE LOADING ──
+const dropOverlay = document.getElementById('drop-overlay');
+document.addEventListener('dragover', e => { e.preventDefault(); dropOverlay.classList.add('active'); });
+document.addEventListener('dragleave', e => { if (!e.relatedTarget) dropOverlay.classList.remove('active'); });
+document.addEventListener('drop', e => {
+    e.preventDefault(); dropOverlay.classList.remove('active');
+    const file = e.dataTransfer.files[0]; if (file) loadFile(file);
+});
+document.getElementById('file-input').addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+function loadFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+        const text = e.target.result;
+        let geojson;
+        try { geojson = JSON.parse(text); } catch {
+            const lines = text.trim().split('\n').filter(l => l.trim());
+            const features = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+            if (features.length) geojson = { type: 'FeatureCollection', features };
+        }
+        if (!geojson) return alert('Could not parse file.');
+        if (geojson.type === 'Feature') geojson = { type: 'FeatureCollection', features: [geojson] };
+        ingestGeoJSON(geojson, file.name);
+    };
+    reader.readAsText(file);
+}
+
+function ingestGeoJSON(geojson, filename) {
+    allFeatures = geojson.features.map((f, i) => ({
+        ...f, id: i,
+        properties: { ...f.properties, _gvid: i }
+    }));
+
+    // Reset all state
+    selectedIds.clear();
+    highlightedIds.clear();
+    activeFilter = null;
+    popupRowStates = {};
+    openPropKey = null;
+    if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
+    hoverPopup.remove();
+    updateSelectionBar();
+
+    const fc = { type: 'FeatureCollection', features: allFeatures };
+
+    if (map.getSource('geojson-data')) {
+        map.getSource('geojson-data').setData(fc);
+    } else {
+        map.addSource('geojson-data', { type: 'geojson', data: fc, promoteId: '_gvid' });
+
+        const colorExpr = ['case',
+            ['boolean', ['feature-state', 'selected'],    false], '#ff4d6d',
+            ['boolean', ['feature-state', 'filtered'],    false], '#fbbf24',
+            ['boolean', ['feature-state', 'highlighted'], false], '#6ee7b7',
+            '#3b82f6'];
+
+        map.addLayer({
+            id: 'gv-fill', type: 'fill', source: 'geojson-data',
+            filter: ['==', ['geometry-type'], 'Polygon'],
+            paint: {
+                'fill-color': colorExpr,
+                'fill-opacity': ['case',
+                    ['boolean', ['feature-state', 'selected'],    false], 0.6,
+                    ['boolean', ['feature-state', 'filtered'],    false], 0.5,
+                    ['boolean', ['feature-state', 'highlighted'], false], 0.35,
+                    0.3]
+            }
+        });
+
+        map.addLayer({
+            id: 'gv-outline', type: 'line', source: 'geojson-data',
+            filter: ['==', ['geometry-type'], 'Polygon'],
+            paint: {
+                'line-color': colorExpr,
+                'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 2, 1]
+            }
+        });
+
+        map.addLayer({
+            id: 'gv-line', type: 'line', source: 'geojson-data',
+            filter: ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]],
+            paint: { 'line-color': colorExpr, 'line-width': 2 }
+        });
+
+        map.addLayer({
+            id: 'gv-point', type: 'circle', source: 'geojson-data',
+            filter: ['==', ['geometry-type'], 'Point'],
+            paint: {
+                'circle-color': colorExpr,
+                'circle-radius': 5,
+                'circle-stroke-color': '#fff',
+                'circle-stroke-width': 1.5
+            }
+        });
+
+        ['gv-fill', 'gv-line', 'gv-point'].forEach(lyr => {
+            map.on('mousemove', lyr, onMouseMove);
+            map.on('mouseleave', lyr, onMouseLeave);
+            map.on('click', lyr, onFeatureClick);
+        });
+        map.on('mousemove', 'gv-outline', onMouseMove);
+        map.on('mouseleave', 'gv-outline', onMouseLeave);
+    }
+
+    try {
+        const coords = [];
+        allFeatures.forEach(f => collectCoords(f.geometry, coords));
+        if (coords.length) {
+            const lngs = coords.map(c => c[0]), lats = coords.map(c => c[1]);
+            map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 40, maxZoom: 14 });
+        }
+    } catch {}
+
+    buildPropData();
+    renderSidebar();
+    document.getElementById('sidebar-subtitle').textContent =
+        `${allFeatures.length} features · ${Object.keys(propData).length} props`;
+}
+
+function collectCoords(geom, out) {
+    if (!geom) return;
+    if (geom.type === 'Point') out.push(geom.coordinates);
+    else if (geom.type === 'LineString') geom.coordinates.forEach(c => out.push(c));
+    else if (geom.type === 'Polygon') geom.coordinates.forEach(ring => ring.forEach(c => out.push(c)));
+    else if (geom.type === 'MultiPolygon') geom.coordinates.forEach(poly => poly.forEach(ring => ring.forEach(c => out.push(c))));
+    else if (geom.type === 'MultiLineString') geom.coordinates.forEach(line => line.forEach(c => out.push(c)));
+    else if (geom.type === 'MultiPoint') geom.coordinates.forEach(c => out.push(c));
+}
+
+// ── PROP DATA ──
+function buildPropData() {
+    propData = {};
+    allFeatures.forEach(f => {
+        Object.entries(f.properties || {}).forEach(([k, v]) => {
+            if (k === '_gvid') return;
+            if (!propData[k]) propData[k] = { valueCounts: {}, totalWithValue: 0 };
+            if (v !== null && v !== undefined && v !== '') {
+                const vs = String(v);
+                if (!propData[k].valueCounts[vs]) { propData[k].valueCounts[vs] = 0; propData[k].totalWithValue++; }
+                propData[k].valueCounts[vs]++;
+            }
+        });
+    });
+}
+
+// ── SIDEBAR ──
+function getSortedKeys(filterStr) {
+    let keys = Object.keys(propData);
+    if (filterStr) { const q = filterStr.toLowerCase(); keys = keys.filter(k => k.toLowerCase().includes(q)); }
+    if (sortMode === 'alpha') keys.sort((a, b) => a.localeCompare(b));
+    else keys.sort((a, b) => propData[b].totalWithValue - propData[a].totalWithValue);
+    return keys;
+}
+
+function renderSidebar() {
+    const list = document.getElementById('props-list');
+    const searchVal = document.getElementById('prop-search').value.trim();
+    const keys = getSortedKeys(searchVal);
+
+    list.innerHTML = '';
+    if (!keys.length) { list.innerHTML = `<div id="sidebar-empty">No matching properties.</div>`; return; }
+
+    keys.forEach(key => {
+        const pd = propData[key];
+        const sortedValues = Object.entries(pd.valueCounts).sort((a, b) => b[1] - a[1]);
+
+        const isOpen = openPropKey === key;
+        const hasHighlight = activeFilter && activeFilter.prop === key && activeFilter.mode === 'highlight';
+        const hasFilter    = activeFilter && activeFilter.prop === key && activeFilter.mode === 'filter';
+
+        const propEl = document.createElement('div');
+        propEl.className = 'prop-item' +
+            (isOpen        ? ' open'         : '') +
+            (hasHighlight  ? ' has-highlight' : '') +
+            (hasFilter     ? ' has-filter'    : '');
+
+        propEl.innerHTML = `
+            <span class="prop-name">${escHtml(key)}</span>
+            <span class="prop-meta">
+                <span class="prop-count-badge">${pd.totalWithValue}</span>
+                <span class="prop-arrow">▶</span>
+            </span>`;
+
+        const valuesEl = document.createElement('div');
+        valuesEl.className = 'values-panel' + (isOpen ? ' open' : '');
+
+        sortedValues.forEach(([val, count]) => {
+            const vi = document.createElement('div');
+            let viState = 0;
+            if (activeFilter && activeFilter.prop === key && activeFilter.value === val)
+                viState = activeFilter.mode === 'highlight' ? 1 : 2;
+            vi.className = 'value-item' + (viState === 1 ? ' state-highlight' : viState === 2 ? ' state-filter' : '');
+            vi.innerHTML = `<span class="value-text">${escHtml(val)}</span><span class="value-count">${count}</span>`;
+            vi.addEventListener('click', e => { e.stopPropagation(); sidebarValueClick(key, val); });
+            valuesEl.appendChild(vi);
+        });
+
+        propEl.addEventListener('click', () => {
+            openPropKey = (openPropKey === key) ? null : key;
+            renderSidebar();
+        });
+
+        list.appendChild(propEl);
+        list.appendChild(valuesEl);
+    });
+}
+
+// Sidebar value 3-state cycle: none → highlight → filter+select → none
+function sidebarValueClick(key, val) {
+    const isSame = activeFilter && activeFilter.prop === key && activeFilter.value === val;
+    const currentMode = isSame ? activeFilter.mode : null;
+
+    clearAllFilterStates();
+
+    if (!isSame || currentMode === null) {
+        activeFilter = { prop: key, value: val, mode: 'highlight' };
+        doHighlight(key, val);
+    } else if (currentMode === 'highlight') {
+        activeFilter = { prop: key, value: val, mode: 'filter' };
+        doFilterSelect(key, val);
+    } else {
+        // was 'filter' — clear
+        activeFilter = null;
+    }
+    renderSidebar();
+    refreshFrozenPopup();
+}
+
+// ── FILTER/HIGHLIGHT HELPERS ──
+function doHighlight(key, val) {
+    allFeatures.forEach(f => {
+        if (String(f.properties[key]) === String(val)) {
+            const id = f.properties._gvid;
+            map.setFeatureState({ source: 'geojson-data', id }, { highlighted: true });
+            highlightedIds.add(id);
+        }
+    });
+}
+
+function doFilterSelect(key, val) {
+    // move highlighted → filtered (yellow) AND add to selectedIds
+    allFeatures.forEach(f => {
+        if (String(f.properties[key]) === String(val)) {
+            const id = f.properties._gvid;
+            map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false, filtered: true });
+            selectedIds.add(id);
+        }
+    });
+    highlightedIds.clear();
+    updateSelectionBar();
+}
+
+function clearAllFilterStates() {
+    // Clear highlight states
+    highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
+    highlightedIds.clear();
+    // If previous was a filter mode, also remove those from selectedIds and unset filtered
+    if (activeFilter && activeFilter.mode === 'filter') {
+        const { prop, value } = activeFilter;
+        allFeatures.forEach(f => {
+            if (String(f.properties[prop]) === String(value)) {
+                const id = f.properties._gvid;
+                map.setFeatureState({ source: 'geojson-data', id }, { filtered: false });
+                selectedIds.delete(id);
+            }
+        });
+        updateSelectionBar();
+    }
+}
+
+// ── HOVER POPUP ──
+function onMouseMove(e) {
+    if (frozenPopup) return;
+    map.getCanvas().style.cursor = 'pointer';
+    const f = e.features[0]; if (!f) return;
+
+    const props = cleanProps(f.properties);
+    const entries = Object.entries(props).filter(([, v]) => v !== null && v !== undefined && v !== '');
+    if (!entries.length) return;
+
+    const rows = entries.map(([k, v]) =>
+        `<div class="popup-row no-click"><span class="popup-key">${escHtml(k)}</span><span class="popup-val">${escHtml(String(v))}</span></div>`
+    ).join('');
+
+    hoverPopup.setLngLat(e.lngLat)
+        .setHTML(`<div class="popup-inner">${rows}</div><div class="popup-hint">Click to pin &amp; interact</div>`)
+        .addTo(map);
+}
+
+function onMouseLeave() {
+    if (!frozenPopup) map.getCanvas().style.cursor = '';
+    hoverPopup.remove();
+}
+
+// ── CLICK: PIN POPUP + SELECT ──
+function onFeatureClick(e) {
+    e.preventDefault();
+    const f = e.features[0]; if (!f) return;
+    const id = f.id ?? f.properties._gvid;
+
+    // Clicking same pinned feature: unpin and deselect
+    if (frozenFeatureProps && frozenFeatureProps._gvid === f.properties._gvid) {
+        if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; popupRowStates = {}; }
+        if (selectedIds.has(id)) {
+            selectedIds.delete(id);
+            map.setFeatureState({ source: 'geojson-data', id }, { selected: false });
+        }
+        updateSelectionBar();
+        return;
+    }
+
+    // Remove old pin
+    if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; popupRowStates = {}; }
+
+    if (!selectedIds.has(id)) {
+        selectedIds.add(id);
+        map.setFeatureState({ source: 'geojson-data', id }, { selected: true });
+        updateSelectionBar();
+    }
+
+    frozenFeatureProps = f.properties;
+    hoverPopup.remove();
+
+    frozenPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 });
+    frozenPopup.setLngLat(e.lngLat)
+        .setHTML(buildFrozenHTML())
+        .addTo(map);
+    setTimeout(() => attachFrozenEvents(), 50);
+}
+
+function cleanProps(raw) {
+    const p = { ...raw }; delete p._gvid; return p;
+}
+
+function buildFrozenHTML() {
+    const props = cleanProps(frozenFeatureProps || {});
+    const entries = Object.entries(props).filter(([, v]) => v !== null && v !== undefined && v !== '');
+    const rows = entries.map(([k, v]) => {
+        const st = popupRowStates[k] || 0;
+        const cls = st === 1 ? ' state-highlight' : st === 2 ? ' state-filter' : '';
+        return `<div class="popup-row${cls}" data-key="${escHtml(k)}" data-val="${escHtml(String(v))}">
+            <span class="popup-key">${escHtml(k)}</span>
+            <span class="popup-val">${escHtml(String(v))}</span>
+        </div>`;
+    }).join('');
+    return `
+        <div class="popup-header">
+            <span class="popup-header-label">📌 Pinned Feature</span>
+            <button class="popup-close-btn" id="popup-close-x">✕</button>
+        </div>
+        <div class="popup-inner">${rows}</div>
+        <div class="popup-hint">1× highlight · 2× filter+select · 3× clear</div>`;
+}
+
+function attachFrozenEvents() {
+    const el = frozenPopup && frozenPopup.getElement(); if (!el) return;
+    el.querySelector('#popup-close-x')?.addEventListener('click', () => {
+        if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; popupRowStates = {}; }
+    });
+    el.querySelectorAll('.popup-row').forEach(row => {
+        row.addEventListener('click', ev => {
+            ev.stopPropagation();
+            const key = row.dataset.key, val = row.dataset.val;
+            const cur = popupRowStates[key] || 0;
+            const next = (cur + 1) % 3;
+            popupRowStates[key] = next;
+
+            // Sync with map filter — only one active filter at a time
+            clearAllFilterStates();
+            if (next === 1) {
+                activeFilter = { prop: key, value: val, mode: 'highlight' };
+                doHighlight(key, val);
+            } else if (next === 2) {
+                activeFilter = { prop: key, value: val, mode: 'filter' };
+                doFilterSelect(key, val);
+            } else {
+                activeFilter = null;
+            }
+            renderSidebar();
+            refreshFrozenPopup();
+        });
+    });
+}
+
+function refreshFrozenPopup() {
+    if (!frozenPopup || !frozenFeatureProps) return;
+    frozenPopup.setHTML(buildFrozenHTML());
+    setTimeout(() => attachFrozenEvents(), 50);
+}
+
+// ── SORT & SEARCH ──
+document.getElementById('sort-count-btn').addEventListener('click', () => {
+    sortMode = 'count';
+    document.getElementById('sort-count-btn').classList.add('active');
+    document.getElementById('sort-alpha-btn').classList.remove('active');
+    renderSidebar();
+});
+document.getElementById('sort-alpha-btn').addEventListener('click', () => {
+    sortMode = 'alpha';
+    document.getElementById('sort-alpha-btn').classList.add('active');
+    document.getElementById('sort-count-btn').classList.remove('active');
+    renderSidebar();
+});
+document.getElementById('prop-search').addEventListener('input', () => renderSidebar());
+
+// ── SELECTION BAR ──
+function updateSelectionBar() {
+    document.getElementById('sel-num').textContent = selectedIds.size;
+    document.getElementById('selection-bar').classList.toggle('visible', selectedIds.size > 0);
+}
+
+document.getElementById('clear-btn').addEventListener('click', () => {
+    selectedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { selected: false, filtered: false }));
+    selectedIds.clear();
+    clearAllFilterStates();
+    activeFilter = null;
+    popupRowStates = {};
+    updateSelectionBar();
+    renderSidebar();
+    refreshFrozenPopup();
+});
+
+document.getElementById('save-btn').addEventListener('click', () => {
+    const features = allFeatures
+        .filter(f => selectedIds.has(f.properties._gvid))
+        .map(f => { const p = { ...f.properties }; delete p._gvid; return { ...f, id: undefined, properties: p }; });
+    const blob = new Blob([JSON.stringify({ type: 'FeatureCollection', features }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'selection.geojson'; a.click();
+    URL.revokeObjectURL(url);
+});
+
+// ── UTILS ──
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
