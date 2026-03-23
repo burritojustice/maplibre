@@ -1,1 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GeoJSON Viewer</title>
+    <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.css' />
+    <script src='https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.js'></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0f0f11;
+            --surface: #1a1a1f;
+            --surface2: #22222a;
+            --border: #2e2e38;
+            --accent: #6ee7b7;
+            --accent2: #f472b6;
+            --red: #ff4d6d;
+            --text: #e8e8f0;
+            --text-muted: #6b6b80;
+            --text-dim: #9999b0;
+            --mono: 'DM Mono', monospace;
+            --sans: 'DM Sans', sans-serif;
+        }
+
+        body { margin: 0; padding: 0; background: var(--bg); font-family: var(--sans); color: var(--text); }
+        html, body, #map { height: 100%; }
+
+        /* ── LEFT PANEL ── */
+        #sidebar {
+            position: absolute;
+            top: 12px; left: 12px;
+            width: 260px;
+            max-height: calc(100vh - 100px);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        #sidebar-header {
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        #sidebar-header h2 {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 2px;
+        }
+
+        #sidebar-header p {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        #props-list {
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        #props-list::-webkit-scrollbar { width: 4px; }
+        #props-list::-webkit-scrollbar-track { background: transparent; }
+        #props-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .prop-item {
+            padding: 9px 16px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .prop-item:hover { background: var(--surface2); }
+        .prop-item.active { background: rgba(110,231,183,0.08); }
+
+        .prop-name {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .prop-arrow {
+            font-size: 10px;
+            color: var(--text-muted);
+            flex-shrink: 0;
+            transition: transform 0.2s;
+        }
+
+        .prop-item.active .prop-arrow { transform: rotate(90deg); color: var(--accent); }
+
+        .values-panel {
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            max-height: 160px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .values-panel.open { display: block; }
+        .values-panel::-webkit-scrollbar { width: 3px; }
+        .values-panel::-webkit-scrollbar-thumb { background: var(--border); }
+
+        .value-item {
+            padding: 6px 16px 6px 24px;
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--text-dim);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            transition: background 0.1s, color 0.1s;
+            border-bottom: 1px solid rgba(46,46,56,0.5);
+        }
+
+        .value-item:hover { background: var(--surface2); color: var(--text); }
+        .value-item.active { color: var(--accent); background: rgba(110,231,183,0.06); }
+
+        .value-count {
+            font-size: 9px;
+            color: var(--text-muted);
+            background: var(--surface);
+            padding: 1px 5px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .value-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #sidebar-empty {
+            padding: 24px 16px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        /* ── DROP OVERLAY ── */
+        #drop-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(15,15,17,0.85);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        #drop-overlay.active { opacity: 1; pointer-events: all; }
+
+        .drop-box {
+            border: 2px dashed var(--accent);
+            border-radius: 16px;
+            padding: 48px 64px;
+            text-align: center;
+            color: var(--accent);
+        }
+
+        .drop-box .icon { font-size: 40px; margin-bottom: 12px; }
+        .drop-box h3 { font-size: 18px; font-weight: 500; margin-bottom: 6px; }
+        .drop-box p { font-size: 13px; color: var(--text-muted); }
+
+        /* ── UPLOAD BUTTON ── */
+        #upload-btn {
+            position: absolute;
+            top: 12px; right: 52px;
+            z-index: 10;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: 12px;
+            font-weight: 500;
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.15s, border-color 0.15s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        #upload-btn:hover { background: var(--surface2); border-color: var(--accent); color: var(--accent); }
+
+        /* ── POPUP ── */
+        .maplibregl-popup-content {
+            background: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 10px !important;
+            padding: 0 !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+            min-width: 200px;
+            max-width: 320px;
+            font-family: var(--sans) !important;
+            color: var(--text) !important;
+        }
+
+        .maplibregl-popup-tip { display: none !important; }
+
+        .popup-inner {
+            max-height: 280px;
+            overflow-y: auto;
+        }
+
+        .popup-inner::-webkit-scrollbar { width: 3px; }
+        .popup-inner::-webkit-scrollbar-thumb { background: var(--border); }
+
+        .popup-row {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            padding: 6px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .popup-row:last-child { border-bottom: none; }
+
+        .popup-key {
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--text-muted);
+            min-width: 80px;
+            flex-shrink: 0;
+        }
+
+        .popup-val {
+            font-size: 11px;
+            color: var(--text);
+            word-break: break-word;
+        }
+
+        /* ── SELECTION BAR ── */
+        #selection-bar {
+            position: absolute;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            transition: opacity 0.2s, transform 0.2s;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(-50%) translateY(8px);
+            white-space: nowrap;
+        }
+
+        #selection-bar.visible {
+            opacity: 1;
+            pointer-events: all;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        #selection-count {
+            font-size: 13px;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #selection-count .num {
+            font-family: var(--mono);
+            font-size: 20px;
+            font-weight: 500;
+            color: var(--red);
+            line-height: 1;
+        }
+
+        #selection-count .label {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.3;
+        }
+
+        .sel-divider { width: 1px; height: 28px; background: var(--border); }
+
+        #clear-btn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-family: var(--sans);
+            font-size: 11px;
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        #clear-btn:hover { border-color: var(--text-muted); color: var(--text); }
+
+        #save-btn {
+            background: var(--red);
+            border: none;
+            color: white;
+            font-family: var(--sans);
+            font-size: 12px;
+            font-weight: 600;
+            padding: 7px 16px;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: opacity 0.15s, transform 0.1s;
+            letter-spacing: 0.02em;
+        }
+
+        #save-btn:hover { opacity: 0.85; }
+        #save-btn:active { transform: scale(0.97); }
+
+        /* ── MAPLIBRE OVERRIDES ── */
+        .maplibregl-ctrl-top-right { top: 12px; right: 12px; }
+        .maplibregl-ctrl-group {
+            background: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            overflow: hidden;
+        }
+        .maplibregl-ctrl-group button {
+            background: var(--surface) !important;
+        }
+        .maplibregl-ctrl-group button:hover {
+            background: var(--surface2) !important;
+        }
+
+        #file-input { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="drop-overlay">
+    <div class="drop-box">
+        <div class="icon">⬇</div>
+        <h3>Drop GeoJSON file</h3>
+        <p>.geojson or .geojsonl accepted</p>
+    </div>
+</div>
+
+<div id="sidebar">
+    <div id="sidebar-header">
+        <h2>Properties</h2>
+        <p id="sidebar-subtitle">No file loaded</p>
+    </div>
+    <div id="props-list">
+        <div id="sidebar-empty">Upload a GeoJSON file to explore properties and filter features.</div>
+    </div>
+</div>
+
+<button id="upload-btn" onclick="document.getElementById('file-input').click()">
+    ↑ Upload GeoJSON
+</button>
+<input type="file" id="file-input" accept=".geojson,.json,.geojsonl">
+
+<div id="selection-bar">
+    <div id="selection-count">
+        <div class="num" id="sel-num">0</div>
+        <div class="label">features<br>selected</div>
+    </div>
+    <div class="sel-divider"></div>
+    <button id="clear-btn">Clear</button>
+    <button id="save-btn">⬇ Save GeoJSON</button>
+</div>
+
+<script>
+const styleUrl = 'https://api.protomaps.com/styles/v5/white/en.json?key=ffc24a4325d458ce';
+
+const map = new maplibregl.Map({
+    container: 'map',
+    style: styleUrl,
+    center: [0, 20],
+    zoom: 2
+});
+
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+// ── STATE ──
+let allFeatures = [];
+let selectedIds = new Set();
+let activeFilterProp = null;
+let activeFilterValue = null;
+let highlightedFilterIds = new Set();
+let popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 });
+
+// ── DRAG & DROP ──
+const dropOverlay = document.getElementById('drop-overlay');
+
+document.addEventListener('dragover', e => { e.preventDefault(); dropOverlay.classList.add('active'); });
+document.addEventListener('dragleave', e => { if (!e.relatedTarget) dropOverlay.classList.remove('active'); });
+document.addEventListener('drop', e => {
+    e.preventDefault();
+    dropOverlay.classList.remove('active');
+    const file = e.dataTransfer.files[0];
+    if (file) loadFile(file);
+});
+
+document.getElementById('file-input').addEventListener('change', e => {
+    if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+
+function loadFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+        const text = e.target.result;
+        let geojson;
+        try {
+            // Try standard GeoJSON
+            geojson = JSON.parse(text);
+        } catch {
+            // Try GeoJSONL (newline-delimited)
+            const lines = text.trim().split('\n').filter(l => l.trim());
+            const features = lines.map(l => {
+                try { return JSON.parse(l); } catch { return null; }
+            }).filter(Boolean);
+            if (features.length) {
+                geojson = { type: 'FeatureCollection', features };
+            }
+        }
+        if (!geojson) return alert('Could not parse file.');
+        if (geojson.type === 'Feature') geojson = { type: 'FeatureCollection', features: [geojson] };
+        ingestGeoJSON(geojson, file.name);
+    };
+    reader.readAsText(file);
+}
+
+function ingestGeoJSON(geojson, filename) {
+    // Assign internal IDs
+    allFeatures = geojson.features.map((f, i) => ({
+        ...f,
+        id: i,
+        properties: { ...f.properties, _gvid: i }
+    }));
+
+    selectedIds.clear();
+    activeFilterProp = null;
+    activeFilterValue = null;
+    highlightedFilterIds.clear();
+    updateSelectionBar();
+
+    const fc = { type: 'FeatureCollection', features: allFeatures };
+
+    // Add/update source
+    if (map.getSource('geojson-data')) {
+        map.getSource('geojson-data').setData(fc);
+    } else {
+        map.addSource('geojson-data', { type: 'geojson', data: fc, promoteId: '_gvid' });
+
+        // Fill layer
+        map.addLayer({
+            id: 'gv-fill',
+            type: 'fill',
+            source: 'geojson-data',
+            filter: ['==', ['geometry-type'], 'Polygon'],
+            paint: {
+                'fill-color': [
+                    'case',
+                    ['boolean', ['feature-state', 'selected'], false], '#ff4d6d',
+                    ['boolean', ['feature-state', 'filtered'], false], '#6ee7b7',
+                    '#3b82f6'
+                ],
+                'fill-opacity': [
+                    'case',
+                    ['boolean', ['feature-state', 'selected'], false], 0.6,
+                    ['boolean', ['feature-state', 'filtered'], false], 0.5,
+                    0.3
+                ]
+            }
+        });
+
+        // Outline layer
+        map.addLayer({
+            id: 'gv-outline',
+            type: 'line',
+            source: 'geojson-data',
+            filter: ['==', ['geometry-type'], 'Polygon'],
+            paint: {
+                'line-color': [
+                    'case',
+                    ['boolean', ['feature-state', 'selected'], false], '#ff4d6d',
+                    ['boolean', ['feature-state', 'filtered'], false], '#6ee7b7',
+                    '#3b82f6'
+                ],
+                'line-width': [
+                    'case',
+                    ['boolean', ['feature-state', 'selected'], false], 2,
+                    1
+                ]
+            }
+        });
+
+        // Line layer
+        map.addLayer({
+            id: 'gv-line',
+            type: 'line',
+            source: 'geojson-data',
+            filter: ['==', ['geometry-type'], 'LineString'],
+            paint: {
+                'line-color': [
+                    'case',
+                    ['boolean', ['feature-state', 'selected'], false], '#ff4d6d',
+                    ['boolean', ['feature-state', 'filtered'], false], '#6ee7b7',
+                    '#3b82f6'
+                ],
+                'line-width': 2
+            }
+        });
+
+        // Point layer
+        map.addLayer({
+            id: 'gv-point',
+            type: 'circle',
+            source: 'geojson-data',
+            filter: ['==', ['geometry-type'], 'Point'],
+            paint: {
+                'circle-color': [
+                    'case',
+                    ['boolean', ['feature-state', 'selected'], false], '#ff4d6d',
+                    ['boolean', ['feature-state', 'filtered'], false], '#6ee7b7',
+                    '#3b82f6'
+                ],
+                'circle-radius': 5,
+                'circle-stroke-color': '#fff',
+                'circle-stroke-width': 1.5
+            }
+        });
+
+        // Events
+        ['gv-fill', 'gv-line', 'gv-point'].forEach(lyr => {
+            map.on('mousemove', lyr, onMouseMove);
+            map.on('mouseleave', lyr, onMouseLeave);
+            map.on('click', lyr, onFeatureClick);
+        });
+
+        map.on('mousemove', 'gv-outline', onMouseMove);
+        map.on('mouseleave', 'gv-outline', onMouseLeave);
+    }
+
+    // Fit bounds
+    try {
+        const coords = [];
+        allFeatures.forEach(f => collectCoords(f.geometry, coords));
+        if (coords.length) {
+            const lngs = coords.map(c => c[0]), lats = coords.map(c => c[1]);
+            map.fitBounds([
+                [Math.min(...lngs), Math.min(...lats)],
+                [Math.max(...lngs), Math.max(...lats)]
+            ], { padding: 40, maxZoom: 14 });
+        }
+    } catch {}
+
+    buildSidebar(filename);
+}
+
+function collectCoords(geom, out) {
+    if (!geom) return;
+    if (geom.type === 'Point') out.push(geom.coordinates);
+    else if (geom.type === 'LineString') geom.coordinates.forEach(c => out.push(c));
+    else if (geom.type === 'Polygon') geom.coordinates.forEach(ring => ring.forEach(c => out.push(c)));
+    else if (geom.type === 'MultiPolygon') geom.coordinates.forEach(poly => poly.forEach(ring => ring.forEach(c => out.push(c))));
+    else if (geom.type === 'MultiLineString') geom.coordinates.forEach(line => line.forEach(c => out.push(c)));
+    else if (geom.type === 'MultiPoint') geom.coordinates.forEach(c => out.push(c));
+}
+
+// ── HOVER ──
+let hoveredId = null;
+
+function onMouseMove(e) {
+    map.getCanvas().style.cursor = 'pointer';
+    const f = e.features[0];
+    if (!f) return;
+    const id = f.id ?? f.properties._gvid;
+
+    const props = { ...f.properties };
+    delete props._gvid;
+
+    const entries = Object.entries(props).filter(([k, v]) => v !== null && v !== undefined && v !== '');
+    if (!entries.length) return;
+
+    const rows = entries.map(([k, v]) =>
+        `<div class="popup-row"><span class="popup-key">${k}</span><span class="popup-val">${v}</span></div>`
+    ).join('');
+
+    popup.setLngLat(e.lngLat)
+        .setHTML(`<div class="popup-inner">${rows}</div>`)
+        .addTo(map);
+}
+
+function onMouseLeave() {
+    map.getCanvas().style.cursor = '';
+    popup.remove();
+}
+
+// ── CLICK / SELECT ──
+function onFeatureClick(e) {
+    const f = e.features[0];
+    if (!f) return;
+    const id = f.id ?? f.properties._gvid;
+
+    if (selectedIds.has(id)) {
+        selectedIds.delete(id);
+        map.setFeatureState({ source: 'geojson-data', id }, { selected: false });
+    } else {
+        selectedIds.add(id);
+        map.setFeatureState({ source: 'geojson-data', id }, { selected: true });
+    }
+    updateSelectionBar();
+}
+
+function updateSelectionBar() {
+    const bar = document.getElementById('selection-bar');
+    document.getElementById('sel-num').textContent = selectedIds.size;
+    bar.classList.toggle('visible', selectedIds.size > 0);
+}
+
+document.getElementById('clear-btn').addEventListener('click', () => {
+    selectedIds.forEach(id => {
+        map.setFeatureState({ source: 'geojson-data', id }, { selected: false });
+    });
+    selectedIds.clear();
+    updateSelectionBar();
+});
+
+document.getElementById('save-btn').addEventListener('click', () => {
+    const features = allFeatures
+        .filter(f => selectedIds.has(f.properties._gvid))
+        .map(f => {
+            const props = { ...f.properties };
+            delete props._gvid;
+            return { ...f, id: undefined, properties: props };
+        });
+
+    const fc = { type: 'FeatureCollection', features };
+    const blob = new Blob([JSON.stringify(fc, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'selection.geojson';
+    a.click();
+    URL.revokeObjectURL(url);
+});
+
+// ── SIDEBAR ──
+function buildSidebar(filename) {
+    const propKeys = new Set();
+    allFeatures.forEach(f => {
+        Object.keys(f.properties || {}).forEach(k => {
+            if (k !== '_gvid') propKeys.add(k);
+        });
+    });
+
+    document.getElementById('sidebar-subtitle').textContent =
+        `${allFeatures.length} features · ${propKeys.size} props`;
+
+    const list = document.getElementById('props-list');
+    list.innerHTML = '';
+
+    propKeys.forEach(key => {
+        // Gather values + counts
+        const valueCounts = {};
+        allFeatures.forEach(f => {
+            const v = f.properties[key];
+            if (v !== null && v !== undefined && v !== '') {
+                const vs = String(v);
+                valueCounts[vs] = (valueCounts[vs] || 0) + 1;
+            }
+        });
+
+        const sortedValues = Object.entries(valueCounts).sort((a, b) => b[1] - a[1]);
+
+        const propEl = document.createElement('div');
+        propEl.className = 'prop-item';
+        propEl.innerHTML = `<span class="prop-name">${key}</span><span class="prop-arrow">▶</span>`;
+
+        const valuesEl = document.createElement('div');
+        valuesEl.className = 'values-panel';
+
+        sortedValues.forEach(([val, count]) => {
+            const vi = document.createElement('div');
+            vi.className = 'value-item';
+            vi.innerHTML = `<span class="value-text">${val}</span><span class="value-count">${count}</span>`;
+            vi.addEventListener('click', e => {
+                e.stopPropagation();
+
+                // Toggle filter
+                if (activeFilterProp === key && activeFilterValue === val) {
+                    clearFilter();
+                    vi.classList.remove('active');
+                } else {
+                    clearFilter();
+                    activeFilterProp = key;
+                    activeFilterValue = val;
+                    vi.classList.add('active');
+                    applyFilter(key, val);
+                }
+            });
+            valuesEl.appendChild(vi);
+        });
+
+        propEl.addEventListener('click', () => {
+            const isOpen = valuesEl.classList.contains('open');
+            // Close all others
+            list.querySelectorAll('.values-panel.open').forEach(v => v.classList.remove('open'));
+            list.querySelectorAll('.prop-item.active').forEach(p => p.classList.remove('active'));
+            if (!isOpen) {
+                valuesEl.classList.add('open');
+                propEl.classList.add('active');
+            }
+        });
+
+        list.appendChild(propEl);
+        list.appendChild(valuesEl);
+    });
+}
+
+function applyFilter(key, value) {
+    // Clear old filter highlights
+    highlightedFilterIds.forEach(id => {
+        map.setFeatureState({ source: 'geojson-data', id }, { filtered: false });
+    });
+    highlightedFilterIds.clear();
+
+    allFeatures.forEach(f => {
+        if (String(f.properties[key]) === String(value)) {
+            const id = f.properties._gvid;
+            map.setFeatureState({ source: 'geojson-data', id }, { filtered: true });
+            highlightedFilterIds.add(id);
+        }
+    });
+}
+
+function clearFilter() {
+    highlightedFilterIds.forEach(id => {
+        map.setFeatureState({ source: 'geojson-data', id }, { filtered: false });
+    });
+    highlightedFilterIds.clear();
+    activeFilterProp = null;
+    activeFilterValue = null;
+}
+</script>
+</body>
+</html>
 
