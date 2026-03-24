@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GeoJSON Viewer</title>
+    <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.css' />
+    <script src='https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.js'></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0f0f11;
+            --surface: #1a1a1f;
+            --surface2: #22222a;
+            --border: #2e2e38;
+            --accent: #6ee7b7;
+            --red: #ff4d6d;
+            --yellow: #fbbf24;
+            --text: #e8e8f0;
+            --text-muted: #6b6b80;
+            --text-dim: #9999b0;
+            --mono: 'DM Mono', monospace;
+            --sans: 'DM Sans', sans-serif;
+        }
+
+        body { margin: 0; padding: 0; background: var(--bg); font-family: var(--sans); color: var(--text); }
+        html, body, #map { height: 100%; }
+
+        /* ── SIDEBAR ── */
+        #sidebar {
+            position: absolute;
+            top: 12px; left: 12px;
+            width: 290px;
+            max-height: calc(100vh - 100px);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        #sidebar-header {
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        #sidebar-header-top {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        #sidebar-header h2 {
+            font-size: 13px; font-weight: 600;
+            letter-spacing: 0.12em; text-transform: uppercase;
+            color: var(--accent);
+        }
+
+        #sidebar-subtitle {
+            font-size: 13px; color: var(--text-muted); margin-bottom: 8px;
+        }
+
+        #sort-controls { display: flex; gap: 4px; }
+
+        .sort-btn {
+            background: var(--surface2); border: 1px solid var(--border);
+            color: var(--text-muted); font-family: var(--sans); font-size: 10px;
+            padding: 3px 8px; border-radius: 4px; cursor: pointer; transition: all 0.15s;
+        }
+        .sort-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(110,231,183,0.08); }
+        .sort-btn:hover:not(.active) { color: var(--text); border-color: var(--text-muted); }
+
+        /* Search */
+        #prop-search-wrap { position: relative; margin-bottom: 8px; }
+        #prop-search {
+            width: 100%; background: var(--bg); border: 1px solid var(--border);
+            color: var(--text); font-family: var(--mono); font-size: 12px;
+            padding: 6px 10px 6px 28px; border-radius: 6px; outline: none;
+            transition: border-color 0.15s;
+        }
+        #prop-search:focus { border-color: var(--accent); }
+        #prop-search::placeholder { color: var(--text-muted); }
+        #prop-search-icon {
+            position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+            font-size: 11px; color: var(--text-muted); pointer-events: none;
+        }
+
+        /* Geometry filter */
+        #geom-filter { display: flex; gap: 10px; padding: 2px 0 4px; }
+        .geom-check-label {
+            display: flex; align-items: center; gap: 5px;
+            font-size: 12px; color: var(--text-muted); cursor: pointer;
+            user-select: none; transition: color 0.15s;
+        }
+        .geom-check-label:hover { color: var(--text); }
+        .geom-check-label input[type=checkbox] { accent-color: var(--accent); width: 13px; height: 13px; cursor: pointer; }
+        .geom-check-label.active { color: var(--accent); }
+
+        /* Props list */
+        #props-list { overflow-y: auto; flex: 1; }
+        #props-list::-webkit-scrollbar { width: 4px; }
+        #props-list::-webkit-scrollbar-track { background: transparent; }
+        #props-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .prop-item {
+            padding: 8px 12px 8px 10px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+            display: grid;
+            grid-template-columns: 22px 1fr auto;
+            align-items: center;
+            gap: 6px;
+        }
+        .prop-item:hover { background: var(--surface2); }
+        .prop-item.open { background: rgba(110,231,183,0.07); }
+
+        .label-cb { display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .label-cb input[type=checkbox] { accent-color: var(--accent); width: 13px; height: 13px; cursor: pointer; }
+
+        .prop-name-btn { display: flex; align-items: center; gap: 6px; cursor: pointer; min-width: 0; }
+        .prop-name {
+            font-family: var(--mono); font-size: 13px; color: var(--text);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            transition: color 0.15s;
+        }
+        .prop-item.has-highlight .prop-name { color: var(--accent); }
+        .prop-item.has-filter .prop-name { color: var(--yellow); }
+
+        .prop-meta { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+        .prop-count-badge {
+            font-size: 10px; color: var(--text-muted);
+            background: var(--surface2); padding: 1px 5px; border-radius: 3px;
+        }
+        .prop-arrow { font-size: 10px; color: var(--text-muted); transition: transform 0.2s; cursor: pointer; }
+        .prop-item.open .prop-arrow { transform: rotate(90deg); color: var(--accent); }
+
+        .values-panel {
+            background: var(--bg); border-bottom: 1px solid var(--border);
+            max-height: 180px; overflow-y: auto; display: none;
+        }
+        .values-panel.open { display: block; }
+        .values-panel::-webkit-scrollbar { width: 3px; }
+        .values-panel::-webkit-scrollbar-thumb { background: var(--border); }
+
+        .value-item {
+            padding: 7px 14px 7px 38px; font-family: var(--mono); font-size: 12px;
+            color: var(--text-dim); cursor: pointer;
+            display: flex; align-items: center; justify-content: space-between; gap: 6px;
+            transition: background 0.1s, color 0.1s;
+            border-bottom: 1px solid rgba(46,46,56,0.4);
+        }
+        .value-item:hover { background: var(--surface2); color: var(--text); }
+        .value-item.state-highlight { color: var(--accent); background: rgba(110,231,183,0.06); }
+        .value-item.state-filter    { color: var(--yellow); background: rgba(251,191,36,0.06); }
+
+        .value-count {
+            font-size: 10px; color: var(--text-muted);
+            background: var(--surface); padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+        }
+        .value-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        #sidebar-empty {
+            padding: 24px 16px; text-align: center;
+            color: var(--text-muted); font-size: 13px; line-height: 1.6;
+        }
+
+        /* ── DROP OVERLAY ──
+           Fix: pointer-events always on so drops register; visibility via opacity only.
+           The overlay itself is the drop target — no child element interference. */
+        #drop-overlay {
+            position: fixed; inset: 0;
+            background: rgba(15,15,17,0.88);
+            z-index: 1000;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0;
+            transition: opacity 0.15s;
+            /* pointer-events always on so the overlay catches dragover/drop */
+            pointer-events: none;
+        }
+        #drop-overlay.dragging {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .drop-box {
+            border: 2px dashed var(--accent); border-radius: 16px;
+            padding: 48px 64px; text-align: center; color: var(--accent);
+            pointer-events: none; /* don't let child steal events */
+        }
+        .drop-box .icon { font-size: 40px; margin-bottom: 12px; }
+        .drop-box h3 { font-size: 20px; font-weight: 500; margin-bottom: 6px; }
+        .drop-box p { font-size: 15px; color: var(--text-muted); }
+
+        /* ── UPLOAD BUTTON ── */
+        #upload-btn {
+            position: absolute; top: 12px; right: 52px; z-index: 10;
+            background: var(--surface); border: 1px solid var(--border);
+            color: var(--text); font-family: var(--sans); font-size: 14px; font-weight: 500;
+            padding: 8px 14px; border-radius: 8px; cursor: pointer;
+            display: flex; align-items: center; gap: 6px;
+            transition: background 0.15s, border-color 0.15s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        #upload-btn:hover { background: var(--surface2); border-color: var(--accent); color: var(--accent); }
+
+        /* ── POPUP ── */
+        .maplibregl-popup-content {
+            background: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 10px !important;
+            padding: 0 !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+            min-width: 220px; max-width: 340px;
+            font-family: var(--sans) !important;
+            color: var(--text) !important;
+            overflow: hidden;
+        }
+        .maplibregl-popup-tip { display: none !important; }
+
+        .popup-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 12px 6px; border-bottom: 1px solid var(--border);
+            background: var(--surface2);
+        }
+        .popup-header-label {
+            font-size: 11px; font-weight: 600;
+            letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted);
+        }
+        .popup-close-btn {
+            background: none; border: none; color: var(--text-muted);
+            font-size: 14px; cursor: pointer; padding: 0 2px; line-height: 1;
+            transition: color 0.1s;
+        }
+        .popup-close-btn:hover { color: var(--text); }
+
+        .popup-inner { max-height: 300px; overflow-y: auto; }
+        .popup-inner::-webkit-scrollbar { width: 4px; }
+        .popup-inner::-webkit-scrollbar-track { background: transparent; }
+        .popup-inner::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .popup-row {
+            display: flex; align-items: baseline; gap: 8px;
+            padding: 7px 12px; border-bottom: 1px solid var(--border);
+            cursor: pointer; transition: background 0.1s;
+        }
+        .popup-row:last-child { border-bottom: none; }
+        .popup-row:hover { background: var(--surface2); }
+        .popup-row.state-highlight { background: rgba(110,231,183,0.07); }
+        .popup-row.state-highlight .popup-val { color: var(--accent); }
+        .popup-row.state-filter { background: rgba(251,191,36,0.07); }
+        .popup-row.state-filter .popup-val { color: var(--yellow); }
+        .popup-row.no-click { cursor: default; }
+        .popup-row.no-click:hover { background: transparent; }
+
+        .popup-key {
+            font-family: var(--mono); font-size: 12px;
+            color: var(--text-muted); min-width: 90px; flex-shrink: 0;
+        }
+        .popup-val { font-size: 13px; color: var(--text); word-break: break-word; transition: color 0.1s; }
+        .popup-hint {
+            padding: 6px 12px; font-size: 11px; color: var(--text-muted);
+            border-top: 1px solid var(--border); text-align: center; background: var(--surface2);
+        }
+
+        /* ── SELECTION BAR ── */
+        #selection-bar {
+            position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+            z-index: 10; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 10px 16px;
+            display: flex; align-items: center; gap: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            transition: opacity 0.2s, transform 0.2s;
+            opacity: 0; pointer-events: none;
+            transform: translateX(-50%) translateY(8px);
+            white-space: nowrap;
+        }
+        #selection-bar.visible { opacity: 1; pointer-events: all; transform: translateX(-50%) translateY(0); }
+
+        #selection-count { font-size: 15px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+        #selection-count .num { font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--red); line-height: 1; }
+        #selection-count .label { font-size: 13px; color: var(--text-muted); line-height: 1.3; }
+        .sel-divider { width: 1px; height: 28px; background: var(--border); }
+
+        #clear-btn {
+            background: none; border: 1px solid var(--border); color: var(--text-muted);
+            font-family: var(--sans); font-size: 13px; padding: 5px 10px;
+            border-radius: 6px; cursor: pointer; transition: all 0.15s;
+        }
+        #clear-btn:hover { border-color: var(--text-muted); color: var(--text); }
+
+        #save-btn {
+            background: var(--red); border: none; color: white;
+            font-family: var(--sans); font-size: 14px; font-weight: 600;
+            padding: 7px 16px; border-radius: 7px; cursor: pointer;
+            transition: opacity 0.15s, transform 0.1s; letter-spacing: 0.02em;
+        }
+        #save-btn:hover { opacity: 0.85; }
+        #save-btn:active { transform: scale(0.97); }
+
+        /* ── MAPLIBRE OVERRIDES ── */
+        .maplibregl-ctrl-top-right { top: 12px; right: 12px; }
+        .maplibregl-ctrl-group {
+            background: var(--surface) !important; border: 1px solid var(--border) !important;
+            border-radius: 8px !important; overflow: hidden;
+        }
+        .maplibregl-ctrl-group button { background: var(--surface) !important; }
+        .maplibregl-ctrl-group button:hover { background: var(--surface2) !important; }
+
+        #file-input { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- FIX 3: Drop overlay is fixed/full-screen, children have pointer-events:none -->
+<div id="drop-overlay">
+    <div class="drop-box">
+        <div class="icon">⬇</div>
+        <h3>Drop GeoJSON file</h3>
+        <p>.geojson or .geojsonl accepted</p>
+    </div>
+</div>
+
+<div id="sidebar">
+    <div id="sidebar-header">
+        <div id="sidebar-header-top">
+            <h2>Properties</h2>
+            <div id="sort-controls">
+                <button class="sort-btn active" id="sort-count-btn"># Count</button>
+                <button class="sort-btn" id="sort-alpha-btn">A–Z</button>
+            </div>
+        </div>
+        <p id="sidebar-subtitle">No file loaded</p>
+        <div id="prop-search-wrap">
+            <span id="prop-search-icon">⌕</span>
+            <input type="text" id="prop-search" placeholder="Filter properties…">
+        </div>
+        <div id="geom-filter">
+            <label class="geom-check-label active" id="lbl-point">
+                <input type="checkbox" id="chk-point" checked> ● Points
+            </label>
+            <label class="geom-check-label active" id="lbl-line">
+                <input type="checkbox" id="chk-line" checked> ╱ Lines
+            </label>
+            <label class="geom-check-label active" id="lbl-poly">
+                <input type="checkbox" id="chk-poly" checked> ▭ Polygons
+            </label>
+        </div>
+    </div>
+    <div id="props-list">
+        <div id="sidebar-empty">Upload a GeoJSON file to explore properties and filter features.</div>
+    </div>
+</div>
+
+<button id="upload-btn" onclick="document.getElementById('file-input').click()">
+    ↑ Upload GeoJSON
+</button>
+<input type="file" id="file-input" accept=".geojson,.json,.geojsonl">
+
+<div id="selection-bar">
+    <div id="selection-count">
+        <div class="num" id="sel-num">0</div>
+        <div class="label">features<br>selected</div>
+    </div>
+    <div class="sel-divider"></div>
+    <button id="clear-btn">Clear</button>
+    <button id="save-btn">⬇ Save GeoJSON</button>
+</div>
+
+<script>
+const styleUrl = 'https://api.protomaps.com/styles/v5/white/en.json?key=ffc24a4325d458ce';
+
+const map = new maplibregl.Map({
+    container: 'map',
+    style: styleUrl,
+    center: [0, 20],
+    zoom: 2
+});
+
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+// ── STATE ──
+let allFeatures = [];
+let selectedIds = new Set();
+let activeFilter = null;
+let highlightedIds = new Set();
+let hiddenIds = new Set();
+
+// FIX 2: single persistent popup instance for hover, updated in place
+let hoverPopup = new maplibregl.Popup({
+    closeButton: false,
+    closeOnClick: false,
+    offset: 12,
+    className: 'hover-popup'
+});
+let lastHoveredId = null;   // track to avoid redundant updates
+
+let frozenPopup = null;
+let frozenFeatureProps = null;
+let popupRowStates = {};
+
+let sortMode = 'count';
+let propData = {};
+let openPropKey = null;
+let labelProps = new Set();
+let geomVisible = { point: true, line: true, poly: true };
+
+// ── DRAG & DROP (FIX 3) ──
+// Use a drag counter to handle enter/leave across child elements reliably
+const dropOverlay = document.getElementById('drop-overlay');
+let dragDepth = 0;
+
+document.addEventListener('dragenter', e => {
+    e.preventDefault();
+    dragDepth++;
+    if (dragDepth === 1) dropOverlay.classList.add('dragging');
+});
+
+document.addEventListener('dragleave', e => {
+    dragDepth--;
+    if (dragDepth <= 0) { dragDepth = 0; dropOverlay.classList.remove('dragging'); }
+});
+
+document.addEventListener('dragover', e => {
+    e.preventDefault(); // required to allow drop
+});
+
+document.addEventListener('drop', e => {
+    e.preventDefault();
+    dragDepth = 0;
+    dropOverlay.classList.remove('dragging');
+    const file = e.dataTransfer.files[0];
+    if (file) loadFile(file);
+});
+
+document.getElementById('file-input').addEventListener('change', e => {
+    if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+
+// ── FILE LOADING ──
+function loadFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+        const text = e.target.result;
+        let geojson;
+        try { geojson = JSON.parse(text); } catch {
+            const lines = text.trim().split('\n').filter(l => l.trim());
+            const features = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+            if (features.length) geojson = { type: 'FeatureCollection', features };
+        }
+        if (!geojson) return alert('Could not parse file.');
+        if (geojson.type === 'Feature') geojson = { type: 'FeatureCollection', features: [geojson] };
+        ingestGeoJSON(geojson, file.name);
+    };
+    reader.readAsText(file);
+}
+
+function ingestGeoJSON(geojson, filename) {
+    allFeatures = geojson.features.map((f, i) => ({
+        ...f, id: i,
+        properties: { ...f.properties, _gvid: i }
+    }));
+
+    selectedIds.clear(); highlightedIds.clear(); hiddenIds.clear();
+    activeFilter = null; popupRowStates = {}; openPropKey = null; labelProps.clear();
+    lastHoveredId = null;
+    if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
+    hoverPopup.remove();
+    updateSelectionBar();
+
+    const fc = { type: 'FeatureCollection', features: allFeatures };
+
+    if (map.getSource('geojson-data')) {
+        map.getSource('geojson-data').setData(fc);
+        if (map.getLayer('gv-labels')) map.removeLayer('gv-labels');
+    } else {
+        map.addSource('geojson-data', { type: 'geojson', data: fc, promoteId: '_gvid' });
+
+        const colorExpr = ['case',
+            ['boolean', ['feature-state', 'selected'],    false], '#ff4d6d',
+            ['boolean', ['feature-state', 'filtered'],    false], '#fbbf24',
+            ['boolean', ['feature-state', 'highlighted'], false], '#6ee7b7',
+            '#3b82f6'];
+
+        const visExpr = ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1];
+
+        map.addLayer({
+            id: 'gv-fill', type: 'fill', source: 'geojson-data',
+            filter: ['==', ['geometry-type'], 'Polygon'],
+            paint: {
+                'fill-color': colorExpr,
+                'fill-opacity': ['case',
+                    ['boolean', ['feature-state', 'hidden'],      false], 0,
+                    ['boolean', ['feature-state', 'selected'],    false], 0.6,
+                    ['boolean', ['feature-state', 'filtered'],    false], 0.5,
+                    ['boolean', ['feature-state', 'highlighted'], false], 0.35,
+                    0.3]
+            }
+        });
+
+        map.addLayer({
+            id: 'gv-outline', type: 'line', source: 'geojson-data',
+            filter: ['==', ['geometry-type'], 'Polygon'],
+            paint: {
+                'line-color': colorExpr, 'line-opacity': visExpr,
+                'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 2, 1]
+            }
+        });
+
+        map.addLayer({
+            id: 'gv-line', type: 'line', source: 'geojson-data',
+            filter: ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]],
+            paint: { 'line-color': colorExpr, 'line-width': 2, 'line-opacity': visExpr }
+        });
+
+        map.addLayer({
+            id: 'gv-point', type: 'circle', source: 'geojson-data',
+            filter: ['==', ['geometry-type'], 'Point'],
+            paint: {
+                'circle-color': ['case',
+                    ['boolean', ['feature-state', 'hidden'], false], 'rgba(0,0,0,0)',
+                    'rgba(255,255,255,0.20)'],
+                'circle-radius': 6,
+                'circle-stroke-color': ['case',
+                    ['boolean', ['feature-state', 'hidden'], false], 'rgba(0,0,0,0)',
+                    colorExpr],
+                'circle-stroke-width': 2
+            }
+        });
+
+        // FIX 4: label layer filters out hidden features
+        map.addLayer({
+            id: 'gv-labels', type: 'symbol', source: 'geojson-data',
+            filter: ['!=', ['boolean', ['feature-state', 'hidden'], false], true],
+            layout: {
+                'text-field': '',
+                'text-size': 11,
+                'text-offset': [0, 1.2],
+                'text-anchor': 'top',
+                'text-font': ['Noto Sans Regular'],
+                'text-allow-overlap': false,
+                'text-ignore-placement': false
+            },
+            paint: {
+                // FIX 1: swapped — dark text, light halo
+                'text-color': '#0f0f11',
+                'text-halo-color': '#e8e8f0',
+                'text-halo-width': 1.5
+            }
+        });
+
+        ['gv-fill', 'gv-line', 'gv-point'].forEach(lyr => {
+            map.on('mousemove', lyr, onMouseMove);
+            map.on('mouseleave', lyr, onMouseLeave);
+            map.on('click', lyr, onFeatureClick);
+        });
+        map.on('mousemove', 'gv-outline', onMouseMove);
+        map.on('mouseleave', 'gv-outline', onMouseLeave);
+    }
+
+    try {
+        const coords = [];
+        allFeatures.forEach(f => collectCoords(f.geometry, coords));
+        if (coords.length) {
+            const lngs = coords.map(c => c[0]), lats = coords.map(c => c[1]);
+            map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 40, maxZoom: 14 });
+        }
+    } catch {}
+
+    buildPropData();
+    renderSidebar();
+    applyGeomFilters();
+    updateLabels();
+    document.getElementById('sidebar-subtitle').textContent =
+        `${allFeatures.length} features · ${Object.keys(propData).length} props`;
+}
+
+function collectCoords(geom, out) {
+    if (!geom) return;
+    if (geom.type === 'Point') out.push(geom.coordinates);
+    else if (geom.type === 'LineString') geom.coordinates.forEach(c => out.push(c));
+    else if (geom.type === 'Polygon') geom.coordinates.forEach(ring => ring.forEach(c => out.push(c)));
+    else if (geom.type === 'MultiPolygon') geom.coordinates.forEach(poly => poly.forEach(ring => ring.forEach(c => out.push(c))));
+    else if (geom.type === 'MultiLineString') geom.coordinates.forEach(line => line.forEach(c => out.push(c)));
+    else if (geom.type === 'MultiPoint') geom.coordinates.forEach(c => out.push(c));
+}
+
+// ── PROP DATA ──
+function buildPropData() {
+    propData = {};
+    allFeatures.forEach(f => {
+        Object.entries(f.properties || {}).forEach(([k, v]) => {
+            if (k === '_gvid') return;
+            if (!propData[k]) propData[k] = { valueCounts: {}, totalWithValue: 0 };
+            if (v !== null && v !== undefined && v !== '') {
+                const vs = String(v);
+                if (!propData[k].valueCounts[vs]) { propData[k].valueCounts[vs] = 0; propData[k].totalWithValue++; }
+                propData[k].valueCounts[vs]++;
+            }
+        });
+    });
+}
+
+// ── GEOMETRY FILTER ──
+function geomTypeOf(f) {
+    const t = f.geometry && f.geometry.type;
+    if (!t) return null;
+    if (t === 'Point' || t === 'MultiPoint') return 'point';
+    if (t === 'LineString' || t === 'MultiLineString') return 'line';
+    if (t === 'Polygon' || t === 'MultiPolygon') return 'poly';
+    return null;
+}
+
+function applyGeomFilters() {
+    if (!map.getSource('geojson-data')) return;
+    allFeatures.forEach(f => {
+        const id = f.properties._gvid;
+        const gtype = geomTypeOf(f);
+        const geomHidden = gtype ? !geomVisible[gtype] : false;
+        const isValueHidden = hiddenIds.has(id);
+        map.setFeatureState({ source: 'geojson-data', id }, { hidden: geomHidden || isValueHidden });
+    });
+}
+
+['point', 'line', 'poly'].forEach(gtype => {
+    const chk = document.getElementById(`chk-${gtype}`);
+    const lbl = document.getElementById(`lbl-${gtype}`);
+    chk.addEventListener('change', () => {
+        geomVisible[gtype] = chk.checked;
+        lbl.classList.toggle('active', chk.checked);
+        applyGeomFilters();
+    });
+});
+
+// ── LABELS ──
+function updateLabels() {
+    if (!map.getLayer('gv-labels')) return;
+    if (labelProps.size === 0) { map.setLayoutProperty('gv-labels', 'text-field', ''); return; }
+    const parts = [...labelProps].map(key => ['coalesce', ['to-string', ['get', key]], '']);
+    let expr;
+    if (parts.length === 1) {
+        expr = parts[0];
+    } else {
+        const pieces = [];
+        parts.forEach((p, i) => {
+            if (i === 0) { pieces.push(p); }
+            else { pieces.push(['case', ['!=', p, ''], ['concat', '\n', p], '']); }
+        });
+        expr = ['concat', ...pieces];
+    }
+    map.setLayoutProperty('gv-labels', 'text-field', expr);
+}
+
+// ── SIDEBAR ──
+function getSortedKeys(filterStr) {
+    let keys = Object.keys(propData);
+    if (filterStr) { const q = filterStr.toLowerCase(); keys = keys.filter(k => k.toLowerCase().includes(q)); }
+    if (sortMode === 'alpha') keys.sort((a, b) => a.localeCompare(b));
+    else keys.sort((a, b) => propData[b].totalWithValue - propData[a].totalWithValue);
+    return keys;
+}
+
+function renderSidebar() {
+    const list = document.getElementById('props-list');
+    const searchVal = document.getElementById('prop-search').value.trim();
+    const keys = getSortedKeys(searchVal);
+    list.innerHTML = '';
+    if (!keys.length) { list.innerHTML = `<div id="sidebar-empty">No matching properties.</div>`; return; }
+
+    keys.forEach(key => {
+        const pd = propData[key];
+        const sortedValues = Object.entries(pd.valueCounts).sort((a, b) => b[1] - a[1]);
+        const isOpen = openPropKey === key;
+        const hasHighlight = activeFilter && activeFilter.prop === key && activeFilter.mode === 'highlight';
+        const hasFilter    = activeFilter && activeFilter.prop === key && activeFilter.mode === 'filter';
+        const isLabeled    = labelProps.has(key);
+
+        const propEl = document.createElement('div');
+        propEl.className = 'prop-item' +
+            (isOpen       ? ' open'         : '') +
+            (hasHighlight ? ' has-highlight' : '') +
+            (hasFilter    ? ' has-filter'    : '');
+
+        const cbWrap = document.createElement('span');
+        cbWrap.className = 'label-cb';
+        cbWrap.title = 'Show as label on map';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.checked = isLabeled;
+        cb.addEventListener('change', e => { e.stopPropagation(); if (cb.checked) labelProps.add(key); else labelProps.delete(key); updateLabels(); });
+        cb.addEventListener('click', e => e.stopPropagation());
+        cbWrap.appendChild(cb);
+
+        const nameBtn = document.createElement('span');
+        nameBtn.className = 'prop-name-btn';
+        nameBtn.innerHTML = `<span class="prop-name">${escHtml(key)}</span>`;
+        nameBtn.addEventListener('click', () => { openPropKey = (openPropKey === key) ? null : key; renderSidebar(); });
+
+        const metaEl = document.createElement('span');
+        metaEl.className = 'prop-meta';
+        metaEl.innerHTML = `<span class="prop-count-badge">${pd.totalWithValue}</span><span class="prop-arrow">▶</span>`;
+        metaEl.querySelector('.prop-arrow').addEventListener('click', () => { openPropKey = (openPropKey === key) ? null : key; renderSidebar(); });
+
+        propEl.appendChild(cbWrap);
+        propEl.appendChild(nameBtn);
+        propEl.appendChild(metaEl);
+
+        const valuesEl = document.createElement('div');
+        valuesEl.className = 'values-panel' + (isOpen ? ' open' : '');
+
+        sortedValues.forEach(([val, count]) => {
+            const vi = document.createElement('div');
+            let viState = 0;
+            if (activeFilter && activeFilter.prop === key && activeFilter.value === val)
+                viState = activeFilter.mode === 'highlight' ? 1 : 2;
+            vi.className = 'value-item' + (viState === 1 ? ' state-highlight' : viState === 2 ? ' state-filter' : '');
+            vi.innerHTML = `<span class="value-text">${escHtml(val)}</span><span class="value-count">${count}</span>`;
+            vi.addEventListener('click', e => { e.stopPropagation(); sidebarValueClick(key, val); });
+            valuesEl.appendChild(vi);
+        });
+
+        list.appendChild(propEl);
+        list.appendChild(valuesEl);
+    });
+}
+
+// ── VALUE CLICK: 3-STATE ──
+function sidebarValueClick(key, val) {
+    const isSame = activeFilter && activeFilter.prop === key && activeFilter.value === val;
+    const currentMode = isSame ? activeFilter.mode : null;
+    clearAllFilterStates();
+    if (!isSame || currentMode === null) {
+        activeFilter = { prop: key, value: val, mode: 'highlight' };
+        doHighlight(key, val);
+    } else if (currentMode === 'highlight') {
+        activeFilter = { prop: key, value: val, mode: 'filter' };
+        doFilterSelect(key, val);
+    } else {
+        activeFilter = null;
+    }
+    renderSidebar();
+    refreshFrozenPopup();
+}
+
+// ── HIGHLIGHT / FILTER ──
+function doHighlight(key, val) {
+    allFeatures.forEach(f => {
+        if (String(f.properties[key]) === String(val)) {
+            const id = f.properties._gvid;
+            map.setFeatureState({ source: 'geojson-data', id }, { highlighted: true });
+            highlightedIds.add(id);
+        }
+    });
+}
+
+function doFilterSelect(key, val) {
+    allFeatures.forEach(f => {
+        const id = f.properties._gvid;
+        const matches = String(f.properties[key]) === String(val);
+        const geomHidden = geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
+        if (matches) {
+            map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false, filtered: true, hidden: geomHidden });
+            selectedIds.add(id);
+        } else {
+            map.setFeatureState({ source: 'geojson-data', id }, { hidden: true });
+            hiddenIds.add(id);
+        }
+    });
+    highlightedIds.clear();
+    updateSelectionBar();
+}
+
+function clearAllFilterStates() {
+    highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
+    highlightedIds.clear();
+    if (activeFilter && activeFilter.mode === 'filter') {
+        const { prop, value } = activeFilter;
+        hiddenIds.forEach(id => {
+            const f = allFeatures[id];
+            const geomHidden = f && geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
+            map.setFeatureState({ source: 'geojson-data', id }, { hidden: geomHidden });
+        });
+        hiddenIds.clear();
+        allFeatures.forEach(f => {
+            if (String(f.properties[prop]) === String(value)) {
+                const id = f.properties._gvid;
+                map.setFeatureState({ source: 'geojson-data', id }, { filtered: false });
+                selectedIds.delete(id);
+            }
+        });
+        updateSelectionBar();
+    }
+}
+
+// ── HOVER POPUP (FIX 2) ──
+// Only update content when we move to a different feature; just reposition otherwise.
+// This prevents the popup from disappearing and reappearing between features.
+function onMouseMove(e) {
+    if (frozenPopup) return;
+    map.getCanvas().style.cursor = 'pointer';
+    const f = e.features[0]; if (!f) return;
+    const fid = f.properties._gvid;
+
+    if (fid !== lastHoveredId) {
+        lastHoveredId = fid;
+        const props = cleanProps(f.properties);
+        const entries = Object.entries(props).filter(([, v]) => v !== null && v !== undefined && v !== '');
+        if (!entries.length) { hoverPopup.remove(); return; }
+        const rows = entries.map(([k, v]) =>
+            `<div class="popup-row no-click"><span class="popup-key">${escHtml(k)}</span><span class="popup-val">${escHtml(String(v))}</span></div>`
+        ).join('');
+        hoverPopup.setHTML(`<div class="popup-inner">${rows}</div><div class="popup-hint">Click to pin &amp; interact</div>`);
+        hoverPopup.addTo(map);
+    }
+    hoverPopup.setLngLat(e.lngLat);
+}
+
+function onMouseLeave() {
+    if (!frozenPopup) map.getCanvas().style.cursor = '';
+    lastHoveredId = null;
+    hoverPopup.remove();
+}
+
+// ── CLICK: PIN POPUP + SELECT ──
+function onFeatureClick(e) {
+    e.preventDefault();
+    const f = e.features[0]; if (!f) return;
+    const id = f.id ?? f.properties._gvid;
+
+    if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; }
+
+    if (frozenFeatureProps && frozenFeatureProps._gvid === f.properties._gvid) {
+        frozenFeatureProps = null; popupRowStates = {};
+        if (selectedIds.has(id)) {
+            selectedIds.delete(id);
+            map.setFeatureState({ source: 'geojson-data', id }, { selected: false });
+        }
+        updateSelectionBar();
+        return;
+    }
+
+    frozenFeatureProps = null; popupRowStates = {};
+    if (!selectedIds.has(id)) {
+        selectedIds.add(id);
+        map.setFeatureState({ source: 'geojson-data', id }, { selected: true });
+        updateSelectionBar();
+    }
+
+    frozenFeatureProps = f.properties;
+    hoverPopup.remove(); lastHoveredId = null;
+    frozenPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 });
+    frozenPopup.setLngLat(e.lngLat).setHTML(buildFrozenHTML()).addTo(map);
+    setTimeout(() => attachFrozenEvents(), 50);
+}
+
+function cleanProps(raw) { const p = { ...raw }; delete p._gvid; return p; }
+
+function buildFrozenHTML() {
+    const props = cleanProps(frozenFeatureProps || {});
+    const entries = Object.entries(props).filter(([, v]) => v !== null && v !== undefined && v !== '');
+    const rows = entries.map(([k, v]) => {
+        const st = popupRowStates[k] || 0;
+        const cls = st === 1 ? ' state-highlight' : st === 2 ? ' state-filter' : '';
+        return `<div class="popup-row${cls}" data-key="${escHtml(k)}" data-val="${escHtml(String(v))}">
+            <span class="popup-key">${escHtml(k)}</span>
+            <span class="popup-val">${escHtml(String(v))}</span>
+        </div>`;
+    }).join('');
+    return `
+        <div class="popup-header">
+            <span class="popup-header-label">📌 Pinned Feature</span>
+            <button class="popup-close-btn" id="popup-close-x">✕</button>
+        </div>
+        <div class="popup-inner">${rows}</div>
+        <div class="popup-hint">1× highlight · 2× filter+select · 3× clear</div>`;
+}
+
+function attachFrozenEvents() {
+    const el = frozenPopup && frozenPopup.getElement(); if (!el) return;
+    el.querySelector('#popup-close-x')?.addEventListener('click', () => {
+        if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; popupRowStates = {}; }
+    });
+    el.querySelectorAll('.popup-row').forEach(row => {
+        row.addEventListener('click', ev => {
+            ev.stopPropagation();
+            const key = row.dataset.key, val = row.dataset.val;
+            const next = ((popupRowStates[key] || 0) + 1) % 3;
+            popupRowStates[key] = next;
+            clearAllFilterStates();
+            if (next === 1) { activeFilter = { prop: key, value: val, mode: 'highlight' }; doHighlight(key, val); }
+            else if (next === 2) { activeFilter = { prop: key, value: val, mode: 'filter' }; doFilterSelect(key, val); }
+            else { activeFilter = null; }
+            renderSidebar();
+            refreshFrozenPopup();
+        });
+    });
+}
+
+function refreshFrozenPopup() {
+    if (!frozenPopup || !frozenFeatureProps) return;
+    frozenPopup.setHTML(buildFrozenHTML());
+    setTimeout(() => attachFrozenEvents(), 50);
+}
+
+// ── SORT & SEARCH ──
+document.getElementById('sort-count-btn').addEventListener('click', () => {
+    sortMode = 'count';
+    document.getElementById('sort-count-btn').classList.add('active');
+    document.getElementById('sort-alpha-btn').classList.remove('active');
+    renderSidebar();
+});
+document.getElementById('sort-alpha-btn').addEventListener('click', () => {
+    sortMode = 'alpha';
+    document.getElementById('sort-alpha-btn').classList.add('active');
+    document.getElementById('sort-count-btn').classList.remove('active');
+    renderSidebar();
+});
+document.getElementById('prop-search').addEventListener('input', () => renderSidebar());
+
+// ── SELECTION BAR ──
+function updateSelectionBar() {
+    document.getElementById('sel-num').textContent = selectedIds.size;
+    document.getElementById('selection-bar').classList.toggle('visible', selectedIds.size > 0);
+}
+
+document.getElementById('clear-btn').addEventListener('click', () => {
+    selectedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { selected: false, filtered: false }));
+    selectedIds.clear();
+    clearAllFilterStates();
+    activeFilter = null; popupRowStates = {};
+    hiddenIds.forEach(id => {
+        const f = allFeatures[id];
+        const geomHidden = f && geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
+        map.setFeatureState({ source: 'geojson-data', id }, { hidden: geomHidden });
+    });
+    hiddenIds.clear();
+    updateSelectionBar();
+    renderSidebar();
+    refreshFrozenPopup();
+});
+
+document.getElementById('save-btn').addEventListener('click', () => {
+    const features = allFeatures
+        .filter(f => selectedIds.has(f.properties._gvid))
+        .map(f => { const p = { ...f.properties }; delete p._gvid; return { ...f, id: undefined, properties: p }; });
+    const blob = new Blob([JSON.stringify({ type: 'FeatureCollection', features }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'selection.geojson'; a.click();
+    URL.revokeObjectURL(url);
+});
+
+// ── UTILS ──
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
