@@ -1027,19 +1027,18 @@ function setupTileInteraction() {
     // Helper: zoom-interpolated line width — thin at low zoom, thicker at street level
     const zoomWidth = (thin, thick) => ['interpolate', ['linear'], ['zoom'], 10, thin, 16, thick];
 
-    // Casing layer — wide dark outline shown only when shift is held (sub-segment preview)
-    map.addLayer({ id: 'tile-hover-casing', type: 'line', source: 'tile-hover-overlay',
-        paint: { 'line-color': '#0f0f11', 'line-width': zoomWidth(7, 13), 'line-opacity': 0 }
-    });
-    map.addLayer({ id: 'tile-hover-line', type: 'line', source: 'tile-hover-overlay',
-        paint: { 'line-color': '#2dd4bf', 'line-width': zoomWidth(2, 5), 'line-opacity': 0.85 }
-    });
-    // Highlight overlay — blue base, updates per filter state
+    // Layer draw order matters: highlight (blue base) → select (magenta) → hover (teal, always on top)
     map.addLayer({ id: 'tile-highlight-line', type: 'line', source: 'tile-highlight-overlay',
         paint: { 'line-color': '#3b82f6', 'line-width': zoomWidth(1.5, 4), 'line-opacity': 0.85 }
     });
     map.addLayer({ id: 'tile-select-line', type: 'line', source: 'tile-select-overlay',
         paint: { 'line-color': '#e040fb', 'line-width': zoomWidth(2, 4), 'line-opacity': 0.9 }
+    });
+    map.addLayer({ id: 'tile-hover-casing', type: 'line', source: 'tile-hover-overlay',
+        paint: { 'line-color': '#0f0f11', 'line-width': zoomWidth(7, 13), 'line-opacity': 0 }
+    });
+    map.addLayer({ id: 'tile-hover-line', type: 'line', source: 'tile-hover-overlay',
+        paint: { 'line-color': '#2dd4bf', 'line-width': zoomWidth(2, 5), 'line-opacity': 0.85 }
     });
 
     // ── VIEWPORT FEATURE QUERY ──
@@ -1602,42 +1601,89 @@ geojsonBtn.addEventListener('click', async () => {
     if (!geojsonMenuLoaded) {
         geojsonMenuLoaded = true;
         geojsonMenu.innerHTML = '<div class="geojson-menu-item" style="color:var(--text-muted)">Loading…</div>';
+
+        const basePath = location.pathname.replace(/\/[^/]*$/, '') + '/geojson/';
+        console.log('[geojson menu] basePath:', basePath);
+
+        let files = [];
+
+        // Strategy 1: look for a files.json manifest in the geojson directory
         try {
-            const basePath = location.pathname.replace(/\/[^/]*$/, '') + '/geojson/';
-            console.log('[geojson menu] fetching', basePath);
-            const res = await fetch(basePath);
-            console.log('[geojson menu] response status:', res.status, res.statusText);
-            if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-            const html = await res.text();
-            console.log('[geojson menu] response length:', html.length, 'chars');
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const allLinks = [...doc.querySelectorAll('a[href]')].map(a => a.getAttribute('href'));
-            console.log('[geojson menu] all hrefs found:', allLinks);
-            const links = allLinks
-                .filter(h => /\.(geojson|json|geojsonl)$/i.test(h))
-                .map(h => h.replace(/^.*\//, ''));
-            console.log('[geojson menu] filtered files:', links);
-            if (links.length === 0) {
-                geojsonMenu.innerHTML = `<div class="geojson-menu-item" style="color:var(--text-muted)">No .geojson/.geojsonl files found at ${basePath}</div>`;
-            } else {
-                geojsonMenu.innerHTML = links.map(name =>
-                    `<div class="geojson-menu-item" data-name="${escHtml(name)}">${escHtml(name)}</div>`
-                ).join('');
-                geojsonMenu.querySelectorAll('.geojson-menu-item').forEach(item => {
-                    item.addEventListener('click', () => {
-                        geojsonMenu.classList.remove('open');
-                        closeWelcome();
-                        const url = basePath + item.dataset.name;
-                        console.log('[geojson menu] loading', url);
-                        document.getElementById('url-input').value = url;
-                        loadFromUrl();
-                    });
-                });
+            const r = await fetch(basePath + 'files.json');
+            if (r.ok) {
+                const json = await r.json();
+                if (Array.isArray(json)) {
+                    files = json.filter(f => /\.(geojson|json|geojsonl)$/i.test(f));
+                    console.log('[geojson menu] files.json found:', files);
+                }
             }
-        } catch (err) {
-            console.error('[geojson menu] error:', err);
-            geojsonMenu.innerHTML = `<div class="geojson-menu-item" style="color:var(--text-muted)">Error: ${escHtml(err.message)}</div>`;
+        } catch {}
+
+        // Strategy 2: GitHub Contents API (works for github.io pages)
+        if (!files.length) {
+            try {
+                // Derive repo/path from the URL
+                // e.g. burritojustice.github.io/maplibre/selecter → owner=burritojustice, repo=maplibre, path=selecter/geojson
+                const host = location.hostname; // e.g. burritojustice.github.io
+                const owner = host.split('.')[0];
+                const pathParts = location.pathname.replace(/\/[^/]*$/, '').split('/').filter(Boolean);
+                // pathParts[0] = repo, rest = subdirectory path
+                const repo = pathParts[0] || '';
+                const subPath = [...pathParts.slice(1), 'geojson'].join('/');
+                const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${subPath}`;
+                console.log('[geojson menu] trying GitHub API:', apiUrl);
+                const r = await fetch(apiUrl, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+                console.log('[geojson menu] GitHub API status:', r.status);
+                if (r.ok) {
+                    const entries = await r.json();
+                    if (Array.isArray(entries)) {
+                        files = entries
+                            .filter(e => e.type === 'file' && /\.(geojson|json|geojsonl)$/i.test(e.name))
+                            .map(e => e.name);
+                        console.log('[geojson menu] GitHub API files:', files);
+                    }
+                }
+            } catch (err) {
+                console.warn('[geojson menu] GitHub API failed:', err);
+            }
+        }
+
+        // Strategy 3: nginx/apache autoindex HTML parse
+        if (!files.length) {
+            try {
+                const r = await fetch(basePath);
+                console.log('[geojson menu] directory fetch status:', r.status);
+                if (r.ok) {
+                    const html = await r.text();
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const allHrefs = [...doc.querySelectorAll('a[href]')].map(a => a.getAttribute('href'));
+                    console.log('[geojson menu] directory hrefs:', allHrefs);
+                    files = allHrefs
+                        .filter(h => /\.(geojson|json|geojsonl)$/i.test(h))
+                        .map(h => h.replace(/^.*\//, ''));
+                    console.log('[geojson menu] directory files:', files);
+                }
+            } catch (err) {
+                console.warn('[geojson menu] directory listing failed:', err);
+            }
+        }
+
+        if (!files.length) {
+            geojsonMenu.innerHTML = `<div class="geojson-menu-item" style="color:var(--text-muted);font-size:11px;line-height:1.5;padding:10px 12px">No files found.<br>Add a <code>files.json</code> array to <code>geojson/</code></div>`;
+        } else {
+            geojsonMenu.innerHTML = files.map(name =>
+                `<div class="geojson-menu-item" data-name="${escHtml(name)}">${escHtml(name)}</div>`
+            ).join('');
+            geojsonMenu.querySelectorAll('.geojson-menu-item[data-name]').forEach(item => {
+                item.addEventListener('click', () => {
+                    geojsonMenu.classList.remove('open');
+                    closeWelcome();
+                    const url = basePath + item.dataset.name;
+                    console.log('[geojson menu] loading', url);
+                    document.getElementById('url-input').value = url;
+                    loadFromUrl();
+                });
+            });
         }
     }
 });
