@@ -1,0 +1,4447 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.50836484,
+            37.764795886
+          ],
+          [
+            -122.509360021,
+            37.764402954
+          ],
+          [
+            -122.509433585,
+            37.764231034
+          ],
+          [
+            -122.509402191,
+            37.764032735
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-3bei_4td2-2bdc",
+        ":version": "rv-a85k.8g9h-7ebp",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "1299",
+        "cnn": "11999000",
+        "streetname": "MARTIN LUTHER KING JR DR",
+        "from_st": "LINCOLN NORTH WY",
+        "to_st": "SUNSET TREATMENT",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": "Golden Gate Park Access and Safety Program",
+        "dir": "W",
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Martin Luther King Jr Dr",
+        "length": "0.08716023",
+        "number_": "34",
+        "install_yr": "2012",
+        "install_mo": null,
+        "update_yr": "2022",
+        "update_mo": "4",
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.510341319,
+            37.764000834
+          ],
+          [
+            -122.51029865,
+            37.763877221
+          ],
+          [
+            -122.509116381,
+            37.754706211
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-zief-gmmy-cdkv",
+        ":version": "rv-r6bg.tsu8~4v5f",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "4534",
+        "cnn": "6436101",
+        "streetname": "GREAT HWY HWY",
+        "from_st": "LINCOLN WY",
+        "to_st": "SLOAT BLVD",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": "Vehicle restriction only applies Fri - Sun",
+        "dir": "S",
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Great Hwy",
+        "length": "0.64464581",
+        "number_": "45",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "2020",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T14:33:32.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.396504487,
+            37.793097082
+          ],
+          [
+            -122.397383446,
+            37.792405521
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-uxmw.a4pe_s3f3",
+        ":version": "rv-r5bs.cr7u-68e8",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2722",
+        "cnn": "8739101",
+        "streetname": "MARKET ST",
+        "from_st": "MAIN ST",
+        "to_st": "DAVIS ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.06774218",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.459210521,
+            37.771232893
+          ],
+          [
+            -122.460037983,
+            37.77136784
+          ],
+          [
+            -122.461240953,
+            37.771545535
+          ],
+          [
+            -122.462095729,
+            37.771695113
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-v44p_vycf~8b6k",
+        ":version": "rv-zzy6~si5s-sag7",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3660",
+        "cnn": "3501000",
+        "streetname": "JOHN F KENNEDY DR",
+        "from_st": "34TH AV",
+        "to_st": "35TH AV",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "John F Kennedy Dr",
+        "length": "0.16115328",
+        "number_": "830",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.398264448,
+            37.791716058
+          ],
+          [
+            -122.399148599,
+            37.791016649
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-z92f_agqn.fgca",
+        ":version": "rv-jr5i_6v49.53fn",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "1448",
+        "cnn": "8741201",
+        "streetname": "MARKET ST",
+        "from_st": "FRONT ST",
+        "to_st": "BUSH ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.06832594",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.492914027,
+            37.766144395
+          ],
+          [
+            -122.493514516,
+            37.766261555
+          ],
+          [
+            -122.494516587,
+            37.766370724
+          ],
+          [
+            -122.495338873,
+            37.766428876
+          ],
+          [
+            -122.495783093,
+            37.766421355
+          ],
+          [
+            -122.496144801,
+            37.766361179
+          ],
+          [
+            -122.496382048,
+            37.766256779
+          ],
+          [
+            -122.496643644,
+            37.766092765
+          ],
+          [
+            -122.497659322,
+            37.765501576
+          ],
+          [
+            -122.498158984,
+            37.76526403
+          ],
+          [
+            -122.498354151,
+            37.765141592
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-emqa~h67r.w2d7",
+        ":version": "rv-79cr.f2cn-ujw5",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3496",
+        "cnn": "9007000",
+        "streetname": "MIDDLE DR",
+        "from_st": "METSON RD",
+        "to_st": "SOUTH DR",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": "E",
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Middle Dr",
+        "length": "0.32655277",
+        "number_": "34",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.450407506,
+            37.770519318
+          ],
+          [
+            -122.452055221,
+            37.770312753
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-5mgf-69ei~y2ns",
+        ":version": "rv-bbej~787a-ncwd",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3768",
+        "cnn": "10187000",
+        "streetname": "PAGE ST",
+        "from_st": "COLE ST",
+        "to_st": "SHRADER ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.09132472",
+        "number_": "32",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:04.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.419255606,
+            37.775147074
+          ],
+          [
+            -122.420254279,
+            37.774358675
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-xad7.z67g_8wir",
+        ":version": "rv-fn8b.v6aj_5iw7",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "936",
+        "cnn": "8755101",
+        "streetname": "MARKET ST",
+        "from_st": "VAN NESS AV",
+        "to_st": "12TH ST",
+        "facility_t": "CLASS IV",
+        "direct": "2W",
+        "surface_tr": "GREEN PAINT",
+        "barrier": "SAFE-HIT POSTS",
+        "notes": "Updated 2/2020, extended from half to full block",
+        "dir": "W",
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.07710659",
+        "number_": "50",
+        "install_yr": "2005",
+        "install_mo": null,
+        "update_yr": "2017",
+        "update_mo": "4",
+        "globalid": null,
+        "symbology": "SEPARATED BIKEWAY",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "YES",
+        "recommendation": "3",
+        "data_as_of": "2023-05-19T13:27:58.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.407339082,
+            37.784561781
+          ],
+          [
+            -122.408066546,
+            37.783991487
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-888k.zyd7-vx75",
+        ":version": "rv-i8cv~cjkc-wycq",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2518",
+        "cnn": "8747103",
+        "streetname": "MARKET ST",
+        "from_st": "ELLIS ST",
+        "to_st": "CYRIL MAGNIN CT",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.05596902",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.462114549,
+            37.771702016
+          ],
+          [
+            -122.463088877,
+            37.771933247
+          ],
+          [
+            -122.464156471,
+            37.772223673
+          ],
+          [
+            -122.464641061,
+            37.772344386
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-5mtv~rkhg_25dc",
+        ":version": "rv-hsqs-t67a_4zja",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "334",
+        "cnn": "3500000",
+        "streetname": "JOHN F KENNEDY DR",
+        "from_st": "33RD AV",
+        "to_st": "34TH AV",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "John F Kennedy Dr",
+        "length": "0.14526039",
+        "number_": "830",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.509116381,
+            37.754706211
+          ],
+          [
+            -122.506734369,
+            37.736221678
+          ],
+          [
+            -122.506697817,
+            37.735470092
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-6miz~4mit-6fk3",
+        ":version": "rv-xtbx~rwn7-vm56",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3000",
+        "cnn": "6436101",
+        "streetname": "GREAT HWY HWY",
+        "from_st": "LINCOLN WY",
+        "to_st": "SLOAT BLVD",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": "Vehicle restriction only applies Fri - Sun",
+        "dir": "S",
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Great Hwy",
+        "length": "1.33336049",
+        "number_": "75",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "2020",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T14:33:32.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.479463554,
+            37.769876967
+          ],
+          [
+            -122.479680123,
+            37.769926462
+          ],
+          [
+            -122.479788685,
+            37.76992733
+          ],
+          [
+            -122.479890036,
+            37.769912172
+          ],
+          [
+            -122.480306993,
+            37.769775996
+          ],
+          [
+            -122.48124593,
+            37.769499181
+          ],
+          [
+            -122.482524765,
+            37.769122454
+          ],
+          [
+            -122.483823139,
+            37.768715783
+          ],
+          [
+            -122.484203795,
+            37.768617879
+          ],
+          [
+            -122.484918935,
+            37.768471283
+          ],
+          [
+            -122.485411034,
+            37.768355351
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-hbc3-3rgh.imcw",
+        ":version": "rv-4fkc~di7x~i4ju",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "504",
+        "cnn": "10063000",
+        "streetname": "OVERLOOK DR",
+        "from_st": "TRANSVERSE DR",
+        "to_st": "MIDDLE DR",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": "E",
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Overlook Dr",
+        "length": "0.34498739",
+        "number_": "85",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.509402191,
+            37.764032735
+          ],
+          [
+            -122.509529067,
+            37.763979613
+          ],
+          [
+            -122.509833065,
+            37.763969287
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-72jj-ux3x_ccw5",
+        ":version": "rv-edjv~awih_qwfi",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2987",
+        "cnn": "8387101",
+        "streetname": "LINCOLN WY",
+        "from_st": "LA PLAYA ST",
+        "to_st": "LOWER GREAT HWY",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Lincoln Wy",
+        "length": "0.02451307",
+        "number_": "34",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.42570021,
+            37.77366623
+          ],
+          [
+            -122.427357436,
+            37.773455463
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-baga-vbd5-fzt3",
+        ":version": "rv-h2td-r282~mkhx",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2954",
+        "cnn": "10172000",
+        "streetname": "PAGE ST",
+        "from_st": "LAGUNA ST",
+        "to_st": "BUCHANAN ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": "E",
+        "double": "1",
+        "fy": "2016",
+        "qtr": "3",
+        "street_": "Page St",
+        "length": "0.09188069",
+        "number_": "45",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "2020",
+        "update_mo": "2",
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:07.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.452055221,
+            37.770312753
+          ],
+          [
+            -122.453593183,
+            37.770117077
+          ],
+          [
+            -122.453726228,
+            37.77009808
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-myjg~k8jf_rnah",
+        ":version": "rv-w9zw_sxxj-kiif",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2179",
+        "cnn": "10188000",
+        "streetname": "PAGE ST",
+        "from_st": "SHRADER ST",
+        "to_st": "STANYAN ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.09267366",
+        "number_": "32",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:03.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.466556339,
+            37.772422788
+          ],
+          [
+            -122.467536602,
+            37.772390107
+          ],
+          [
+            -122.467986367,
+            37.772344999
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-g6v7.g5ge~s5fa",
+        ":version": "rv-6384_n8g2-pjzu",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2469",
+        "cnn": "3497000",
+        "streetname": "JOHN F KENNEDY DR",
+        "from_st": "30TH AV",
+        "to_st": "31ST AV",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "John F Kennedy Dr",
+        "length": "0.078530070000000007",
+        "number_": "830",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.394747579,
+            37.794479718
+          ],
+          [
+            -122.393860769,
+            37.793772414
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-2pvz_u7z3.qn28",
+        ":version": "rv-yvdi_n2p2_e6zz",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "1190",
+        "cnn": "12158001",
+        "streetname": "STEUART ST",
+        "from_st": "MARKET ST",
+        "to_st": "DON CHEE WAY",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": "S",
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Steuart St",
+        "length": "0.06881274",
+        "number_": "50",
+        "install_yr": "2010",
+        "install_mo": null,
+        "update_yr": null,
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.473872474,
+            37.771085775
+          ],
+          [
+            -122.474051214,
+            37.771151968
+          ],
+          [
+            -122.475056941,
+            37.771521976
+          ],
+          [
+            -122.475310182,
+            37.771552906
+          ],
+          [
+            -122.475666977,
+            37.771577891
+          ],
+          [
+            -122.476129816,
+            37.771554651
+          ],
+          [
+            -122.476843495,
+            37.771425346
+          ],
+          [
+            -122.477578346,
+            37.771258822
+          ],
+          [
+            -122.478024738,
+            37.771098015
+          ],
+          [
+            -122.478978416,
+            37.770721262
+          ],
+          [
+            -122.479437611,
+            37.770528191
+          ],
+          [
+            -122.479677079,
+            37.770438919
+          ],
+          [
+            -122.479980755,
+            37.770337996
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-33rt-4hh7-529s",
+        ":version": "rv-sb8c-xniy.2jja",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "650",
+        "cnn": "3493000",
+        "streetname": "JOHN F KENNEDY DR",
+        "from_st": "26TH AV",
+        "to_st": "27TH AV",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "John F Kennedy Dr",
+        "length": "0.35853219000000003",
+        "number_": "830",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.410327704,
+            37.782202718
+          ],
+          [
+            -122.411625131,
+            37.781189627
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-uw74.2dai-aani",
+        ":version": "rv-be9w~7zqy~4swq",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2422",
+        "cnn": "8750201",
+        "streetname": "MARKET ST",
+        "from_st": "TAYLOR ST",
+        "to_st": "MC ALLISTER ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.09962724",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.509833065,
+            37.763969287
+          ],
+          [
+            -122.510205568,
+            37.763956633
+          ],
+          [
+            -122.510341319,
+            37.764000834
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-xu6x_8kfh~85pp",
+        ":version": "rv-eghb.cnkk_9gzn",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "4728",
+        "cnn": "8387102",
+        "streetname": "LINCOLN WY",
+        "from_st": "LOWER GREAT HWY",
+        "to_st": "GREAT HWY",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Lincoln Wy",
+        "length": "0.0284471",
+        "number_": "34",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.448767914,
+            37.770730884
+          ],
+          [
+            -122.450407506,
+            37.770519318
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-9p4r~re5k.8chs",
+        ":version": "rv-jd3g~4g6i_i2ps",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3346",
+        "cnn": "10186000",
+        "streetname": "PAGE ST",
+        "from_st": "CLAYTON ST",
+        "to_st": "COLE ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.09093994",
+        "number_": "32",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:07.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.433922188,
+            37.772620311
+          ],
+          [
+            -122.435563321,
+            37.77241793
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-w35x_kdna.74fx",
+        ":version": "rv-2adw.waz2_tn3y",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "1973",
+        "cnn": "10177000",
+        "streetname": "PAGE ST",
+        "from_st": "PIERCE ST",
+        "to_st": "SCOTT ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.09092156",
+        "number_": "32",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:03.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.41197236,
+            37.780902541
+          ],
+          [
+            -122.412512256,
+            37.780478512
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-c22p.8t84_498x",
+        ":version": "rv-upe6.z9ts-38af",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "1406",
+        "cnn": "8750203",
+        "streetname": "MARKET ST",
+        "from_st": "JONES ST",
+        "to_st": "CHARLES J BRENHAM PL",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.04157682",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.435563321,
+            37.77241793
+          ],
+          [
+            -122.437234932,
+            37.772203712
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-4vbt-5vkj-yc6x",
+        ":version": "rv-nv3j.xa4d.mnj2",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3071",
+        "cnn": "10178000",
+        "streetname": "PAGE ST",
+        "from_st": "SCOTT ST",
+        "to_st": "DIVISADERO ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.09269751",
+        "number_": "32",
+        "install_yr": "2004",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:04.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.408952159,
+            37.783287852
+          ],
+          [
+            -122.410292027,
+            37.782230574
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-txmd.skus_hdjd",
+        ":version": "rv-c7g8_zcbq_pndj",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3185",
+        "cnn": "8749101",
+        "streetname": "MARKET ST",
+        "from_st": "MASON ST",
+        "to_st": "TAYLOR ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.10342124",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.397383446,
+            37.792405521
+          ],
+          [
+            -122.398264448,
+            37.791716058
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-mf4r~n7ha_k4z3",
+        ":version": "rv-enrm.znte.z5kq",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "5202",
+        "cnn": "8740101",
+        "streetname": "MARKET ST",
+        "from_st": "DAVIS ST",
+        "to_st": "FRONT ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.06772027",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.456859197,
+            37.770907027
+          ],
+          [
+            -122.45797519,
+            37.771049317
+          ],
+          [
+            -122.458197481,
+            37.77107438
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-49pg_qm8q_sumc",
+        ":version": "rv-khm8-xmpc~bdvy",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3877",
+        "cnn": "7640000",
+        "streetname": "JOHN F KENNEDY DR",
+        "from_st": "5TH AV",
+        "to_st": "6TH AV",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": "W",
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "John F Kennedy Dr",
+        "length": "0.0741711",
+        "number_": "830",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.4471227,
+            37.770934641
+          ],
+          [
+            -122.448767914,
+            37.770730884
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-frs9.22t3~xin3",
+        ":version": "rv-p9se.cqsu~icdp",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2935",
+        "cnn": "10185000",
+        "streetname": "PAGE ST",
+        "from_st": "ASHBURY ST",
+        "to_st": "CLAYTON ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.09115893",
+        "number_": "55",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:07.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.395622922,
+            37.793779229
+          ],
+          [
+            -122.396302005,
+            37.79325635
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-7fmn-yge3~6ydy",
+        ":version": "rv-3cx8-mffd-x2qa",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3171",
+        "cnn": "8737102",
+        "streetname": "MARKET ST",
+        "from_st": "SPEAR ST",
+        "to_st": "DRUMM ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.051785740000000004",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.40206573,
+            37.788721152
+          ],
+          [
+            -122.402903099,
+            37.788085647
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-nq99.euvf~ebzh",
+        ":version": "rv-n3c6.pxed-wmjc",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3651",
+        "cnn": "8744201",
+        "streetname": "MARKET ST",
+        "from_st": "MONTGOMERY ST",
+        "to_st": "GEARY ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.06341599",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.423947062,
+            37.773889238
+          ],
+          [
+            -122.42570021,
+            37.77366623
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-64sy~xdb4_iprz",
+        ":version": "rv-zdp2~kgau_46h6",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "4569",
+        "cnn": "10171000",
+        "streetname": "PAGE ST",
+        "from_st": "OCTAVIA ST",
+        "to_st": "LAGUNA ST",
+        "facility_t": "CLASS II",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": "W",
+        "double": "0",
+        "fy": "2016",
+        "qtr": "3",
+        "street_": "Page St",
+        "length": "0.09719902",
+        "number_": "32",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "2020",
+        "update_mo": "2",
+        "globalid": null,
+        "symbology": "BIKE LANE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T16:21:58.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.408066546,
+            37.783991487
+          ],
+          [
+            -122.408952159,
+            37.783287852
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-9p3u~68qc~3cqp",
+        ":version": "rv-c6x8.tskf.za79",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "1704",
+        "cnn": "8748101",
+        "streetname": "MARKET ST",
+        "from_st": "CYRIL MAGNIN CT",
+        "to_st": "MASON ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.06859205",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.492914027,
+            37.766144395
+          ],
+          [
+            -122.492616796,
+            37.766174006
+          ],
+          [
+            -122.492381578,
+            37.766231806
+          ],
+          [
+            -122.491587996,
+            37.766518051
+          ],
+          [
+            -122.491115762,
+            37.766690758
+          ],
+          [
+            -122.49004869,
+            37.767182376
+          ],
+          [
+            -122.489029415,
+            37.76764229
+          ],
+          [
+            -122.488656998,
+            37.767787564
+          ],
+          [
+            -122.488329081,
+            37.767898625
+          ],
+          [
+            -122.487968048,
+            37.767984505
+          ],
+          [
+            -122.487580868,
+            37.768063104
+          ],
+          [
+            -122.487248259,
+            37.76812019
+          ],
+          [
+            -122.486731169,
+            37.768193254
+          ],
+          [
+            -122.48631101,
+            37.768251813
+          ],
+          [
+            -122.485696501,
+            37.768321366
+          ],
+          [
+            -122.485411034,
+            37.768355351
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-axfx_p46d.svcb",
+        ":version": "rv-d4n9-5fet.cmiu",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "4353",
+        "cnn": "9006000",
+        "streetname": "MIDDLE DR",
+        "from_st": "METSON RD",
+        "to_st": "OVERLOOK DR",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": "Golden Gate Park Access and Safety Program",
+        "dir": "E",
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Middle Dr",
+        "length": "0.44308491",
+        "number_": "65",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "2022",
+        "update_mo": "4",
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.428990052,
+            37.773247801
+          ],
+          [
+            -122.430629085,
+            37.773039299
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-skgx.abiz~hd56",
+        ":version": "rv-f3ka-t4bq~cgrg",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3290",
+        "cnn": "10174000",
+        "streetname": "PAGE ST",
+        "from_st": "WEBSTER ST",
+        "to_st": "FILLMORE ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.09087306",
+        "number_": "32",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:06.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.442187881,
+            37.771571038
+          ],
+          [
+            -122.443836149,
+            37.771358113
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-x36b-fp52_y9xu",
+        ":version": "rv-hrsr~yvy3.5dsj",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "4308",
+        "cnn": "10182000",
+        "streetname": "PAGE ST",
+        "from_st": "LYON ST",
+        "to_st": "CENTRAL AV",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.0914228",
+        "number_": "32",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:05.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.438899102,
+            37.771990424
+          ],
+          [
+            -122.44054621,
+            37.771779098
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-q9tv_32a2_jsek",
+        ":version": "rv-jhvg.irrr.6c63",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "1990",
+        "cnn": "10180000",
+        "streetname": "PAGE ST",
+        "from_st": "BRODERICK ST",
+        "to_st": "BAKER ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.09134196",
+        "number_": "40",
+        "install_yr": "2004",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:03.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.44054621,
+            37.771779098
+          ],
+          [
+            -122.442187881,
+            37.771571038
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-g6zx-q68d~fcxz",
+        ":version": "rv-iiyn~rq43~gcki",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "208",
+        "cnn": "10181000",
+        "streetname": "PAGE ST",
+        "from_st": "BAKER ST",
+        "to_st": "LYON ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.0910126",
+        "number_": "32",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:02.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.458197481,
+            37.77107438
+          ],
+          [
+            -122.458993057,
+            37.77120152
+          ],
+          [
+            -122.459187977,
+            37.771233267
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-j4wi~tjfw-h5wt",
+        ":version": "rv-n8yx-8n7y~cjug",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2205",
+        "cnn": "7533000",
+        "streetname": "JOHN F KENNEDY DR",
+        "from_st": "CONSERVATORY ACCESS RD",
+        "to_st": "NANCY PELOSI DR",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": "E",
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "John F Kennedy Dr",
+        "length": "0.05532189",
+        "number_": "830",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.394747579,
+            37.794479718
+          ],
+          [
+            -122.395622922,
+            37.793779229
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-g8uv~he9d.xp5w",
+        ":version": "rv-6ygt-4psy-kxcq",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "676",
+        "cnn": "8737101",
+        "streetname": "MARKET ST",
+        "from_st": "STEUART ST",
+        "to_st": "SPEAR ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.068037",
+        "number_": "30",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.443836149,
+            37.771358113
+          ],
+          [
+            -122.445535277,
+            37.771141933
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-rues~673c~cucw",
+        ":version": "rv-q8jq.aadp~zrph",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3028",
+        "cnn": "10183000",
+        "streetname": "PAGE ST",
+        "from_st": "CENTRAL AV",
+        "to_st": "MASONIC AV",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.09420761",
+        "number_": "32",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:07.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.412512256,
+            37.780478512
+          ],
+          [
+            -122.414741222,
+            37.77871943
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-usfs~qe23~fip3",
+        ":version": "rv-f95x_x2zf.wnpq",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "4670",
+        "cnn": "8751201",
+        "streetname": "MARKET ST",
+        "from_st": "CHARLES J BRENHAM PL",
+        "to_st": "LEAVENWORTH ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.17206317000000002",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.41868359,
+            37.775586569
+          ],
+          [
+            -122.419255606,
+            37.775147074
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-j2dr.yytf_fk4b",
+        ":version": "rv-q9dh~y6zy~upyi",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "395",
+        "cnn": "8754102",
+        "streetname": "MARKET ST",
+        "from_st": "11TH ST",
+        "to_st": "VAN NESS AV",
+        "facility_t": "CLASS II",
+        "direct": "2W",
+        "surface_tr": "GREEN PAINT",
+        "barrier": null,
+        "notes": null,
+        "dir": "W",
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.04358107",
+        "number_": "50",
+        "install_yr": "1971",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE LANE",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.507971417,
+            37.764937537
+          ],
+          [
+            -122.508302957,
+            37.764820453
+          ],
+          [
+            -122.50836484,
+            37.764795886
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-abyw_gvex.exnh",
+        ":version": "rv-m48a~msfz~su3e",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2216",
+        "cnn": "11998000",
+        "streetname": "MARTIN LUTHER KING JR DR",
+        "from_st": "UNNAMED #173",
+        "to_st": "SUNSET TREATMENT",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": "Golden Gate Park Access and Safety Program",
+        "dir": "W",
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Martin Luther King Jr Dr",
+        "length": "0.02365527",
+        "number_": "34",
+        "install_yr": "2012",
+        "install_mo": null,
+        "update_yr": "2022",
+        "update_mo": "4",
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:03.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.437234932,
+            37.772203712
+          ],
+          [
+            -122.438899102,
+            37.771990424
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-ubuw.57g5-ybwb",
+        ":version": "rv-twzh_cs48.ww4w",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2933",
+        "cnn": "10179000",
+        "streetname": "PAGE ST",
+        "from_st": "DIVISADERO ST",
+        "to_st": "BRODERICK ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.092285390000000009",
+        "number_": "32",
+        "install_yr": "2004",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:07.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.420254279,
+            37.774358675
+          ],
+          [
+            -122.420759893,
+            37.774294398
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-w98f_prtf-32eu",
+        ":version": "rv-35qd.5ugq_fpu6",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "6721",
+        "cnn": "10168000",
+        "streetname": "PAGE ST",
+        "from_st": "FRANKLIN ST",
+        "to_st": "MARKET ST",
+        "facility_t": "CLASS IV",
+        "direct": "2W",
+        "surface_tr": "GREEN PAINT",
+        "barrier": "SAFE-HIT POSTS",
+        "notes": null,
+        "dir": "E",
+        "double": "1",
+        "fy": null,
+        "qtr": null,
+        "street_": "Page St",
+        "length": "0.02803191",
+        "number_": null,
+        "install_yr": "2020",
+        "install_mo": "2",
+        "update_yr": null,
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "SEPARATED BIKEWAY",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "3",
+        "data_as_of": "2023-05-19T13:27:59.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.39249933,
+            37.793768814
+          ],
+          [
+            -122.393181332,
+            37.793230492
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-bvqv_bskj~uhfv",
+        ":version": "rv-qxhg~5es2.qe86",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2731",
+        "cnn": "9082000",
+        "streetname": "MISSION ST",
+        "from_st": "THE EMBARCADERO",
+        "to_st": "STEUART ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": "W",
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Mission St",
+        "length": "0.05264614",
+        "number_": "50",
+        "install_yr": "2010",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.432280109,
+            37.772829248
+          ],
+          [
+            -122.433922188,
+            37.772620311
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-q3zz~z73m.k6kp",
+        ":version": "rv-g76b.6uih-wzkf",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2373",
+        "cnn": "10176000",
+        "streetname": "PAGE ST",
+        "from_st": "STEINER ST",
+        "to_st": "PIERCE ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.09104295",
+        "number_": "32",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:03.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.467986056,
+            37.772345076
+          ],
+          [
+            -122.468241948,
+            37.772318369
+          ],
+          [
+            -122.468717256,
+            37.772254499
+          ],
+          [
+            -122.469086403,
+            37.772140912
+          ],
+          [
+            -122.469403398,
+            37.771974483
+          ],
+          [
+            -122.470358035,
+            37.771314676
+          ],
+          [
+            -122.470841765,
+            37.770978604
+          ],
+          [
+            -122.471339508,
+            37.770733619
+          ],
+          [
+            -122.471640831,
+            37.770614443
+          ],
+          [
+            -122.471944114,
+            37.770569086
+          ],
+          [
+            -122.472254618,
+            37.77057536
+          ],
+          [
+            -122.47264322,
+            37.770654127
+          ],
+          [
+            -122.473875683,
+            37.771084741
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-6xgs-mqwv-akb3",
+        ":version": "rv-ueau-xd4i.bdz9",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "4711",
+        "cnn": "3496000",
+        "streetname": "JOHN F KENNEDY DR",
+        "from_st": "29TH AV",
+        "to_st": "30TH AV",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "John F Kennedy Dr",
+        "length": "0.36756120000000003",
+        "number_": "830",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.411625131,
+            37.781189627
+          ],
+          [
+            -122.41197236,
+            37.780902541
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-xnaf~3euc.hjdu",
+        ":version": "rv-2cq6_2xpb.j7dp",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3569",
+        "cnn": "8750202",
+        "streetname": "MARKET ST",
+        "from_st": "MC ALLISTER ST",
+        "to_st": "JONES ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.0274461",
+        "number_": "2",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.402903099,
+            37.788085647
+          ],
+          [
+            -122.403430801,
+            37.787641848
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-8cbu_g8e7_da3k",
+        ":version": "rv-368e_et59.jkef",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "1946",
+        "cnn": "8744202",
+        "streetname": "MARKET ST",
+        "from_st": "GEARY ST",
+        "to_st": "KEARNY ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.042084130000000004",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.422407117,
+            37.774084975
+          ],
+          [
+            -122.423947062,
+            37.773889238
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-yvmh~mawu-are7",
+        ":version": "rv-5ytm-mvy4_nuy7",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "4218",
+        "cnn": "10170000",
+        "streetname": "PAGE ST",
+        "from_st": "GOUGH ST",
+        "to_st": "OCTAVIA ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": "E",
+        "double": "1",
+        "fy": null,
+        "qtr": null,
+        "street_": "Page St",
+        "length": "0.08537662",
+        "number_": "10",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": null,
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:07.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.396302005,
+            37.79325635
+          ],
+          [
+            -122.396504487,
+            37.793097082
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-etwy-gv96-n7nk",
+        ":version": "rv-tkpx_8da3_m396",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "4237",
+        "cnn": "8738201",
+        "streetname": "MARKET ST",
+        "from_st": "DRUMM ST",
+        "to_st": "MAIN ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.0156033",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.401375492,
+            37.789264323
+          ],
+          [
+            -122.40206573,
+            37.788721152
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-5rfn_w67w~xf5d",
+        ":version": "rv-xqt9.azzi.5ynw",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3975",
+        "cnn": "8743201",
+        "streetname": "MARKET ST",
+        "from_st": "2ND ST",
+        "to_st": "MONTGOMERY ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.053203230000000004",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.455544884,
+            37.770457972
+          ],
+          [
+            -122.455612992,
+            37.770587567
+          ],
+          [
+            -122.455660964,
+            37.770678846
+          ],
+          [
+            -122.455773067,
+            37.7707486
+          ],
+          [
+            -122.455950137,
+            37.770803505
+          ],
+          [
+            -122.456859197,
+            37.770907027
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-5tas_5ssc~vm82",
+        ":version": "rv-ugh5~rpp2.qp2x",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2207",
+        "cnn": "3504000",
+        "streetname": "JOHN F KENNEDY DR",
+        "from_st": "37TH AV",
+        "to_st": "38TH AV",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "John F Kennedy Dr",
+        "length": "0.08498799",
+        "number_": "75",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.404583317,
+            37.786730565
+          ],
+          [
+            -122.405831012,
+            37.785743989
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-9msz~2yc8.jnxy",
+        ":version": "rv-76pd~wx5q.774h",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2252",
+        "cnn": "8746201",
+        "streetname": "MARKET ST",
+        "from_st": "GRANT AV",
+        "to_st": "ELLIS ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.096403200000000008",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.479463554,
+            37.769876967
+          ],
+          [
+            -122.479895428,
+            37.770495879
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-2w35~7wsp~pzti",
+        ":version": "rv-fiq5-e5v6.fpyt",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "1783",
+        "cnn": "12674000",
+        "streetname": "TRANSVERSE DR",
+        "from_st": "OVERLOOK DR",
+        "to_st": "JOHN F KENNEDY DR",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": "N",
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Transverse Dr",
+        "length": "0.04879575",
+        "number_": "75",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "2016",
+        "update_mo": "4",
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "0",
+        "data_as_of": "2023-05-19T13:39:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.430629085,
+            37.773039299
+          ],
+          [
+            -122.432280109,
+            37.772829248
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-gbtg~jpqs_cj6k",
+        ":version": "rv-hxyy_54vb~6vt7",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2648",
+        "cnn": "10175000",
+        "streetname": "PAGE ST",
+        "from_st": "FILLMORE ST",
+        "to_st": "STEINER ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.09153838",
+        "number_": "32",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:06.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.405831012,
+            37.785743989
+          ],
+          [
+            -122.407339082,
+            37.784561781
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-wzgu_6ww3~ydix",
+        ":version": "rv-4k5f.jr4z-i94u",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "1512",
+        "cnn": "8747202",
+        "streetname": "MARKET ST",
+        "from_st": "ELLIS ST",
+        "to_st": "CYRIL MAGNIN CT",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.11602399000000001",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.403430801,
+            37.787641848
+          ],
+          [
+            -122.404583317,
+            37.786730565
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-97n2.fjnw-ih59",
+        ":version": "rv-jtzh.e9pt.dggp",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "571",
+        "cnn": "8745101",
+        "streetname": "MARKET ST",
+        "from_st": "KEARNY ST",
+        "to_st": "GRANT AV",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.08904701",
+        "number_": "23",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.420759893,
+            37.774294397
+          ],
+          [
+            -122.422407117,
+            37.774084975
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-aj8h_c9q8_u3an",
+        ":version": "rv-pd8d_xjye.qmhz",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "1884",
+        "cnn": "10169000",
+        "streetname": "PAGE ST",
+        "from_st": "FRANKLIN ST",
+        "to_st": "GOUGH ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": "W",
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.09132461",
+        "number_": "32",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:03.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.393860769,
+            37.793772414
+          ],
+          [
+            -122.393181333,
+            37.793230492
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-zm6t-hu9g~cs8z",
+        ":version": "rv-xmei-5wrv-anfa",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "1875",
+        "cnn": "12158002",
+        "streetname": "STEUART ST",
+        "from_st": "DON CHEE WAY",
+        "to_st": "MISSION ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": "N",
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Steuart St",
+        "length": "0.05272238",
+        "number_": "50",
+        "install_yr": "2010",
+        "install_mo": null,
+        "update_yr": null,
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.500857016,
+            37.764845907
+          ],
+          [
+            -122.502807375,
+            37.765199708
+          ],
+          [
+            -122.50285122,
+            37.765221841
+          ],
+          [
+            -122.504116888,
+            37.765525874
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-gtr8-bf6n.aiev",
+        ":version": "rv-r4f5-qrjw~nj4h",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3719",
+        "cnn": "11996000",
+        "streetname": "MARTIN LUTHER KING JR DR",
+        "from_st": "CHAIN OF LAKES ACCESS RD",
+        "to_st": "MCCLAINS BEND",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": "Golden Gate Park Access and Safety Program",
+        "dir": "E",
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Martin Luther King Jr Dr",
+        "length": "0.18477901",
+        "number_": "30",
+        "install_yr": "2012",
+        "install_mo": null,
+        "update_yr": "2022",
+        "update_mo": "4",
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.504116888,
+            37.765525874
+          ],
+          [
+            -122.505590685,
+            37.765475635
+          ],
+          [
+            -122.506005282,
+            37.765441428
+          ],
+          [
+            -122.506428919,
+            37.765379915
+          ],
+          [
+            -122.506803168,
+            37.765299847
+          ],
+          [
+            -122.507685859,
+            37.765040452
+          ],
+          [
+            -122.507971417,
+            37.764937537
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-ufk9-gein.qwnz",
+        ":version": "rv-jr87_tdhj_5s33",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "678",
+        "cnn": "11997000",
+        "streetname": "MARTIN LUTHER KING JR DR",
+        "from_st": "JOHN F KENNEDY DR",
+        "to_st": "UNNAMED #173",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": "Golden Gate Park Access and Safety Program",
+        "dir": "E",
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Martin Luther King Jr Dr",
+        "length": "0.21708971",
+        "number_": "234",
+        "install_yr": "2012",
+        "install_mo": null,
+        "update_yr": "2022",
+        "update_mo": "4",
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.445535277,
+            37.771141933
+          ],
+          [
+            -122.4471227,
+            37.770934641
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-jgab.sqeb~j37k",
+        ":version": "rv-7sk5.i6zr~rekd",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "4786",
+        "cnn": "10184000",
+        "streetname": "PAGE ST",
+        "from_st": "MASONIC AV",
+        "to_st": "ASHBURY ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.08807327",
+        "number_": "32",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:07.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.453726228,
+            37.77009808
+          ],
+          [
+            -122.454790466,
+            37.770383134
+          ],
+          [
+            -122.455264748,
+            37.770478532
+          ],
+          [
+            -122.455544884,
+            37.770457972
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-gzqz.6dfw~nqpw",
+        ":version": "rv-4mwb-wr3g-n2gi",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "1488",
+        "cnn": "0",
+        "streetname": null,
+        "from_st": null,
+        "to_st": null,
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": null,
+        "length": "0.10367868",
+        "number_": "2",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:03.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.414741222,
+            37.77871943
+          ],
+          [
+            -122.415925978,
+            37.777795113
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-x5hd_xu8c.d73q",
+        ":version": "rv-52qc.xt9r_p6fp",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "765",
+        "cnn": "8752201",
+        "streetname": "MARKET ST",
+        "from_st": "LEAVENWORTH ST",
+        "to_st": "HAYES ST",
+        "facility_t": "CLASS IV",
+        "direct": "2W",
+        "surface_tr": "GREEN PAINT",
+        "barrier": "SAFE-HIT POSTS",
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.09093908",
+        "number_": "25",
+        "install_yr": "2002",
+        "install_mo": null,
+        "update_yr": "2011",
+        "update_mo": "5",
+        "globalid": null,
+        "symbology": "SEPARATED BIKEWAY",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "N/A",
+        "recommendation": "3",
+        "data_as_of": "2023-05-19T13:27:58.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.417501462,
+            37.776540894
+          ],
+          [
+            -122.41868359,
+            37.775586569
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-4uur_xc5i~s92c",
+        ":version": "rv-dj9b_bzfp_69zc",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "725",
+        "cnn": "8754101",
+        "streetname": "MARKET ST",
+        "from_st": "POLK ST",
+        "to_st": "11TH ST",
+        "facility_t": "CLASS IV",
+        "direct": "2W",
+        "surface_tr": "GREEN PAINT",
+        "barrier": "SAFE-HIT POSTS",
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.09230205",
+        "number_": "60",
+        "install_yr": "2004",
+        "install_mo": null,
+        "update_yr": "2011",
+        "update_mo": "5",
+        "globalid": null,
+        "symbology": "SEPARATED BIKEWAY",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "N/A",
+        "recommendation": "3",
+        "data_as_of": "2023-05-19T13:27:58.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.399480001,
+            37.790744298
+          ],
+          [
+            -122.400067227,
+            37.790303859
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-5g6x_svfy-yu3c",
+        ":version": "rv-askp-ifif-3ymb",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "5160",
+        "cnn": "8742202",
+        "streetname": "MARKET ST",
+        "from_st": "BATTERY ST",
+        "to_st": "SUTTER ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.04422311",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.399148599,
+            37.791016649
+          ],
+          [
+            -122.399480001,
+            37.790744298
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-9eud~68nw-remp",
+        ":version": "rv-zkd7~vann-u7kt",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "3439",
+        "cnn": "8742201",
+        "streetname": "MARKET ST",
+        "from_st": "BUSH ST",
+        "to_st": "BATTERY ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.0261115",
+        "number_": "61",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.498354151,
+            37.765141592
+          ],
+          [
+            -122.498615492,
+            37.765044765
+          ],
+          [
+            -122.499125793,
+            37.764871852
+          ],
+          [
+            -122.499441616,
+            37.764780259
+          ],
+          [
+            -122.499554979,
+            37.76476191
+          ],
+          [
+            -122.499797781,
+            37.764745472
+          ],
+          [
+            -122.500199244,
+            37.764759192
+          ],
+          [
+            -122.500352291,
+            37.76477302
+          ],
+          [
+            -122.500857016,
+            37.764845907
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-5u5s~3865_se23",
+        ":version": "rv-xzvs-pn4j~udxh",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "4723",
+        "cnn": "11995000",
+        "streetname": "MARTIN LUTHER KING JR DR",
+        "from_st": "MIDDLE DR",
+        "to_st": "CHAIN OF LAKES ACCESS RD",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": "Golden Gate Park Access and Safety Program",
+        "dir": "W",
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Martin Luther King Jr Dr",
+        "length": "0.14277539",
+        "number_": "34",
+        "install_yr": "2012",
+        "install_mo": null,
+        "update_yr": "2022",
+        "update_mo": "4",
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:44.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.427357436,
+            37.773455463
+          ],
+          [
+            -122.428990052,
+            37.773247801
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-ky5u_es72-5q4c",
+        ":version": "rv-n6f9~wvyq_7gs6",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2063",
+        "cnn": "10173000",
+        "streetname": "PAGE ST",
+        "from_st": "BUCHANAN ST",
+        "to_st": "WEBSTER ST",
+        "facility_t": "CLASS II",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": "W",
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Page St",
+        "length": "0.09051677",
+        "number_": "32",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "2020",
+        "update_mo": "2",
+        "globalid": null,
+        "symbology": "BIKE LANE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "1",
+        "data_as_of": "2023-05-19T13:12:03.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.416291702,
+            37.777493842
+          ],
+          [
+            -122.417501462,
+            37.776540894
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-h8dh-uwxi_aibm",
+        ":version": "rv-a8wz.acbt_bcmt",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "726",
+        "cnn": "8753201",
+        "streetname": "MARKET ST",
+        "from_st": "LARKIN ST",
+        "to_st": "POLK ST",
+        "facility_t": "CLASS IV",
+        "direct": "2W",
+        "surface_tr": "GREEN PAINT",
+        "barrier": "SAFE-HIT POSTS",
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.09330127",
+        "number_": "50",
+        "install_yr": "2002",
+        "install_mo": null,
+        "update_yr": "2011",
+        "update_mo": "5",
+        "globalid": null,
+        "symbology": "SEPARATED BIKEWAY",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "N/A",
+        "recommendation": "3",
+        "data_as_of": "2023-05-19T13:27:58.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.400067227,
+            37.790303859
+          ],
+          [
+            -122.401375492,
+            37.789264323
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-usz3_d52b~ystj",
+        ":version": "rv-cs95-hsey-5z7k",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "2467",
+        "cnn": "8742203",
+        "streetname": "MARKET ST",
+        "from_st": "SUTTER ST",
+        "to_st": "2ND ST",
+        "facility_t": "CLASS III",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "0",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "Market St",
+        "length": "0.10132767000000001",
+        "number_": "50",
+        "install_yr": "2006",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE ROUTE",
+        "sharrow": "1",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.464641248,
+            37.772344358
+          ],
+          [
+            -122.464718925,
+            37.772359902
+          ],
+          [
+            -122.465195537,
+            37.772423181
+          ],
+          [
+            -122.465508025,
+            37.772443911
+          ],
+          [
+            -122.465899484,
+            37.772456551
+          ],
+          [
+            -122.466556336,
+            37.772422719
+          ]
+        ]
+      },
+      "properties": {
+        ":id": "row-s53t_k8zt~zkpj",
+        ":version": "rv-yizk~ihcm_qney",
+        ":created_at": "2025-06-17T20:45:19.106Z",
+        ":updated_at": "2025-06-17T20:45:19.106Z",
+        "objectid": "578",
+        "cnn": "3498000",
+        "streetname": "JOHN F KENNEDY DR",
+        "from_st": "31ST AV",
+        "to_st": "32ND AV",
+        "facility_t": "CLASS I",
+        "direct": "2W",
+        "surface_tr": null,
+        "barrier": null,
+        "notes": null,
+        "dir": null,
+        "double": "1",
+        "fy": "0",
+        "qtr": "0",
+        "street_": "John F Kennedy Dr",
+        "length": "0.1054901",
+        "number_": "830",
+        "install_yr": "0",
+        "install_mo": null,
+        "update_yr": "0",
+        "update_mo": null,
+        "globalid": null,
+        "symbology": "BIKE PATH",
+        "sharrow": "0",
+        "buffered": "NO",
+        "raised": "NO",
+        "contraflow": "NO",
+        "greenwave": "NO",
+        "biap": "NO",
+        "sm_sweeper": "NO",
+        "recommendation": "2",
+        "data_as_of": "2023-05-19T13:17:43.000",
+        "data_loaded_at": "2025-06-17T13:45:07.467"
+      }
+    }
+  ]
+}
