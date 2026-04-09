@@ -2975,47 +2975,55 @@ function updateLegendCard() {
     const palSection = document.getElementById('legend-palette-section');
     const palHeader = document.getElementById('legend-palette-header');
     const palRows = document.getElementById('legend-rows');
-    if (paletteProp && Object.keys(paletteMap).length > 0) {
+    if (paletteProp && (Object.keys(paletteMap).length > 0 || isQuantitativeScheme(paletteScheme))) {
         palSection.style.display = 'flex';
         palHeader.textContent = paletteProp;
         palRows.innerHTML = '';
-        const pd = propData[paletteProp];
-        const entries = Object.entries(paletteMap);
-        const shown = entries.slice(0, 10);
-        shown.forEach(([val, color]) => {
-            const count = pd?.valueCounts?.[val] ?? '';
-            const row = document.createElement('div');
-            row.className = 'legend-row';
-            // Apply current filter state class
-            if (activeFilter && activeFilter.prop === paletteProp && activeFilter.value === val) {
-                const m = activeFilter.mode;
-                row.classList.add(m === 'highlight' ? 'state-highlight' : m === 'filter' ? 'state-filter' : 'state-exclude');
+
+        if (isQuantitativeScheme(paletteScheme) && propData[paletteProp]?.isNumeric) {
+            // Quantitative: show histogram as the legend
+            const histoDiv = document.createElement('div');
+            histoDiv.className = 'numeric-histogram';
+            histoDiv.style.marginTop = '2px';
+            palRows.appendChild(histoDiv);
+            renderHistogram(paletteProp, histoDiv);
+        } else {
+            // Categorical: show discrete color rows
+            const pd = propData[paletteProp];
+            const entries = Object.entries(paletteMap);
+            const shown = entries.slice(0, 10);
+            shown.forEach(([val, color]) => {
+                const count = pd?.valueCounts?.[val] ?? '';
+                const row = document.createElement('div');
+                row.className = 'legend-row';
+                if (activeFilter && activeFilter.prop === paletteProp && activeFilter.value === val) {
+                    const m = activeFilter.mode;
+                    row.classList.add(m === 'highlight' ? 'state-highlight' : m === 'filter' ? 'state-filter' : 'state-exclude');
+                }
+                row.innerHTML = `<span class="legend-swatch" style="background:${color}"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${escHtml(val)}</span>${count !== '' ? `<span style="font-size:10px;color:var(--text-muted);flex-shrink:0">${count.toLocaleString()}</span>` : ''}`;
+                row.addEventListener('click', () => sidebarValueClick(paletteProp, val));
+                row.addEventListener('mouseenter', () => {
+                    if (activeFilter && activeFilter.prop === paletteProp && activeFilter.value === val) return;
+                    allFeatures.forEach(f => {
+                        if (String(f.properties[paletteProp]) === String(val))
+                            map.setFeatureState({ source: 'geojson-data', id: f.properties._gvid }, { highlighted: true });
+                    });
+                });
+                row.addEventListener('mouseleave', () => {
+                    allFeatures.forEach(f => {
+                        if (String(f.properties[paletteProp]) === String(val))
+                            map.setFeatureState({ source: 'geojson-data', id: f.properties._gvid }, { highlighted: false });
+                    });
+                });
+                palRows.appendChild(row);
+            });
+            if (entries.length > 10) {
+                const more = document.createElement('div');
+                more.className = 'legend-row';
+                more.style.color = 'var(--text-muted)';
+                more.textContent = `+ ${entries.length - 10} more`;
+                palRows.appendChild(more);
             }
-            row.innerHTML = `<span class="legend-swatch" style="background:${color}"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${escHtml(val)}</span>${count !== '' ? `<span style="font-size:10px;color:var(--text-muted);flex-shrink:0">${count.toLocaleString()}</span>` : ''}`;
-            // Click: 4-state cycle (delegates to sidebarValueClick)
-            row.addEventListener('click', () => sidebarValueClick(paletteProp, val));
-            // Hover: highlight matching features
-            row.addEventListener('mouseenter', () => {
-                if (activeFilter && activeFilter.prop === paletteProp && activeFilter.value === val) return;
-                allFeatures.forEach(f => {
-                    if (String(f.properties[paletteProp]) === String(val))
-                        map.setFeatureState({ source: 'geojson-data', id: f.properties._gvid }, { highlighted: true });
-                });
-            });
-            row.addEventListener('mouseleave', () => {
-                allFeatures.forEach(f => {
-                    if (String(f.properties[paletteProp]) === String(val))
-                        map.setFeatureState({ source: 'geojson-data', id: f.properties._gvid }, { highlighted: false });
-                });
-            });
-            palRows.appendChild(row);
-        });
-        if (entries.length > 10) {
-            const more = document.createElement('div');
-            more.className = 'legend-row';
-            more.style.color = 'var(--text-muted)';
-            more.textContent = `+ ${entries.length - 10} more`;
-            palRows.appendChild(more);
         }
     } else {
         palSection.style.display = 'none';
