@@ -1117,25 +1117,14 @@
                     </div>
                 </div>
             </div>
-            <!-- Basemap subsection (closed by default) -->
+            <!-- Other subsection (open by default) -->
             <div class="style-subsection">
-                <button class="style-subsection-toggle" data-sub="basemap">
-                    <span class="ss-arrow">▶</span> Basemap
+                <button class="style-subsection-toggle" data-sub="other">
+                    <span class="ss-arrow">▶</span> Other
                 </button>
-                <div class="style-subsection-body" id="sub-basemap">
+                <div class="style-subsection-body" id="sub-other">
                     <div class="style-section" id="basemap-section">
-                        <span class="style-section-label">Style</span>
-                        <div id="basemap-style-pill" class="style-pill">
-                            <button class="style-opt" data-val="light" title="Light basemap">Light</button>
-                            <button class="style-opt" data-val="white" title="White basemap">White</button>
-                            <button class="style-opt" data-val="grayscale" title="Grayscale basemap">Gray</button>
-                            <button class="style-opt active" data-val="dark" title="Dark basemap">Dark</button>
-                            <button class="style-opt" data-val="black" title="Black basemap">Black</button>
-                            <button class="style-opt" data-val="hide" title="Hide basemap entirely">Hide</button>
-                        </div>
-                    </div>
-                    <div class="style-section">
-                        <span class="style-section-label">Layers</span>
+                        <span class="style-section-label">Basemap</span>
                         <label class="basemap-check active" id="lbl-bm-roads" title="Show/hide road lines">
                             <input type="checkbox" id="chk-bm-roads" checked> Roads
                         </label>
@@ -1145,27 +1134,16 @@
                         <label class="basemap-check active" id="lbl-bm-streets" title="Show/hide street name labels and highway shields">
                             <input type="checkbox" id="chk-bm-streets" checked> St names
                         </label>
-                        <label class="basemap-check active" id="lbl-bm-buildings" title="Show/hide building footprints">
-                            <input type="checkbox" id="chk-bm-buildings" checked> Buildings
-                        </label>
                     </div>
                     <div class="style-section">
                         <span class="style-section-label">Projection</span>
                         <div id="projection-pill" class="style-pill">
-                            <button class="style-opt" data-val="mercator" title="Standard flat map projection">Mercator</button>
-                            <button class="style-opt active" data-val="globe" title="3D globe projection">Globe</button>
+                            <button class="style-opt active" data-val="mercator" title="Standard flat map projection">Mercator</button>
+                            <button class="style-opt" data-val="globe" title="3D globe projection">Globe</button>
                         </div>
                     </div>
-                </div>
-            </div>
-            <!-- Show subsection (closed by default) -->
-            <div class="style-subsection">
-                <button class="style-subsection-toggle" data-sub="show">
-                    <span class="ss-arrow">▶</span> Show
-                </button>
-                <div class="style-subsection-body" id="sub-show">
                     <div class="style-section">
-                        <span class="style-section-label">Geometry</span>
+                        <span class="style-section-label">Show</span>
                         <label class="geom-check-label active" id="lbl-point" title="Show/hide point features">
                             <input type="checkbox" id="chk-point" checked> ● Pts
                         </label>
@@ -1189,10 +1167,9 @@
             </div>
         </div>
     </div>
-    <!-- Sidebar samples dropdown — must be at body level so overflow:hidden on sidebar doesn't clip it -->
+    <!-- Sidebar samples dropdown — uses position:fixed set by JS to escape overflow:hidden -->
+    <div id="sidebar-samples-menu" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);z-index:500;max-height:240px;overflow-y:auto;text-align:left"></div>
 </div>
-
-<div id="sidebar-samples-menu" style="display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);z-index:1100;max-height:240px;overflow-y:auto;text-align:left"></div>
 
 <input type="file" id="file-input" accept=".geojson,.json,.geojsonl" style="display:none">
 
@@ -1301,7 +1278,7 @@
 </div>
 
 <script>
-const styleUrl = 'https://api.protomaps.com/styles/v5/dark/en.json?key=ffc24a4325d458ce';
+const styleUrl = 'https://api.protomaps.com/styles/v5/white/en.json?key=ffc24a4325d458ce';
 
 function fmtBytes(b) {
     if (b >= 1e6) return (b / 1e6).toFixed(1) + 'MB';
@@ -1352,69 +1329,38 @@ const map = new maplibregl.Map({
 });
 
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
-
-// ── BASEMAP GROUPS — module-scope so basemap switcher can update them ──
-const basemapGroups = { roads: [], places: [], streets: [], buildings: [] };
-function toggleBasemapGroup(group, visible) {
-    const vis = visible ? 'visible' : 'none';
-    (basemapGroups[group] || []).forEach(id => {
-        try { map.setLayoutProperty(id, 'visibility', vis); } catch {}
-    });
-}
-
-const PROTOMAPS_KEY = 'ffc24a4325d458ce';
-let currentBasemapStyle = 'dark';
-
 map.once('load', () => {
-    map.setProjection({ type: 'globe' }); // default projection
     setupTileInteraction();
     restoreFromHash();
-    discoverBasemapGroups();
-    console.log('[basemap] roads:', basemapGroups.roads.length, 'places:', basemapGroups.places.length, 'streets:', basemapGroups.streets.length, 'buildings:', basemapGroups.buildings.length);
-    updateLabelColors(); // apply dark-mode label colors for default dark basemap
 
-    // ── BASEMAP STYLE PILL ──
-    document.getElementById('basemap-style-pill').addEventListener('click', e => {
-        const opt = e.target.closest('.style-opt');
-        if (!opt) return;
-        document.querySelectorAll('#basemap-style-pill .style-opt').forEach(o => o.classList.remove('active'));
-        opt.classList.add('active');
-        const val = opt.dataset.val;
-        currentBasemapStyle = val;
-
-        if (val === 'hide') {
-            map.getStyle().layers.forEach(l => {
-                if (!l.id.startsWith('gv-') && !l.id.startsWith('tile-')) {
-                    try { map.setLayoutProperty(l.id, 'visibility', 'none'); } catch {}
-                }
-            });
-            return;
-        }
-
-        const newUrl = `https://api.protomaps.com/styles/v5/${val}/en.json?key=${PROTOMAPS_KEY}`;
-        const fc = allFeatures.length > 0 ? { type: 'FeatureCollection', features: allFeatures } : null;
-        const midFC = allMidpoints.length > 0 ? { type: 'FeatureCollection', features: allMidpoints } : null;
-
-        map.setStyle(newUrl);
-        map.once('style.load', () => {
-            setupTileInteraction();
-            setupTileOverlayLayers();
-            discoverBasemapGroups();
-            applyBasemapCheckboxStates();
-            updateLabelColors();
-            if (fc) {
-                setupGeoJsonLayers(fc);
-                if (midFC && map.getSource('geojson-midpoints')) {
-                    map.getSource('geojson-midpoints').setData(midFC);
-                }
-                applyPaletteToLayers();
-                applyGeomFilters();
-                updateLayerFilters();
-                updateLabels();
-                updatePointRadius();
+    // ── BASEMAP LAYER DISCOVERY ──
+    const bmLayers = map.getStyle().layers;
+    const basemapGroups = {
+        roads:   [],  // road line layers
+        places:  [],  // place name labels
+        streets: []   // street name labels
+    };
+    bmLayers.forEach(l => {
+        const id = l.id.toLowerCase();
+        const sl = (l['source-layer'] || '').toLowerCase();
+        if (l.type === 'line' && (sl.includes('road') || sl.includes('transit') || id.includes('road'))) {
+            basemapGroups.roads.push(l.id);
+        } else if (l.type === 'symbol') {
+            if (sl.includes('place') || id.includes('place') || id.includes('city') || id.includes('country') || id.includes('state')) {
+                basemapGroups.places.push(l.id);
+            } else if (sl.includes('road') || id.includes('road') || id.includes('street') || id.includes('transit') || id.includes('shield')) {
+                basemapGroups.streets.push(l.id);
             }
-        });
+        }
     });
+    console.log('[basemap] roads:', basemapGroups.roads.length, 'places:', basemapGroups.places.length, 'streets:', basemapGroups.streets.length);
+
+    function toggleBasemapGroup(group, visible) {
+        const vis = visible ? 'visible' : 'none';
+        basemapGroups[group].forEach(id => {
+            try { map.setLayoutProperty(id, 'visibility', vis); } catch {}
+        });
+    }
 
     document.getElementById('chk-bm-roads').addEventListener('change', function() {
         toggleBasemapGroup('roads', this.checked);
@@ -1427,10 +1373,6 @@ map.once('load', () => {
     document.getElementById('chk-bm-streets').addEventListener('change', function() {
         toggleBasemapGroup('streets', this.checked);
         document.getElementById('lbl-bm-streets').classList.toggle('active', this.checked);
-    });
-    document.getElementById('chk-bm-buildings').addEventListener('change', function() {
-        toggleBasemapGroup('buildings', this.checked);
-        document.getElementById('lbl-bm-buildings').classList.toggle('active', this.checked);
     });
 });
 // Always keep lat/lon/zoom in the hash so sharing the URL preserves the view
@@ -1481,7 +1423,7 @@ let pointRadiusMode = 'density'; // 'density' | 'zoom'
 
 // ── PALETTE COLORING STATE ──
 let paletteProp = null;       // property key being colored, null = off
-let paletteScheme = 'Set1'; // 'Paired' | 'Spectral'
+let paletteScheme = 'Set2'; // 'Paired' | 'Spectral'
 let paletteMap = {};          // { value → hex } for current palette
 let paletteRotateOffset = 0;  // rotate steps from default order (0 = default)
 let palettePerm = null;       // null = default; array of color indices for shuffle
@@ -2872,7 +2814,7 @@ function positionSidebar() {
     }
 }
 
-let legendMode = window.innerWidth <= 600; // legend mode by default on mobile
+let legendMode = false;
 
 function toggleLegendMode(forceTo) {
     legendMode = (forceTo !== undefined) ? forceTo : !legendMode;
@@ -3085,7 +3027,7 @@ function pushHashState() {
     if (tileActiveFilter) parts.push(`tfilter=${encodeURIComponent(`${tileActiveFilter.prop}::${tileActiveFilter.value}::${tileActiveFilter.mode}`)}`);
     if (tileLabelProps.size) parts.push(`tlabels=${encodeURIComponent([...tileLabelProps].join(','))}`);
     if (openPropKey) parts.push(`openprop=${encodeURIComponent(openPropKey)}`);
-    if (mapProjection === 'mercator') parts.push('projection=mercator');
+    if (mapProjection === 'globe') parts.push('projection=globe');
     if (legendMode) parts.push('view=legend');
     // Palette: prop::scheme, optionally ::r<offset> or ::p<i,j,k,...>
     if (paletteProp) {
@@ -3173,12 +3115,12 @@ async function restoreFromHash() {
         }
     }
 
-    // Restore projection (mercator overrides globe default)
-    if (params.projection === 'mercator') {
-        mapProjection = 'mercator';
-        map.setProjection({ type: 'mercator' });
+    // Restore projection
+    if (params.projection === 'globe') {
+        mapProjection = 'globe';
+        map.setProjection({ type: 'globe' });
         document.querySelectorAll('#projection-pill .style-opt').forEach(o =>
-            o.classList.toggle('active', o.dataset.val === 'mercator'));
+            o.classList.toggle('active', o.dataset.val === 'globe'));
     }
 
     // Restore legend mode
@@ -3306,131 +3248,6 @@ document.addEventListener('drop', e => {
 });
 document.getElementById('file-input').addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
 
-// ── LAYER SETUP FUNCTIONS — called on first load and after basemap style swap ──
-
-function setupGeoJsonLayers(fc) {
-    map.addSource('geojson-data', { type: 'geojson', data: fc, promoteId: '_gvid' });
-
-    const colorExpr = ['case',
-        ['boolean', ['feature-state', 'selected'],    false], '#e040fb',
-        ['boolean', ['feature-state', 'filtered'],    false], '#fbbf24',
-        ['boolean', ['feature-state', 'highlighted'], false], '#6ee7b7',
-        ['boolean', ['feature-state', 'hovered'],     false], '#2dd4bf',
-        '#3b82f6'];
-    const visExpr = ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1];
-
-    map.addLayer({ id: 'gv-fill', type: 'fill', source: 'geojson-data',
-        filter: ['==', ['geometry-type'], 'Polygon'],
-        paint: { 'fill-color': colorExpr,
-            'fill-opacity': ['case',
-                ['boolean', ['feature-state', 'hidden'],      false], 0,
-                ['boolean', ['feature-state', 'selected'],    false], 0.6,
-                ['boolean', ['feature-state', 'filtered'],    false], 0.55,
-                ['boolean', ['feature-state', 'highlighted'], false], 0.35,
-                ['boolean', ['feature-state', 'hovered'],     false], 0.4,
-                0.25] }
-    });
-    map.addLayer({ id: 'gv-outline', type: 'line', source: 'geojson-data',
-        filter: ['==', ['geometry-type'], 'Polygon'],
-        paint: { 'line-color': colorExpr, 'line-opacity': visExpr,
-            'line-width': ['case', ['boolean', ['feature-state', 'highlighted'], false], 2.5, ['boolean', ['feature-state', 'selected'], false], 2, 1] }
-    });
-    map.addLayer({ id: 'gv-line-casing', type: 'line', source: 'geojson-data',
-        filter: ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]],
-        paint: { 'line-color': 'rgba(0,0,0,0.08)', 'line-width': 4, 'line-opacity': visExpr }
-    });
-    map.addLayer({ id: 'gv-line', type: 'line', source: 'geojson-data',
-        filter: ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]],
-        paint: { 'line-color': colorExpr, 'line-opacity': visExpr,
-            'line-width': ['case', ['boolean', ['feature-state', 'highlighted'], false], 3.5, 2] }
-    });
-    map.addLayer({ id: 'gv-point', type: 'circle', source: 'geojson-data',
-        filter: ['==', ['geometry-type'], 'Point'],
-        paint: { 'circle-color': 'rgba(255,255,255,0.10)', 'circle-radius': 5,
-            'circle-stroke-color': colorExpr, 'circle-stroke-width': 2,
-            'circle-opacity': visExpr, 'circle-stroke-opacity': visExpr }
-    });
-
-    addLabelLayer();
-
-    allMidpoints = []; midpointsCacheValid = false;
-    const emptyFC = { type: 'FeatureCollection', features: [] };
-    if (map.getSource('geojson-midpoints')) {
-        map.getSource('geojson-midpoints').setData(emptyFC);
-    } else {
-        map.addSource('geojson-midpoints', { type: 'geojson', data: emptyFC, promoteId: '_gvid' });
-        map.addLayer({ id: 'gv-dots', type: 'circle', source: 'geojson-midpoints',
-            layout: { 'visibility': 'none' },
-            paint: { 'circle-color': 'rgba(255,255,255,0.15)',
-                'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 3, 14, 5],
-                'circle-stroke-color': ['get', '_dot_color'], 'circle-stroke-width': 1.5,
-                'circle-opacity': 1, 'circle-stroke-opacity': 0.5 }
-        });
-        map.on('mousemove', 'gv-dots', onMouseMove);
-        map.on('mouseleave', 'gv-dots', onMouseLeave);
-        map.on('click', 'gv-dots', onFeatureClick);
-    }
-    ['gv-fill', 'gv-line', 'gv-point'].forEach(lyr => {
-        map.on('mousemove', lyr, onMouseMove);
-        map.on('mouseleave', lyr, onMouseLeave);
-        map.on('click', lyr, onFeatureClick);
-    });
-    map.on('mousemove', 'gv-outline', onMouseMove);
-    map.on('mouseleave', 'gv-outline', onMouseLeave);
-}
-
-function setupTileOverlayLayers() {
-    const empty = { type: 'FeatureCollection', features: [] };
-    ['tile-hover-overlay', 'tile-select-overlay', 'tile-highlight-overlay', 'tile-dots-overlay'].forEach(id => {
-        if (!map.getSource(id)) map.addSource(id, { type: 'geojson', data: empty });
-    });
-    const zoomWidth = (thin, thick) => ['interpolate', ['linear'], ['zoom'], 10, thin, 16, thick];
-    if (!map.getLayer('tile-highlight-line')) {
-        map.addLayer({ id: 'tile-highlight-line', type: 'line', source: 'tile-highlight-overlay',
-            paint: { 'line-color': '#3b82f6', 'line-width': zoomWidth(1.5, 4), 'line-opacity': 0.85 } });
-        map.addLayer({ id: 'tile-labels-line', type: 'symbol', source: 'tile-highlight-overlay',
-            layout: { 'text-field': '', 'text-size': 11, 'symbol-placement': 'line',
-                'text-font': ['Noto Sans Regular'], 'text-allow-overlap': false,
-                'text-ignore-placement': false, 'symbol-spacing': 200 },
-            paint: { 'text-color': '#0f0f11', 'text-halo-color': 'rgba(255,255,255,0.9)', 'text-halo-width': 1.5 } });
-        updateLabelColors();
-        map.addLayer({ id: 'tile-dots-line', type: 'circle', source: 'tile-dots-overlay',
-            layout: { 'visibility': dotsMode === 'off' ? 'none' : 'visible' },
-            paint: { 'circle-color': 'rgba(255,255,255,0.15)',
-                'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 3, 14, 5],
-                'circle-stroke-color': '#3b82f6', 'circle-stroke-width': 1.5,
-                'circle-opacity': 1, 'circle-stroke-opacity': 0.5 } });
-        map.addLayer({ id: 'tile-select-line', type: 'line', source: 'tile-select-overlay',
-            paint: { 'line-color': '#e040fb', 'line-width': zoomWidth(2, 4), 'line-opacity': 0.9 } });
-        map.addLayer({ id: 'tile-hover-casing', type: 'line', source: 'tile-hover-overlay',
-            paint: { 'line-color': '#0f0f11', 'line-width': zoomWidth(7, 13), 'line-opacity': 0 } });
-        map.addLayer({ id: 'tile-hover-line', type: 'line', source: 'tile-hover-overlay',
-            paint: { 'line-color': '#2dd4bf', 'line-width': zoomWidth(2, 5), 'line-opacity': 0.85 } });
-    }
-}
-
-function discoverBasemapGroups() {
-    const layers = map.getStyle().layers;
-    basemapGroups.roads = []; basemapGroups.places = []; basemapGroups.streets = []; basemapGroups.buildings = [];
-    layers.forEach(l => {
-        if (l.id.startsWith('gv-') || l.id.startsWith('tile-')) return;
-        const id = l.id.toLowerCase(), sl = (l['source-layer'] || '').toLowerCase();
-        if (l.type === 'line' && (sl.includes('road') || sl.includes('transit') || id.includes('road'))) basemapGroups.roads.push(l.id);
-        else if (sl.includes('building') || id.includes('building')) basemapGroups.buildings.push(l.id);
-        else if (l.type === 'symbol') {
-            if (sl.includes('place') || id.includes('place') || id.includes('city') || id.includes('country') || id.includes('state')) basemapGroups.places.push(l.id);
-            else if (sl.includes('road') || id.includes('road') || id.includes('street') || id.includes('transit') || id.includes('shield')) basemapGroups.streets.push(l.id);
-        }
-    });
-}
-
-function applyBasemapCheckboxStates() {
-    toggleBasemapGroup('roads',     document.getElementById('chk-bm-roads').checked);
-    toggleBasemapGroup('places',    document.getElementById('chk-bm-places').checked);
-    toggleBasemapGroup('streets',   document.getElementById('chk-bm-streets').checked);
-    toggleBasemapGroup('buildings', document.getElementById('chk-bm-buildings').checked);
-}
-
 // ── FILE LOADING ──
 function loadFile(file) {
     const reader = new FileReader();
@@ -3464,7 +3281,7 @@ function ingestGeoJSON(geojson, filename, skipFit = false) {
     selectedIds.clear(); highlightedIds.clear(); hiddenIds.clear();
     activeFilter = null; popupRowStates = {}; openPropKey = null; labelProps.clear();
     lastHoveredId = null; hoveredMapId = null;
-    paletteProp = null; paletteMap = {}; paletteScheme = 'Set1'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false;
+    paletteProp = null; paletteMap = {}; paletteScheme = 'Set2'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false;
     updateLabelHint();
     document.getElementById('save-visible-btn').style.visibility = 'hidden';
     if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
@@ -3495,7 +3312,105 @@ function ingestGeoJSON(geojson, filename, skipFit = false) {
         if (map.getLayer('gv-labels-line')) map.removeLayer('gv-labels-line');
         addLabelLayer();
     } else {
-        setupGeoJsonLayers(fc);
+        map.addSource('geojson-data', { type: 'geojson', data: fc, promoteId: '_gvid' });
+
+        const colorExpr = ['case',
+            ['boolean', ['feature-state', 'selected'],    false], '#e040fb',
+            ['boolean', ['feature-state', 'filtered'],    false], '#fbbf24',
+            ['boolean', ['feature-state', 'highlighted'], false], '#6ee7b7',
+            ['boolean', ['feature-state', 'hovered'],     false], '#2dd4bf',
+            '#3b82f6'];
+
+        // Visibility now handled by updateLayerFilters() for geomVisible; hidden state via paint opacity
+        const visExpr = ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1];
+
+        map.addLayer({
+            id: 'gv-fill', type: 'fill', source: 'geojson-data',
+            filter: ['==', ['geometry-type'], 'Polygon'],
+            paint: {
+                'fill-color': colorExpr,
+                'fill-opacity': ['case',
+                    ['boolean', ['feature-state', 'hidden'],      false], 0,
+                    ['boolean', ['feature-state', 'selected'],    false], 0.6,
+                    ['boolean', ['feature-state', 'filtered'],    false], 0.55,
+                    ['boolean', ['feature-state', 'highlighted'], false], 0.35,
+                    ['boolean', ['feature-state', 'hovered'],     false], 0.4,
+                    0.25]
+            }
+        });
+        map.addLayer({
+            id: 'gv-outline', type: 'line', source: 'geojson-data',
+            filter: ['==', ['geometry-type'], 'Polygon'],
+            paint: {
+                'line-color': colorExpr, 'line-opacity': visExpr,
+                'line-width': ['case',
+                    ['boolean', ['feature-state', 'highlighted'], false], 2.5,
+                    ['boolean', ['feature-state', 'selected'],    false], 2,
+                    1]
+            }
+        });
+        map.addLayer({
+            id: 'gv-line-casing', type: 'line', source: 'geojson-data',
+            filter: ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]],
+            paint: { 'line-color': 'rgba(0,0,0,0.08)', 'line-width': 4, 'line-opacity': visExpr }
+        });
+        map.addLayer({
+            id: 'gv-line', type: 'line', source: 'geojson-data',
+            filter: ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]],
+            paint: {
+                'line-color': colorExpr, 'line-opacity': visExpr,
+                'line-width': ['case',
+                    ['boolean', ['feature-state', 'highlighted'], false], 3.5,
+                    2]
+            }
+        });
+        map.addLayer({
+            id: 'gv-point', type: 'circle', source: 'geojson-data',
+            filter: ['==', ['geometry-type'], 'Point'],
+            paint: {
+                'circle-color': 'rgba(255,255,255,0.10)',
+                'circle-radius': 5,
+                'circle-stroke-color': colorExpr,
+                'circle-stroke-width': 2,
+                'circle-opacity': visExpr,
+                'circle-stroke-opacity': visExpr
+            }
+        });
+
+        addLabelLayer();
+
+        // Dots layer — source created empty, midpoints computed lazily when dots enabled
+        allMidpoints = [];
+        midpointsCacheValid = false;
+        const emptyFC = { type: 'FeatureCollection', features: [] };
+        if (map.getSource('geojson-midpoints')) {
+            map.getSource('geojson-midpoints').setData(emptyFC);
+        } else {
+            map.addSource('geojson-midpoints', { type: 'geojson', data: emptyFC, promoteId: '_gvid' });
+            map.addLayer({
+                id: 'gv-dots', type: 'circle', source: 'geojson-midpoints',
+                layout: { 'visibility': 'none' },
+                paint: {
+                    'circle-color': 'rgba(255,255,255,0.15)',
+                    'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 3, 14, 5],
+                    'circle-stroke-color': ['get', '_dot_color'],
+                    'circle-stroke-width': 1.5,
+                    'circle-opacity': 1,
+                    'circle-stroke-opacity': 0.5
+                }
+            });
+            map.on('mousemove', 'gv-dots', onMouseMove);
+            map.on('mouseleave', 'gv-dots', onMouseLeave);
+            map.on('click', 'gv-dots', onFeatureClick);
+        }
+
+        ['gv-fill', 'gv-line', 'gv-point'].forEach(lyr => {
+            map.on('mousemove', lyr, onMouseMove);
+            map.on('mouseleave', lyr, onMouseLeave);
+            map.on('click', lyr, onFeatureClick);
+        });
+        map.on('mousemove', 'gv-outline', onMouseMove);
+        map.on('mouseleave', 'gv-outline', onMouseLeave);
     }
 
     if (!skipFit) {
@@ -3573,24 +3488,9 @@ function addLabelLayer() {
             'text-halo-width': 1.5
         }
     });
-    // Apply correct colors for current basemap style
-    updateLabelColors();
 }
 
-// Update label text/halo colors based on current basemap style
-// Dark/Black basemaps use white text + black halo; others use dark text + light halo
-function updateLabelColors() {
-    const dark = currentBasemapStyle === 'dark' || currentBasemapStyle === 'black';
-    const textColor  = dark ? '#ffffff' : '#0f0f11';
-    const haloColor  = dark ? 'rgba(0,0,0,0.85)' : '#e8e8f0';
-    const haloWidth  = dark ? 2 : 1.5;
-    ['gv-labels', 'gv-labels-line', 'tile-labels-line'].forEach(layer => {
-        if (!map.getLayer(layer)) return;
-        map.setPaintProperty(layer, 'text-color',       textColor);
-        map.setPaintProperty(layer, 'text-halo-color',  haloColor);
-        map.setPaintProperty(layer, 'text-halo-width',  haloWidth);
-    });
-}
+// ── DOTS / MIDPOINTS ──
 // Dots thresholds: paired arrays, index i means "features <= AREA[i] m² show up to max zoom ZOOM[i]"
 // Small features (10k m²) show until zoom 14. Large features (5M m²) only show up to zoom 8.
 // Features larger than all thresholds get _show_at_zoom = -1 (never shown).
@@ -4301,7 +4201,7 @@ function renderSidebar() {
             const opening = openPropKey !== key;
             openPropKey = (openPropKey === key) ? null : key;
             if (opening && (!paletteProp || paletteProp !== key)) {
-                activatePalette(key, propData[key]?.isColorProp ? 'native' : 'Set1');
+                activatePalette(key, propData[key]?.isColorProp ? 'native' : 'Set2');
             } else {
                 renderSidebar();
                 pushHashState();
@@ -4331,7 +4231,7 @@ function renderSidebar() {
             const opening = openPropKey !== key;
             openPropKey = (openPropKey === key) ? null : key;
             if (opening && (!paletteProp || paletteProp !== key)) {
-                activatePalette(key, propData[key]?.isColorProp ? 'native' : 'Set1');
+                activatePalette(key, propData[key]?.isColorProp ? 'native' : 'Set2');
             } else {
                 renderSidebar();
                 pushHashState();
@@ -4354,7 +4254,7 @@ function renderSidebar() {
         if (isOpen) {
             const bar = document.createElement('div');
             bar.className = 'palette-bar';
-            const currentScheme = (paletteProp === key) ? paletteScheme : 'Set1';
+            const currentScheme = (paletteProp === key) ? paletteScheme : 'Set2';
             const isNative = currentScheme === 'native';
 
             // Build swatch strip — native: show actual colors; colorbrewer: show first 5
@@ -4758,7 +4658,7 @@ function attachFrozenEvents() {
             ev.stopPropagation();
             const key = row.dataset.key;
             if (!key) return;
-            activatePalette(key, propData[key]?.isColorProp ? 'native' : (paletteScheme || 'Set1'));
+            activatePalette(key, propData[key]?.isColorProp ? 'native' : (paletteScheme || 'Set2'));
             openPropKey = key;
             // Open style panel if collapsed so user can see the palette bar
             const body = document.getElementById('style-panel-body');
@@ -4850,9 +4750,6 @@ document.getElementById('filter-status-clear').addEventListener('click', e => {
 // ── STYLE PANEL TOGGLE ──
 document.getElementById('sidebar-collapse-btn').addEventListener('click', () => toggleLegendMode());
 
-// Apply initial legend mode (mobile default)
-if (legendMode) toggleLegendMode(true);
-
 document.getElementById('style-panel-toggle').addEventListener('click', () => {
     const btn = document.getElementById('style-panel-toggle');
     const body = document.getElementById('style-panel-body');
@@ -4894,7 +4791,7 @@ document.getElementById('point-radius-pill').addEventListener('click', e => {
 });
 
 // ── PROJECTION PILL ──
-let mapProjection = 'globe'; // track for URL hash
+let mapProjection = 'mercator'; // track for URL hash
 document.getElementById('projection-pill').addEventListener('click', e => {
     const opt = e.target.closest('.style-opt');
     if (!opt) return;
@@ -4999,7 +4896,7 @@ function resetAll() {
     allFeatures = [];
     allMidpoints = [];
     midpointsCacheValid = false;
-    paletteProp = null; paletteMap = {}; paletteScheme = 'Set1'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false;
+    paletteProp = null; paletteMap = {}; paletteScheme = 'Set2'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false;
     // Reset dots pill to Off
     dotsMode = 'off';
     document.querySelectorAll('.dots-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'off'));
