@@ -388,9 +388,10 @@
 
         .values-panel {
             background: var(--bg); border-bottom: 1px solid var(--border);
-            max-height: 180px; overflow-y: auto; display: none;
+            display: none;
         }
         .values-panel.open { display: block; }
+        .values-panel.open:not(.numeric) { max-height: 180px; overflow-y: auto; }
         .values-panel::-webkit-scrollbar { width: 3px; }
         .values-panel::-webkit-scrollbar-thumb { background: var(--border); }
 
@@ -423,6 +424,53 @@
             font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
             text-transform: uppercase; color: var(--text-muted); flex-shrink: 0;
         }
+
+        /* ── NUMERIC PROPERTY PANEL ── */
+        .numeric-panel { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 8px; }
+        .numeric-stats-grid {
+            display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 3px 6px; font-size: 11px;
+        }
+        .numeric-stat { display: flex; flex-direction: column; gap: 1px; }
+        .numeric-stat-label { font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+        .numeric-stat-value { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+        .numeric-null-note { font-size: 10px; color: var(--text-muted); }
+
+        .numeric-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .numeric-scheme-pill { display: inline-flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+        .numeric-scheme-opt {
+            padding: 2px 7px; font-size: 10px; font-weight: 500; font-family: var(--sans);
+            color: var(--text-muted); cursor: pointer; border: none; background: transparent;
+            border-right: 1px solid var(--border); transition: background 0.1s, color 0.1s;
+        }
+        .numeric-scheme-opt:last-child { border-right: none; }
+        .numeric-scheme-opt.active { background: var(--surface); color: var(--text); font-weight: 600; }
+        .numeric-scheme-opt:hover:not(.active) { background: var(--surface); color: var(--text); }
+
+        .numeric-ramp-btn {
+            font-size: 10px; padding: 2px 7px; border: 1px solid var(--border);
+            background: transparent; color: var(--text-muted); border-radius: 4px;
+            cursor: pointer; font-family: var(--sans); display: flex; align-items: center; gap: 4px;
+        }
+        .numeric-ramp-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        .numeric-clamp-row { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--text-muted); }
+        .numeric-clamp-row input[type=range] { flex: 1; accent-color: var(--accent); height: 3px; }
+        .numeric-log-btn {
+            font-size: 10px; padding: 2px 6px; border: 1px solid var(--border);
+            background: transparent; color: var(--text-muted); border-radius: 4px; cursor: pointer;
+        }
+        .numeric-log-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(110,231,183,0.08); }
+
+        .numeric-histogram { position: relative; width: 100%; }
+        .numeric-histogram svg { display: block; width: 100%; overflow: visible; }
+        .histo-bar { cursor: pointer; transition: opacity 0.1s, filter 0.1s; }
+        .histo-bar:hover { opacity: 0.85 !important; filter: brightness(1.3); }
+        .histo-null-bar { cursor: default; }
+        .histo-stat-line { pointer-events: none; }
+
+        .numeric-bins-row { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--text-muted); margin-top: -2px; }
+        .numeric-bins-row input[type=range] { flex: 1; accent-color: var(--accent); height: 3px; }
         .palette-scheme-btn {
             font-size: 11px; font-family: var(--sans); cursor: pointer;
             background: var(--surface); border: 1px solid var(--border);
@@ -1089,16 +1137,16 @@
 
     <!-- Style panel: visibility + point style + basemap -->
     <div id="style-panel">
-        <button id="style-panel-toggle" class="open">
+        <button id="style-panel-toggle" class="">
             <span class="sp-arrow">▶</span> Style
         </button>
-        <div id="style-panel-body" class="open">
-            <!-- Points subsection (open by default) -->
+        <div id="style-panel-body" class="">
+            <!-- Points subsection (closed by default) -->
             <div class="style-subsection">
-                <button class="style-subsection-toggle open" data-sub="points">
+                <button class="style-subsection-toggle" data-sub="points">
                     <span class="ss-arrow">▶</span> Points
                 </button>
-                <div class="style-subsection-body open" id="sub-points">
+                <div class="style-subsection-body" id="sub-points">
                     <div class="style-section">
                         <span class="style-section-label">Style</span>
                         <div id="point-style-pill" class="style-pill">
@@ -1114,6 +1162,35 @@
                             <button class="style-opt active" data-val="density" title="Scale point size by number of visible points">Density</button>
                             <button class="style-opt" data-val="zoom" title="Scale point size by zoom level only">Zoom</button>
                         </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Lines subsection (closed by default) -->
+            <div class="style-subsection">
+                <button class="style-subsection-toggle" data-sub="lines">
+                    <span class="ss-arrow">▶</span> Lines
+                </button>
+                <div class="style-subsection-body" id="sub-lines">
+                    <div class="style-section">
+                        <span class="style-section-label">Width</span>
+                        <div id="line-width-pill" class="style-pill">
+                            <button class="style-opt active" data-val="thin" title="Thin lines (1–2px)">Thin</button>
+                            <button class="style-opt" data-val="medium" title="Medium lines (2–4px)">Mid</button>
+                            <button class="style-opt" data-val="thick" title="Thick lines (3–6px)">Thick</button>
+                        </div>
+                    </div>
+                    <div class="style-section">
+                        <span class="style-section-label">Size</span>
+                        <div id="line-radius-pill" class="style-pill">
+                            <button class="style-opt active" data-val="zoom" title="Scale line width by zoom level">Zoom</button>
+                            <button class="style-opt" data-val="fixed" title="Fixed line width at all zoom levels">Fixed</button>
+                        </div>
+                    </div>
+                    <div class="style-section">
+                        <span class="style-section-label">Polygons</span>
+                        <label class="geom-check-label active" id="lbl-poly-border" title="Show polygon outlines/borders">
+                            <input type="checkbox" id="chk-poly-border" checked> Borders
+                        </label>
                     </div>
                 </div>
             </div>
@@ -1193,6 +1270,21 @@
 </div>
 
 <div id="sidebar-samples-menu" style="display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);z-index:1100;max-height:240px;overflow-y:auto;text-align:left"></div>
+
+<!-- Histogram popout panel — fixed bottom center -->
+<div id="histo-popout-panel" style="display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px 8px;box-shadow:0 8px 32px rgba(0,0,0,0.6);min-width:440px;max-width:600px;">
+    <div id="histo-popout-header" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <span id="histo-popout-title" style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);flex:1"></span>
+        <button id="histo-popout-orient" style="background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:11px;padding:2px 7px;color:var(--text-muted);" title="Toggle horizontal/vertical">↕</button>
+        <button id="histo-popout-close" style="background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:13px;padding:2px 8px;color:var(--text-muted);" title="Close">✕</button>
+    </div>
+    <div class="numeric-histogram" id="histo-popout-canvas"></div>
+    <div id="histo-popout-bins" style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text-muted);margin-top:4px;">
+        <span>Bins</span>
+        <input type="range" id="bins-popout" min="2" max="80" step="1" value="20" style="flex:1;accent-color:var(--accent);height:3px">
+        <span id="bins-popout-label">20</span>
+    </div>
+</div>
 
 <input type="file" id="file-input" accept=".geojson,.json,.geojsonl" style="display:none">
 
@@ -1478,6 +1570,9 @@ let allMidpoints = []; // cached midpoint features, computed lazily when dots fi
 let midpointsCacheValid = false; // invalidated on new file load or filter changes
 let pointStyle = 'hollow'; // 'hollow' | 'filled' | 'outlined' | 'outline'
 let pointRadiusMode = 'density'; // 'density' | 'zoom'
+let lineWidthMode = 'thin';   // 'thin' | 'medium' | 'thick'
+let lineRadiusMode = 'zoom';  // 'zoom' | 'fixed'
+let polyBorders = true;       // show polygon outlines
 
 // ── PALETTE COLORING STATE ──
 let paletteProp = null;       // property key being colored, null = off
@@ -2913,47 +3008,55 @@ function updateLegendCard() {
     const palSection = document.getElementById('legend-palette-section');
     const palHeader = document.getElementById('legend-palette-header');
     const palRows = document.getElementById('legend-rows');
-    if (paletteProp && Object.keys(paletteMap).length > 0) {
+    if (paletteProp && (Object.keys(paletteMap).length > 0 || isQuantitativeScheme(paletteScheme))) {
         palSection.style.display = 'flex';
         palHeader.textContent = paletteProp;
         palRows.innerHTML = '';
-        const pd = propData[paletteProp];
-        const entries = Object.entries(paletteMap);
-        const shown = entries.slice(0, 10);
-        shown.forEach(([val, color]) => {
-            const count = pd?.valueCounts?.[val] ?? '';
-            const row = document.createElement('div');
-            row.className = 'legend-row';
-            // Apply current filter state class
-            if (activeFilter && activeFilter.prop === paletteProp && activeFilter.value === val) {
-                const m = activeFilter.mode;
-                row.classList.add(m === 'highlight' ? 'state-highlight' : m === 'filter' ? 'state-filter' : 'state-exclude');
+
+        if (isQuantitativeScheme(paletteScheme) && propData[paletteProp]?.isNumeric) {
+            // Quantitative: show histogram as the legend
+            const histoDiv = document.createElement('div');
+            histoDiv.className = 'numeric-histogram';
+            histoDiv.style.marginTop = '2px';
+            palRows.appendChild(histoDiv);
+            renderHistogram(paletteProp, histoDiv);
+        } else {
+            // Categorical: show discrete color rows
+            const pd = propData[paletteProp];
+            const entries = Object.entries(paletteMap);
+            const shown = entries.slice(0, 10);
+            shown.forEach(([val, color]) => {
+                const count = pd?.valueCounts?.[val] ?? '';
+                const row = document.createElement('div');
+                row.className = 'legend-row';
+                if (activeFilter && activeFilter.prop === paletteProp && activeFilter.value === val) {
+                    const m = activeFilter.mode;
+                    row.classList.add(m === 'highlight' ? 'state-highlight' : m === 'filter' ? 'state-filter' : 'state-exclude');
+                }
+                row.innerHTML = `<span class="legend-swatch" style="background:${color}"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${escHtml(val)}</span>${count !== '' ? `<span style="font-size:10px;color:var(--text-muted);flex-shrink:0">${count.toLocaleString()}</span>` : ''}`;
+                row.addEventListener('click', () => sidebarValueClick(paletteProp, val));
+                row.addEventListener('mouseenter', () => {
+                    if (activeFilter && activeFilter.prop === paletteProp && activeFilter.value === val) return;
+                    allFeatures.forEach(f => {
+                        if (String(f.properties[paletteProp]) === String(val))
+                            map.setFeatureState({ source: 'geojson-data', id: f.properties._gvid }, { highlighted: true });
+                    });
+                });
+                row.addEventListener('mouseleave', () => {
+                    allFeatures.forEach(f => {
+                        if (String(f.properties[paletteProp]) === String(val))
+                            map.setFeatureState({ source: 'geojson-data', id: f.properties._gvid }, { highlighted: false });
+                    });
+                });
+                palRows.appendChild(row);
+            });
+            if (entries.length > 10) {
+                const more = document.createElement('div');
+                more.className = 'legend-row';
+                more.style.color = 'var(--text-muted)';
+                more.textContent = `+ ${entries.length - 10} more`;
+                palRows.appendChild(more);
             }
-            row.innerHTML = `<span class="legend-swatch" style="background:${color}"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${escHtml(val)}</span>${count !== '' ? `<span style="font-size:10px;color:var(--text-muted);flex-shrink:0">${count.toLocaleString()}</span>` : ''}`;
-            // Click: 4-state cycle (delegates to sidebarValueClick)
-            row.addEventListener('click', () => sidebarValueClick(paletteProp, val));
-            // Hover: highlight matching features
-            row.addEventListener('mouseenter', () => {
-                if (activeFilter && activeFilter.prop === paletteProp && activeFilter.value === val) return;
-                allFeatures.forEach(f => {
-                    if (String(f.properties[paletteProp]) === String(val))
-                        map.setFeatureState({ source: 'geojson-data', id: f.properties._gvid }, { highlighted: true });
-                });
-            });
-            row.addEventListener('mouseleave', () => {
-                allFeatures.forEach(f => {
-                    if (String(f.properties[paletteProp]) === String(val))
-                        map.setFeatureState({ source: 'geojson-data', id: f.properties._gvid }, { highlighted: false });
-                });
-            });
-            palRows.appendChild(row);
-        });
-        if (entries.length > 10) {
-            const more = document.createElement('div');
-            more.className = 'legend-row';
-            more.style.color = 'var(--text-muted)';
-            more.textContent = `+ ${entries.length - 10} more`;
-            palRows.appendChild(more);
         }
     } else {
         palSection.style.display = 'none';
@@ -3464,7 +3567,7 @@ function ingestGeoJSON(geojson, filename, skipFit = false) {
     selectedIds.clear(); highlightedIds.clear(); hiddenIds.clear();
     activeFilter = null; popupRowStates = {}; openPropKey = null; labelProps.clear();
     lastHoveredId = null; hoveredMapId = null;
-    paletteProp = null; paletteMap = {}; paletteScheme = 'Set1'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false;
+    paletteProp = null; paletteMap = {}; paletteScheme = 'Set1'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false; paletteReversed = false; numericRangeFilter = null;
     updateLabelHint();
     document.getElementById('save-visible-btn').style.visibility = 'hidden';
     if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
@@ -3817,15 +3920,166 @@ function applyPaletteVariant() {
     pushHashState();
 }
 
+// ── QUANTITATIVE PALETTE STATE ──
+// paletteScheme = 'quantile' | 'linear' | 'jenks' when numeric prop is active
+// paletteClampLow / paletteClampHigh: percentile clamp (0-100), default 2/98
+// paletteNumStops: number of color stops (default 7)
+let paletteClampLow  = 2;
+let paletteClampHigh = 98;
+let paletteNumStops  = 7;
+let paletteLogScale  = false;
+let paletteStops     = null; // [{value, color}] computed by buildQuantitativeStops
+let paletteQuantScheme = 'YlOrRd'; // colorbrewer ramp for quantitative coloring (default warm ramp)
+
+const QUANTITATIVE_SCHEMES = ['linear', 'quantile', 'jenks'];
+const QUANTITATIVE_RAMPS = ['YlOrRd','YlOrBr','Reds','Oranges','Blues','Purples','Greens','BuPu','RdYlBu','Spectral','RdYlGn','PuOr'];
+
+function getQuantitativeRampColors(ramp, nStops) {
+    const scheme = colorbrewer[ramp];
+    if (!scheme) return colorbrewer.YlOrRd[7];
+    const available = Object.keys(scheme).map(Number).sort((a,b) => a-b);
+    const maxN = available[available.length-1];
+    const minN = available[0];
+    const n = Math.max(minN, Math.min(nStops, maxN));
+    const best = available.find(k => k >= n) || maxN;
+    return scheme[best];
+}
+
+function isQuantitativeScheme(scheme) {
+    return QUANTITATIVE_SCHEMES.includes(scheme);
+}
+
+// Jenks natural breaks — O(n*k²) so limit to sample
+function jenksBreaks(sortedVals, k) {
+    const n = sortedVals.length;
+    if (n <= k) return sortedVals.slice();
+    // Sample for performance if large
+    const sample = n > 2000 ? sortedVals.filter((_, i) => i % Math.ceil(n/2000) === 0) : sortedVals;
+    const m = sample.length;
+    // Lower class limits matrix
+    const mat1 = Array.from({length: m+1}, () => new Array(k+1).fill(0));
+    const mat2 = Array.from({length: m+1}, () => new Array(k+1).fill(Infinity));
+    for (let i = 1; i <= k; i++) { mat1[1][i] = 1; mat2[1][i] = 0; }
+    for (let j = 2; j <= m; j++) mat2[j][1] = Infinity;
+    for (let j = 2; j <= m; j++) {
+        let s1 = 0, s2 = 0, w = 0, v = Infinity;
+        for (let l = 1; l <= j; l++) {
+            const i3 = j - l + 1;
+            const val = sample[i3-1];
+            w++; s2 += val * val; s1 += val;
+            v = s2 - (s1*s1)/w;
+            const i4 = i3 - 1;
+            if (i4 !== 0) {
+                for (let p2 = 2; p2 <= k; p2++) {
+                    if (mat2[j][p2] >= v + mat2[i4][p2-1]) {
+                        mat1[j][p2] = i3;
+                        mat2[j][p2] = v + mat2[i4][p2-1];
+                    }
+                }
+            }
+        }
+        mat1[j][1] = 1;
+        mat2[j][1] = v;
+    }
+    // Backtrack to find breaks
+    const breaks = [sample[m-1]];
+    let kk = k, jj = m;
+    while (kk >= 2) {
+        const id = mat1[jj][kk] - 2;
+        breaks.push(sample[id]);
+        jj = mat1[jj][kk] - 1;
+        kk--;
+    }
+    breaks.push(sample[0]);
+    return breaks.reverse();
+}
+
+function buildQuantitativeStops(prop, scheme, rampColors, clampLow, clampHigh, numStops, logScale) {
+    const stats = propData[prop]?.numericStats;
+    if (!stats) return null;
+    const { sorted } = stats;
+    const n = sorted.length;
+
+    const pVal = pct => sorted[Math.min(n-1, Math.max(0, Math.round((pct/100)*(n-1))))];
+    const lo = pVal(clampLow), hi = pVal(clampHigh);
+    if (lo >= hi) return null;
+
+    const k = Math.max(2, Math.min(numStops, rampColors.length));
+    const effectiveRamp = paletteReversed ? [...rampColors].reverse() : rampColors;
+
+    let breakValues;
+    if (scheme === 'quantile') {
+        breakValues = Array.from({length: k}, (_, i) => pVal(clampLow + (i/(k-1)) * (clampHigh - clampLow)));
+    } else if (scheme === 'jenks') {
+        const inRange = sorted.filter(v => v >= lo && v <= hi);
+        const raw = jenksBreaks(inRange, k);
+        breakValues = raw.slice(0, k);
+        breakValues[0] = lo; breakValues[k-1] = hi;
+    } else { // linear
+        breakValues = Array.from({length: k}, (_, i) => {
+            const t = i / (k-1);
+            if (logScale && lo > 0) {
+                return Math.exp(Math.log(lo) + t * (Math.log(hi) - Math.log(lo)));
+            }
+            return lo + t * (hi - lo);
+        });
+    }
+
+    // Deduplicate
+    const seen = new Set();
+    const unique = breakValues.filter(v => { const s = v.toFixed(10); if (seen.has(s)) return false; seen.add(s); return true; });
+    if (unique.length < 2) return null;
+
+    return unique.map((value, i) => ({
+        value,
+        color: effectiveRamp[Math.round(i * (effectiveRamp.length-1) / (unique.length-1))]
+    }));
+}
+
+function buildQuantitativePaletteColorExpr(prop, stops) {
+    if (!stops || stops.length < 2) return PALETTE_FALLBACK;
+    const stats = propData[prop]?.numericStats;
+    const nullColor = PALETTE_FALLBACK;
+
+    // For null values, use fallback
+    const interpolate = ['interpolate', ['linear'], ['to-number', ['get', prop], -Infinity]];
+    stops.forEach(s => { interpolate.push(s.value, s.color); });
+
+    return ['case',
+        ['==', ['get', prop], null], nullColor,
+        ['!', ['has', prop]],        nullColor,
+        interpolate
+    ];
+}
+
 function buildPaletteColorExpr(prop, pMap) {
+    // Quantitative: use interpolate expression with numeric stops
+    if (isQuantitativeScheme(paletteScheme) && paletteStops) {
+        return buildQuantitativePaletteColorExpr(prop, paletteStops);
+    }
     const entries = Object.entries(pMap);
-    // MapLibre match needs at least one pair before the fallback
     if (!entries.length) return PALETTE_FALLBACK;
-    // ['match', ['get', prop], val1, color1, val2, color2, ..., fallback]
     const args = ['match', ['get', prop]];
     entries.forEach(([val, color]) => { args.push(val, color); });
     args.push(PALETTE_FALLBACK);
     return args;
+}
+
+function applyPaletteToLayers() {
+    if (!map.getLayer('gv-fill')) return;
+    let paletteExpr;
+    if (isQuantitativeScheme(paletteScheme) && paletteProp) {
+        const rampColors = getQuantitativeRampColors(paletteQuantScheme, paletteNumStops);
+        paletteStops = buildQuantitativeStops(paletteProp, paletteScheme, rampColors, paletteClampLow, paletteClampHigh, paletteNumStops, paletteLogScale);
+        paletteExpr = paletteStops ? buildQuantitativePaletteColorExpr(paletteProp, paletteStops) : PALETTE_FALLBACK;
+    } else {
+        paletteExpr = paletteProp ? buildPaletteColorExpr(paletteProp, paletteMap) : '#3b82f6';
+    }
+    const colorExpr = buildFullColorExpr(paletteExpr);
+    map.setPaintProperty('gv-fill',    'fill-color',  colorExpr);
+    map.setPaintProperty('gv-outline', 'line-color',  colorExpr);
+    map.setPaintProperty('gv-line',    'line-color',  colorExpr);
+    applyPointStyle();
 }
 
 function buildFullColorExpr(paletteExpr) {
@@ -3855,7 +4109,12 @@ function buildStrokeColorExpr(paletteExpr) {
 
 function applyPointStyle() {
     if (!map.getLayer('gv-point')) return;
-    const paletteExpr = paletteProp ? buildPaletteColorExpr(paletteProp, paletteMap) : '#3b82f6';
+    let paletteExpr;
+    if (isQuantitativeScheme(paletteScheme) && paletteProp && paletteStops) {
+        paletteExpr = buildQuantitativePaletteColorExpr(paletteProp, paletteStops);
+    } else {
+        paletteExpr = paletteProp ? buildPaletteColorExpr(paletteProp, paletteMap) : '#3b82f6';
+    }
     const colorExpr   = buildFullColorExpr(paletteExpr);
     const visExpr     = ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1];
 
@@ -3882,17 +4141,23 @@ function applyPointStyle() {
     map.setPaintProperty('gv-point', 'circle-stroke-opacity', visExpr);
 }
 
-function applyPaletteToLayers() {
-    if (!map.getLayer('gv-fill')) return;
-    const paletteExpr = paletteProp ? buildPaletteColorExpr(paletteProp, paletteMap) : '#3b82f6';
-    const colorExpr   = buildFullColorExpr(paletteExpr);
-    map.setPaintProperty('gv-fill',    'fill-color',  colorExpr);
-    map.setPaintProperty('gv-outline', 'line-color',  colorExpr);
-    map.setPaintProperty('gv-line',    'line-color',  colorExpr);
-    applyPointStyle();
+function applyLineStyle() {
+    if (!map.getLayer('gv-line')) return;
+    const widths = { thin: [1, 2], medium: [2, 4], thick: [3, 6] };
+    const [wThin, wThick] = widths[lineWidthMode] || [1, 2];
+    const lineWidth = lineRadiusMode === 'zoom'
+        ? ['interpolate', ['linear'], ['zoom'], 8, wThin, 16, wThick]
+        : wThin;
+    const casingWidth = lineRadiusMode === 'zoom'
+        ? ['interpolate', ['linear'], ['zoom'], 8, wThin + 2, 16, wThick + 2]
+        : wThin + 2;
+    map.setPaintProperty('gv-line', 'line-width', lineWidth);
+    map.setPaintProperty('gv-line-casing', 'line-width', casingWidth);
+    // Polygon borders
+    if (map.getLayer('gv-outline')) {
+        map.setLayoutProperty('gv-outline', 'visibility', polyBorders ? 'visible' : 'none');
+    }
 }
-
-// ── DYNAMIC POINT RADIUS ──
 // Maps visible point count to a base radius, then applies zoom interpolation around it.
 // Breakpoints tuned so dense national datasets get small dots and sparse local ones get bigger.
 function densityRadius(n) {
@@ -3950,10 +4215,17 @@ function updatePointRadius() {
 
 function activatePalette(prop, scheme) {
     paletteProp = prop;
-    paletteScheme = scheme;
+    // Auto-detect numeric and switch to quantitative mode
+    if (propData[prop]?.isNumeric && !isQuantitativeScheme(scheme) && scheme !== 'native') {
+        paletteScheme = 'quantile';
+        paletteQuantScheme = 'YlOrRd';
+    } else {
+        paletteScheme = scheme;
+    }
     paletteRotateOffset = 0;
     palettePerm = null;
-    paletteMap = buildPaletteMap(prop, scheme, 0, null);
+    paletteStops = null;
+    paletteMap = buildPaletteMap(prop, paletteScheme, 0, null);
     applyPaletteToLayers();
     if (dotsMode !== 'off') { invalidateMidpointsCache(); updateDotsLayer(); }
     renderSidebar();
@@ -4014,7 +4286,7 @@ function buildPropData() {
     allFeatures.forEach(f => {
         Object.entries(f.properties || {}).forEach(([k, v]) => {
             if (k === '_gvid') return;
-            if (!propData[k]) propData[k] = { valueCounts: {}, totalWithValue: 0, isColorProp: false };
+            if (!propData[k]) propData[k] = { valueCounts: {}, totalWithValue: 0, isColorProp: false, isNumeric: false, numericStats: null };
             if (v !== null && v !== undefined && v !== '') {
                 const vs = String(v);
                 propData[k].totalWithValue++;
@@ -4022,13 +4294,97 @@ function buildPropData() {
             }
         });
     });
-    // Flag color properties
+    // Flag color and numeric properties
     Object.entries(propData).forEach(([k, pd]) => {
         pd.isColorProp = isColorProperty(pd.valueCounts, pd.totalWithValue);
+        if (!pd.isColorProp) pd.isNumeric = isNumericProperty(pd.valueCounts, pd.totalWithValue);
+        if (pd.isNumeric) pd.numericStats = computeNumericStats(k);
     });
 }
 
-// When a filter is active, compute counts from only visible (non-hidden) features
+function isNumericProperty(valueCounts, totalWithValue) {
+    if (totalWithValue < 1) return false;
+    // Need enough distinct values to be meaningful as quantitative
+    const vals = Object.keys(valueCounts);
+    if (vals.length < 5) return false; // too few distinct values → categorical
+    let numericCount = 0, total = 0;
+    vals.forEach(v => {
+        const n = Number(v);
+        total += valueCounts[v];
+        if (!isNaN(n) && isFinite(n)) numericCount += valueCounts[v];
+    });
+    return numericCount / total >= 0.9; // 90%+ parse as finite numbers
+}
+
+function computeNumericStats(prop) {
+    // Collect all numeric values for this property across all features
+    const vals = [];
+    let nullCount = 0;
+    allFeatures.forEach(f => {
+        const v = f.properties[prop];
+        if (v === null || v === undefined || v === '') { nullCount++; return; }
+        const n = Number(v);
+        if (isNaN(n) || !isFinite(n)) { nullCount++; return; }
+        vals.push(n);
+    });
+    if (!vals.length) return null;
+
+    vals.sort((a, b) => a - b);
+    const count  = vals.length;
+    const min    = vals[0];
+    const max    = vals[count - 1];
+    const sum    = vals.reduce((a, b) => a + b, 0);
+    const mean   = sum / count;
+    const median = count % 2 === 0
+        ? (vals[count/2 - 1] + vals[count/2]) / 2
+        : vals[Math.floor(count/2)];
+    const variance = vals.reduce((a, v) => a + (v - mean) ** 2, 0) / count;
+    const stddev = Math.sqrt(variance);
+
+    const p = pct => vals[Math.min(count - 1, Math.max(0, Math.round((pct / 100) * (count - 1))))];
+    const p02 = p(2), p98 = p(98);
+    const q1 = p(25), q3 = p(75);
+    const iqr = q3 - q1;
+    const range = max - min;
+    const negCount = vals.filter(v => v < 0).length;
+
+    return { count, nullCount, min, max, mean, median, stddev, sum, iqr, q1, q3, range, negCount, p02, p98, sorted: vals };
+}
+
+function computeNumericStatsFiltered(prop, filterLo, filterHi) {
+    // Same as computeNumericStats but excludes values outside [filterLo, filterHi]
+    const vals = [];
+    let nullCount = 0;
+    allFeatures.forEach(f => {
+        const v = f.properties[prop];
+        if (v === null || v === undefined || v === '') { nullCount++; return; }
+        const n = Number(v);
+        if (isNaN(n) || !isFinite(n)) { nullCount++; return; }
+        // Exclude values outside filter range
+        if (filterLo !== null && n < filterLo) { nullCount++; return; }
+        if (filterHi !== null && n > filterHi) { nullCount++; return; }
+        vals.push(n);
+    });
+    if (!vals.length) return null;
+
+    vals.sort((a, b) => a - b);
+    const count  = vals.length;
+    const min    = vals[0];
+    const max    = vals[count - 1];
+    const sum    = vals.reduce((a, b) => a + b, 0);
+    const mean   = sum / count;
+    const median = count % 2 === 0
+        ? (vals[count/2 - 1] + vals[count/2]) / 2
+        : vals[Math.floor(count/2)];
+    const variance = vals.reduce((a, v) => a + (v - mean) ** 2, 0) / count;
+    const stddev = Math.sqrt(variance);
+    const p = pct => vals[Math.min(count - 1, Math.max(0, Math.round((pct / 100) * (count - 1))))];
+    const sum2 = vals.reduce((a, b) => a + b, 0);
+    const q1f = p(25), q3f = p(75);
+    const range2 = max - min;
+    const negCount2 = vals.filter(v => v < 0).length;
+    return { count, nullCount, min, max, mean, median, stddev, sum: sum2, iqr: q3f-q1f, q1: q1f, q3: q3f, range: range2, negCount: negCount2, p02: p(2), p98: p(98), sorted: vals };
+}
 function getEffectivePropData() {
     if (hiddenIds.size === 0) return propData;
     const pd = {};
@@ -4223,6 +4579,689 @@ function getSortedKeys(filterStr) {
     return keys;
 }
 
+// ── NUMERIC PROPERTY PANEL ──
+function fmt4(n, isInt) {
+    // k only above 100,000; M above 1,000,000
+    if (Math.abs(n) >= 1e6)  return (n/1e6).toFixed(2) + 'M';
+    if (Math.abs(n) >= 1e5)  return (n/1e3).toFixed(0) + 'k';
+    if (isInt) return Math.round(n).toLocaleString();
+    if (Math.abs(n) >= 100)  return n.toFixed(1);
+    if (Math.abs(n) >= 1)    return n.toFixed(2);
+    if (Math.abs(n) >= 0.01) return n.toFixed(4);
+    return n.toPrecision(3);
+}
+
+function fmtCount(n) {
+    // For bin hover tooltips — use locale string below 100k, k/M above
+    if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(2) + 'M';
+    if (Math.abs(n) >= 1e5) return (n/1e3).toFixed(0) + 'k';
+    return n.toLocaleString();
+}
+
+let numericBinCount = 20; // global so it persists between panel renders
+let histoPoppedKey  = null; // property key of popped-out histogram, null = inline
+let paletteReversed = false; // flip color ramp direction
+let numericRangeFilter = null; // {prop, lo, hi, state} for bin click 2-state cycle
+let histoOrientation = 'vertical'; // 'horizontal' | 'vertical'
+let paletteFilterLo  = null; // user-set hard min (null = no filter)
+let paletteFilterHi  = null; // user-set hard max (null = no filter)
+
+function renderNumericPanel(key, container) {
+    const stats = propData[key]?.numericStats;
+    if (!stats) return;
+
+    const panel = document.createElement('div');
+    panel.className = 'numeric-panel';
+    panel.dataset.numericKey = key;
+
+    // ── Stats grid: [Max | Mean | IQR] / [Min | Median | Sum] / [Count] ──
+    const isInt = stats.sorted.every(v => Number.isInteger(v));
+    const grid = document.createElement('div');
+    grid.className = 'numeric-stats-grid';
+    // 4-column × 3-row grid:
+    // Row 1: Max | Mean | Count | Q1
+    // Row 2: Min | Median | Nulls | IQR
+    // Row 3: Range | Std Dev | Negative | Q3
+    const statDefs = [
+        ['Max',      fmt4(stats.max, isInt)],
+        ['Mean',     fmt4(stats.mean, isInt)],
+        ['Count',    stats.count.toLocaleString()],
+        ['Q1',       fmt4(stats.q1, isInt)],
+        ['Min',      fmt4(stats.min, isInt)],
+        ['Median',   fmt4(stats.median, isInt)],
+        ['Nulls',    stats.nullCount.toLocaleString()],
+        ['IQR',      fmt4(stats.iqr, false)],
+        ['Range',    fmt4(stats.range, isInt)],
+        ['Std Dev',  fmt4(stats.stddev, false)],
+        ['Negative', stats.negCount.toLocaleString()],
+        ['Q3',       fmt4(stats.q3, isInt)],
+    ];
+    statDefs.forEach(([label, value]) => {
+        const s = document.createElement('div');
+        s.className = 'numeric-stat';
+        s.innerHTML = `<span class="numeric-stat-label">${label}</span><span class="numeric-stat-value">${value}</span>`;
+        grid.appendChild(s);
+    });
+    panel.appendChild(grid);
+
+    // ── Controls ──
+    const controls = document.createElement('div');
+    controls.className = 'numeric-controls';
+
+    // Scheme pill
+    const schemePill = document.createElement('div');
+    schemePill.className = 'numeric-scheme-pill';
+    ['quantile','linear','jenks'].forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'numeric-scheme-opt' + (paletteScheme === s ? ' active' : '');
+        btn.textContent = s[0].toUpperCase() + s.slice(1);
+        btn.title = s === 'quantile' ? 'Equal feature counts per color band — robust to outliers'
+                  : s === 'linear'  ? 'Equal value intervals — simple, breaks with outliers'
+                  : 'Natural breaks (Jenks) — minimizes within-class variance';
+        btn.addEventListener('click', () => {
+            if (!paletteProp || paletteProp !== key) paletteProp = key;
+            paletteScheme = s; paletteStops = null;
+            applyPaletteToLayers(); renderSidebar(); pushHashState();
+        });
+        schemePill.appendChild(btn);
+    });
+    controls.appendChild(schemePill);
+
+    // Color ramp button
+    const rampBtn = document.createElement('button');
+    rampBtn.className = 'numeric-ramp-btn';
+    const rampColors = getQuantitativeRampColors(paletteQuantScheme, 6);
+    const displayColors = paletteReversed ? [...rampColors].reverse() : rampColors;
+    const swatchHtml = displayColors.map(c => `<span style="display:inline-block;width:9px;height:9px;background:${c};border-radius:1px"></span>`).join('');
+    rampBtn.innerHTML = `<span style="display:inline-flex;gap:1px">${swatchHtml}</span> <span>${paletteQuantScheme}</span> ▾`;
+    rampBtn.title = 'Change color ramp';
+    rampBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const existing = document.querySelector('.palette-dropdown');
+        if (existing) { existing.remove(); return; }
+        const menu = document.createElement('div');
+        menu.className = 'palette-dropdown';
+        const r = rampBtn.getBoundingClientRect();
+        menu.style.cssText = `position:fixed;left:${r.left}px;top:${r.bottom+4}px;z-index:600;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:160px;max-height:280px;overflow-y:auto;`;
+        QUANTITATIVE_RAMPS.forEach(ramp => {
+            const item = document.createElement('div');
+            const isActive = ramp === paletteQuantScheme;
+            item.style.cssText = `display:flex;align-items:center;gap:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-family:var(--mono);color:${isActive?'var(--text)':'var(--text-muted)'};background:${isActive?'var(--surface2)':'transparent'}`;
+            const colors = getQuantitativeRampColors(ramp, 7);
+            const dc = paletteReversed ? [...colors].reverse() : colors;
+            const strip = dc.map(c => `<span style="display:inline-block;width:10px;height:10px;background:${c};border-radius:1px"></span>`).join('');
+            item.innerHTML = `<span style="display:inline-flex;gap:1px">${strip}</span><span>${ramp}</span>`;
+            item.addEventListener('mouseenter', () => item.style.background = 'var(--surface2)');
+            item.addEventListener('mouseleave', () => item.style.background = isActive ? 'var(--surface2)' : 'transparent');
+            item.addEventListener('click', ev => {
+                ev.stopPropagation(); menu.remove();
+                paletteQuantScheme = ramp; paletteStops = null;
+                applyPaletteToLayers(); renderSidebar();
+            });
+            menu.appendChild(item);
+        });
+        document.body.appendChild(menu);
+        const close = ev => { if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('click', close); } };
+        setTimeout(() => document.addEventListener('click', close), 0);
+    });
+    controls.appendChild(rampBtn);
+
+    // Flip ramp button
+    const flipBtn = document.createElement('button');
+    flipBtn.className = 'numeric-ramp-btn' + (paletteReversed ? ' active' : '');
+    flipBtn.textContent = '↔';
+    flipBtn.title = 'Flip color ramp direction';
+    flipBtn.style.padding = '2px 6px';
+    flipBtn.addEventListener('click', () => {
+        paletteReversed = !paletteReversed;
+        paletteStops = null; applyPaletteToLayers(); renderSidebar();
+    });
+    controls.appendChild(flipBtn);
+
+    // Log scale toggle
+    const logBtn = document.createElement('button');
+    logBtn.className = 'numeric-log-btn' + (paletteLogScale ? ' active' : '');
+    logBtn.textContent = 'Log';
+    logBtn.title = 'Toggle logarithmic scale (useful for data spanning orders of magnitude)';
+    logBtn.addEventListener('click', () => {
+        paletteLogScale = !paletteLogScale; paletteStops = null;
+        applyPaletteToLayers(); renderSidebar();
+    });
+    controls.appendChild(logBtn);
+
+    panel.appendChild(controls);
+
+    // ── Editable Min/Max filter inputs ──
+    const filterRow = document.createElement('div');
+    filterRow.className = 'numeric-clamp-row';
+    const filterLoVal = paletteFilterLo !== null ? paletteFilterLo : stats.min;
+    const filterHiVal = paletteFilterHi !== null ? paletteFilterHi : stats.max;
+    filterRow.innerHTML = `<span>Filter</span>
+        <input type="number" id="filter-lo-${key}" value="${filterLoVal}" step="any" style="width:68px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono)">
+        <span style="color:var(--text-muted)">–</span>
+        <input type="number" id="filter-hi-${key}" value="${filterHiVal}" step="any" style="width:68px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono)">
+        <button id="filter-reset-${key}" style="background:transparent;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:10px;padding:1px 5px;color:var(--text-muted)" title="Reset to data min/max">✕</button>`;
+    panel.appendChild(filterRow);
+
+    const filterLoInput = filterRow.querySelector(`#filter-lo-${key}`);
+    const filterHiInput = filterRow.querySelector(`#filter-hi-${key}`);
+    const applyFilterInputs = () => {
+        const lo = parseFloat(filterLoInput.value);
+        const hi = parseFloat(filterHiInput.value);
+        if (!isNaN(lo)) paletteFilterLo = lo;
+        if (!isNaN(hi)) paletteFilterHi = hi;
+        // Rebuild stats excluding out-of-range values
+        propData[key].numericStats = computeNumericStatsFiltered(key, paletteFilterLo, paletteFilterHi);
+        paletteStops = null;
+        applyPaletteToLayers();
+        renderSidebar();
+    };
+    filterLoInput.addEventListener('change', applyFilterInputs);
+    filterHiInput.addEventListener('change', applyFilterInputs);
+    filterRow.querySelector(`#filter-reset-${key}`).addEventListener('click', () => {
+        paletteFilterLo = null; paletteFilterHi = null;
+        propData[key].numericStats = computeNumericStats(key);
+        paletteStops = null;
+        applyPaletteToLayers();
+        renderSidebar();
+    });
+
+    // ── Clamp percentile sliders ──
+    const clampRow = document.createElement('div');
+    clampRow.className = 'numeric-clamp-row';
+    clampRow.innerHTML = `<span>Clip</span>
+        <input type="range" id="clamp-lo-${key}" min="0" max="20" step="1" value="${paletteClampLow}" style="width:60px">
+        <span id="clamp-lo-label-${key}">${paletteClampLow}%</span>
+        <span style="color:var(--text-muted)">–</span>
+        <span id="clamp-hi-label-${key}">${paletteClampHigh}%</span>
+        <input type="range" id="clamp-hi-${key}" min="80" max="100" step="1" value="${paletteClampHigh}" style="width:60px">`;
+    panel.appendChild(clampRow);
+
+    const loSlider = clampRow.querySelector(`#clamp-lo-${key}`);
+    const hiSlider = clampRow.querySelector(`#clamp-hi-${key}`);
+    const loLabel  = clampRow.querySelector(`#clamp-lo-label-${key}`);
+    const hiLabel  = clampRow.querySelector(`#clamp-hi-label-${key}`);
+    loSlider.addEventListener('input', () => {
+        paletteClampLow = +loSlider.value; loLabel.textContent = paletteClampLow + '%';
+        paletteStops = null; applyPaletteToLayers(); renderHistogram(key, histoDiv);
+    });
+    hiSlider.addEventListener('input', () => {
+        paletteClampHigh = +hiSlider.value; hiLabel.textContent = paletteClampHigh + '%';
+        paletteStops = null; applyPaletteToLayers(); renderHistogram(key, histoDiv);
+    });
+
+    // ── Histogram header (title + orientation + popout) ──
+    const histoHeader = document.createElement('div');
+    histoHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;gap:4px;';
+    const histoTitle = document.createElement('span');
+    histoTitle.style.cssText = 'font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);flex:1';
+    histoTitle.textContent = 'Distribution';
+    const orientBtn = document.createElement('button');
+    orientBtn.className = 'numeric-log-btn' + (histoOrientation === 'vertical' ? ' active' : '');
+    orientBtn.style.cssText = 'font-size:11px;padding:1px 5px;';
+    orientBtn.textContent = '↕';
+    orientBtn.title = 'Toggle vertical/horizontal histogram';
+    orientBtn.addEventListener('click', () => {
+        histoOrientation = histoOrientation === 'horizontal' ? 'vertical' : 'horizontal';
+        renderHistogram(key, histoDiv);
+        renderSidebar();
+    });
+    const popoutBtn = document.createElement('button');
+    popoutBtn.className = 'numeric-log-btn';
+    popoutBtn.style.cssText = 'font-size:11px;padding:1px 5px;';
+    popoutBtn.textContent = '⤢';
+    popoutBtn.title = 'Pop out histogram to bottom panel';
+    histoHeader.appendChild(histoTitle);
+    histoHeader.appendChild(orientBtn);
+    histoHeader.appendChild(popoutBtn);
+    panel.appendChild(histoHeader);
+
+    // ── Histogram ──
+    const histoDiv = document.createElement('div');
+    histoDiv.className = 'numeric-histogram';
+    panel.appendChild(histoDiv);
+
+    // ── Bin count ──
+    const binsRow = document.createElement('div');
+    binsRow.className = 'numeric-bins-row';
+    binsRow.innerHTML = `<span>Bins</span>
+        <input type="range" id="bins-${key}" min="2" max="50" step="1" value="${numericBinCount}">
+        <span id="bins-label-${key}">${numericBinCount}</span>`;
+    panel.appendChild(binsRow);
+    binsRow.querySelector(`#bins-${key}`).addEventListener('input', function() {
+        numericBinCount = +this.value;
+        binsRow.querySelector(`#bins-label-${key}`).textContent = numericBinCount;
+        renderHistogram(key, histoDiv);
+        // Also refresh popped panel if open
+        const poppedContainer = document.querySelector('#histo-popout-panel .numeric-histogram');
+        if (histoPoppedKey === key && poppedContainer) renderHistogram(key, poppedContainer);
+    });
+
+    popoutBtn.addEventListener('click', () => {
+        if (histoPoppedKey === key) {
+            closeHistoPopout();
+        } else {
+            openHistoPopout(key);
+        }
+    });
+
+    container.appendChild(panel);
+    renderHistogram(key, histoDiv);
+}
+
+function renderHistogram(key, container) {
+    const stats = propData[key]?.numericStats;
+    if (!stats) return;
+
+    const { sorted, min, max, nullCount, mean, median, stddev } = stats;
+    const n = sorted.length;
+
+    // Detect integer data — no decimals in axis labels
+    const isInt = sorted.every(v => Number.isInteger(v));
+
+    const pVal = pct => sorted[Math.min(n-1, Math.max(0, Math.round((pct/100)*(n-1))))];
+    const clampLo = pVal(paletteClampLow), clampHi = pVal(paletteClampHigh);
+    const nBins = numericBinCount;
+
+    // ── Axis range: use clamped range so long tails don't squish chart ──
+    // Bins still cover full [min, max]; the x-axis just spans [clampLo, clampHi].
+    // Bars outside the clamped range are rendered but may partially fall off the edge.
+    const axisLo = clampLo, axisHi = clampHi;
+    const axisRange = axisHi - axisLo || 1;
+    const fullRange = max - min || 1;
+
+    // Build bins over full data range
+    const binWidth = fullRange / nBins;
+    const bins = Array.from({length: nBins}, (_, i) => ({
+        lo: min + i * binWidth,
+        hi: min + (i+1) * binWidth,
+        count: 0
+    }));
+    sorted.forEach(v => {
+        let bi = Math.floor((v - min) / binWidth);
+        if (bi >= nBins) bi = nBins - 1;
+        bins[bi].count++;
+    });
+    const maxCount = Math.max(...bins.map(b => b.count), 1);
+
+    // Color ramp
+    const rampColors = getQuantitativeRampColors(paletteQuantScheme, nBins);
+    const effectiveRamp = paletteReversed ? [...rampColors].reverse() : rampColors;
+    const getBarColor = (binLo, binHi) => {
+        const mid = (binLo + binHi) / 2;
+        if (paletteStops && paletteStops.length >= 2) {
+            const stops = paletteStops;
+            const sMin = stops[0].value, sMax = stops[stops.length-1].value;
+            if (mid <= sMin) return stops[0].color;
+            if (mid >= sMax) return stops[stops.length-1].color;
+            for (let i = 0; i < stops.length-1; i++) {
+                if (mid >= stops[i].value && mid <= stops[i+1].value) {
+                    const t = (mid - stops[i].value) / (stops[i+1].value - stops[i].value);
+                    return lerpColor(stops[i].color, stops[i+1].color, t);
+                }
+            }
+        }
+        const t = Math.max(0, Math.min(1, (mid - axisLo) / axisRange));
+        return effectiveRamp[Math.round(t * (effectiveRamp.length-1))];
+    };
+
+    // Axis formatter
+    const axFmt = v => {
+        const a = Math.abs(v);
+        if (a >= 1e6) return (v/1e6).toFixed(1) + 'M';
+        if (a >= 1e5) return (v/1e3).toFixed(0) + 'k';
+        if (a >= 1)   return isInt ? Math.round(v).toString() : v.toFixed(a >= 100 ? 0 : 1);
+        return v.toPrecision(2);
+    };
+
+    // Context detection
+    const isPopped  = container.closest('#histo-popout-panel') !== null;
+    const isLegend  = container.closest('#legend-card') !== null;
+    const isVert    = histoOrientation === 'vertical' && !isLegend;
+
+    // Clip ID safe string
+    const clipId = 'histo-clip-' + key.replace(/[^a-zA-Z0-9]/g, '_');
+
+    if (isVert) {
+        // ── VERTICAL HISTOGRAM (compact, value on y-axis, bars extend right) ──
+        const W   = isPopped ? 190 : 150;
+        const H   = isPopped ? 280 : 160;   // 160px inline — fits without spilling
+        const pad = { l: 28, r: 18, t: 8, b: 8 }; // r=18: room for MEAN/MED labels
+        const plotW = W - pad.l - pad.r;
+        const plotH = H - pad.t - pad.b;
+
+        const yPos = v  => pad.t + plotH - ((v - axisLo) / axisRange) * plotH;
+        const bhPx = bin => Math.max(0.5, (bin.hi - bin.lo) / axisRange * plotH - 0.5);
+
+        // Set container height so it doesn't overflow into neighbour props
+        container.style.height = H + 'px';
+        container.style.overflow = 'hidden';
+
+        let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible;display:block;width:100%;height:${H}px">`;
+        svg += `<defs><clipPath id="${clipId}"><rect x="${pad.l}" y="${pad.t}" width="${plotW}" height="${plotH}"/></clipPath></defs>`;
+
+        // Sigma bands
+        const sigmas = [{ns:1,color:'rgba(167,139,250,0.6)',dash:'',w:1},{ns:2,color:'rgba(167,139,250,0.28)',dash:'3,2',w:0.7}];
+        sigmas.forEach(({ns,color,dash,w}) => {
+            [-ns,ns].forEach(sign => {
+                const v = mean + sign*ns*stddev;
+                if (v < axisLo || v > axisHi) return;
+                const y = yPos(v).toFixed(1);
+                const da = dash ? ` stroke-dasharray="${dash}"` : '';
+                svg += `<line x1="${pad.l}" y1="${y}" x2="${pad.l+plotW}" y2="${y}" stroke="${color}" stroke-width="${w}"${da} clip-path="url(#${clipId})"/>`;
+            });
+        });
+
+        // Bars
+        const activeRange = numericRangeFilter?.prop === key ? numericRangeFilter : null;
+        svg += `<g clip-path="url(#${clipId})">`;
+
+        // Quantile rank lookup for tooltip
+        const getQuantileRank = v => {
+            if (!stats.sorted || !stats.sorted.length) return null;
+            let lo = 0, hi = stats.sorted.length - 1;
+            while (lo < hi) { const m = (lo+hi)>>1; if (stats.sorted[m] < v) lo = m+1; else hi = m; }
+            return (lo / (stats.sorted.length - 1) * 100).toFixed(1);
+        };
+
+        bins.forEach((bin, bi) => {
+            const bw  = (bin.count / maxCount) * plotW;
+            const y   = yPos(bin.hi);
+            const bh  = bhPx(bin);
+            const inClamp  = bin.hi > clampLo && bin.lo < clampHi;
+            const isFiltered = activeRange && bin.lo >= activeRange.lo && bin.hi <= activeRange.hi;
+            const color = inClamp ? getBarColor(bin.lo, bin.hi) : '#444456';
+            let opacity = inClamp ? 1 : 0.22;
+            if (activeRange && !isFiltered) opacity *= 0.3;
+            const cnt = bin.count >= 1e5 ? (bin.count/1e3).toFixed(0)+'k' : bin.count.toLocaleString();
+            const pctLo = isQuantitativeScheme(paletteScheme) ? ` · Q${getQuantileRank(bin.lo)}%` : '';
+            const binLabel = `Bin ${bi+1}/${nBins}`;
+            svg += `<rect class="histo-bar" x="${pad.l}" y="${y.toFixed(1)}" width="${Math.max(0.5,bw).toFixed(1)}" height="${bh.toFixed(1)}" fill="${color}" opacity="${opacity}" data-lo="${bin.lo.toFixed(6)}" data-hi="${bin.hi.toFixed(6)}" data-count="${bin.count}"><title>${binLabel} · ${axFmt(bin.lo)}–${axFmt(bin.hi)}: ${cnt}${pctLo}</title></rect>`;
+        });
+        svg += `</g>`;
+
+        // Mean / median — horizontal lines with horizontal labels at right edge
+        const meanY = yPos(mean), medY = yPos(median);
+        if (meanY >= pad.t && meanY <= pad.t+plotH) {
+            svg += `<line x1="${pad.l}" y1="${meanY.toFixed(1)}" x2="${pad.l+plotW}" y2="${meanY.toFixed(1)}" stroke="rgba(110,231,183,0.95)" stroke-width="1.5"><title>Mean: ${fmt4(mean, isInt)}</title></line>`;
+            svg += `<text x="${pad.l+plotW+2}" y="${(meanY+3).toFixed(1)}" font-size="7" font-weight="700" fill="rgba(110,231,183,1)">MEAN</text>`;
+        }
+        if (medY >= pad.t && medY <= pad.t+plotH) {
+            svg += `<line x1="${pad.l}" y1="${medY.toFixed(1)}" x2="${pad.l+plotW}" y2="${medY.toFixed(1)}" stroke="rgba(147,197,253,0.9)" stroke-width="1.5" stroke-dasharray="4,2"><title>Median: ${fmt4(median, isInt)}</title></line>`;
+            svg += `<text x="${pad.l+plotW+2}" y="${(medY+3).toFixed(1)}" font-size="7" font-weight="700" fill="rgba(147,197,253,1)">MED</text>`;
+        }
+
+        // Q1 / Q3 lines (visible dashed purple lines, no band)
+        if (stats.q1 !== undefined) {
+            [['q1','Q1'],['q3','Q3']].forEach(([k2, label]) => {
+                const yq = yPos(stats[k2]);
+                if (yq < pad.t || yq > pad.t+plotH) return;
+                svg += `<line x1="${pad.l}" y1="${yq.toFixed(1)}" x2="${pad.l+plotW}" y2="${yq.toFixed(1)}" stroke="rgba(167,139,250,0.7)" stroke-width="1" stroke-dasharray="3,2"/>`;
+                svg += `<text x="${pad.l+plotW+2}" y="${(yq+3).toFixed(1)}" font-size="7" font-weight="600" fill="rgba(167,139,250,0.85)">${label}</text>`;
+            });
+        }
+
+        // ±σ labels on y-axis (left side, horizontal)
+        [-1,1].forEach(sign => {
+            const v = mean + sign*stddev;
+            if (v < axisLo || v > axisHi) return;
+            const y = yPos(v);
+            svg += `<text x="${pad.l-2}" y="${y.toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-size="9" font-weight="700" fill="rgba(167,139,250,0.9)">${sign>0?'+σ':'−σ'}</text>`;
+        });
+
+        // Y-axis value labels — auto-density
+        const tickPx = isPopped ? 28 : 20;
+        const nTicks = Math.max(2, Math.floor(plotH / tickPx));
+        Array.from({length: nTicks}, (_, i) => axisLo + (i/(nTicks-1))*axisRange).forEach(v => {
+            const y = yPos(v);
+            svg += `<text x="${pad.l-3}" y="${y.toFixed(1)}" text-anchor="end" dominant-baseline="middle" font-size="8" fill="rgba(184,184,204,0.85)">${axFmt(v)}</text>`;
+        });
+
+        svg += '</svg>';
+        container.innerHTML = svg;
+
+    } else {
+        // ── HORIZONTAL HISTOGRAM ──
+        const W  = isPopped ? 420 : 240;
+        const H  = isPopped ? 150 : isLegend ? 90 : 120;
+        // top: 18 for σ labels; bottom: 28 for 90° x-axis labels
+        const pad = { l: 4, r: nullCount > 0 ? 20 : 6, t: 18, b: 28 };
+        const plotW = W - pad.l - pad.r;
+        const plotH = H - pad.t - pad.b;
+
+        container.style.height = '';
+
+        const xPos = v => pad.l + ((v - axisLo) / axisRange) * plotW;
+
+        let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible;display:block">`;
+
+        // Clip + sigma bands + bars
+        svg += `<defs><clipPath id="${clipId}"><rect x="${pad.l}" y="${pad.t}" width="${plotW}" height="${plotH}"/></clipPath></defs>`;
+        const sigmas = [{ns:1,color:'rgba(167,139,250,0.6)',dash:'',w:1},{ns:2,color:'rgba(167,139,250,0.28)',dash:'3,2',w:0.7}];
+        svg += `<g clip-path="url(#${clipId})">`;
+        sigmas.forEach(({ns,color,dash,w}) => {
+            [-ns,ns].forEach(sign => {
+                const v = mean + sign*ns*stddev;
+                if (v < axisLo || v > axisHi) return;
+                const x = xPos(v).toFixed(1);
+                const da = dash ? ` stroke-dasharray="${dash}"` : '';
+                svg += `<line x1="${x}" y1="${pad.t}" x2="${x}" y2="${pad.t+plotH}" stroke="${color}" stroke-width="${w}"${da}/>`;
+            });
+        });
+
+        // Q1 / Q3 vertical dashed lines (no shaded band)
+        if (stats.q1 !== undefined) {
+            [['q1','Q1'],['q3','Q3']].forEach(([k2, label]) => {
+                const xq = xPos(stats[k2]);
+                if (xq < pad.l || xq > pad.l+plotW) return;
+                svg += `<line x1="${xq.toFixed(1)}" y1="${pad.t}" x2="${xq.toFixed(1)}" y2="${pad.t+plotH}" stroke="rgba(167,139,250,0.65)" stroke-width="1" stroke-dasharray="3,2"/>`;
+                svg += `<text x="${xq.toFixed(1)}" y="${pad.t+plotH+3}" text-anchor="middle" font-size="8" fill="rgba(167,139,250,0.85)">${label}</text>`;
+            });
+        }
+
+        // Quantile rank helper for tooltips
+        const getQuantileRank = v => {
+            if (!stats.sorted || !stats.sorted.length) return null;
+            let lo = 0, hi = stats.sorted.length - 1;
+            while (lo < hi) { const m = (lo+hi)>>1; if (stats.sorted[m] < v) lo = m+1; else hi = m; }
+            return (lo / (stats.sorted.length - 1) * 100).toFixed(1);
+        };
+
+        const activeRange = numericRangeFilter?.prop === key ? numericRangeFilter : null;
+        bins.forEach((bin, bi) => {
+            const bh = (bin.count / maxCount) * plotH;
+            const x  = xPos(bin.lo);
+            const bwPx = Math.max(0.5, (bin.hi - bin.lo) / axisRange * plotW - 0.5);
+            const y  = pad.t + plotH - bh;
+            const inClamp  = bin.hi > clampLo && bin.lo < clampHi;
+            const isFiltered = activeRange && bin.lo >= activeRange.lo && bin.hi <= activeRange.hi;
+            const color = inClamp ? getBarColor(bin.lo, bin.hi) : '#444456';
+            let opacity = inClamp ? 1 : 0.22;
+            if (activeRange && !isFiltered) opacity *= 0.3;
+            const cnt = bin.count >= 1e5 ? (bin.count/1e3).toFixed(0)+'k' : bin.count.toLocaleString();
+            const pctLo = isQuantitativeScheme(paletteScheme) ? ` · Q${getQuantileRank(bin.lo)}%` : '';
+            const binLabel = `Bin ${bi+1}/${nBins}`;
+            svg += `<rect class="histo-bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bwPx.toFixed(1)}" height="${Math.max(0.5,bh).toFixed(1)}" fill="${color}" opacity="${opacity}" data-lo="${bin.lo.toFixed(6)}" data-hi="${bin.hi.toFixed(6)}" data-count="${bin.count}"><title>${binLabel} · ${axFmt(bin.lo)}–${axFmt(bin.hi)}: ${cnt}${pctLo}</title></rect>`;
+        });
+        svg += `</g>`;
+
+        // Tail markers
+        if (clampLo > min) svg += `<text x="${pad.l+3}" y="${pad.t+10}" font-size="9" fill="rgba(251,191,36,0.8)">◂</text>`;
+        if (clampHi < max) svg += `<text x="${pad.l+plotW-3}" y="${pad.t+10}" text-anchor="end" font-size="9" fill="rgba(251,191,36,0.8)">▸</text>`;
+
+        // Mean / median lines + rotated MEAN/MED labels above
+        const meanX = xPos(mean), medX = xPos(median);
+        if (meanX >= pad.l && meanX <= pad.l+plotW) {
+            svg += `<line x1="${meanX.toFixed(1)}" y1="${pad.t}" x2="${meanX.toFixed(1)}" y2="${pad.t+plotH}" stroke="rgba(110,231,183,0.95)" stroke-width="1.5"><title>Mean: ${fmt4(mean, isInt)}</title></line>`;
+            svg += `<text transform="translate(${(meanX+1).toFixed(1)},${pad.t-1}) rotate(-90)" text-anchor="start" font-size="7" font-weight="700" fill="rgba(110,231,183,1)">MEAN</text>`;
+        }
+        if (medX >= pad.l && medX <= pad.l+plotW) {
+            svg += `<line x1="${medX.toFixed(1)}" y1="${pad.t}" x2="${medX.toFixed(1)}" y2="${pad.t+plotH}" stroke="rgba(147,197,253,0.9)" stroke-width="1.5" stroke-dasharray="4,2"><title>Median: ${fmt4(median, isInt)}</title></line>`;
+            svg += `<text transform="translate(${(medX+1).toFixed(1)},${pad.t-1}) rotate(-90)" text-anchor="start" font-size="7" font-weight="700" fill="rgba(147,197,253,1)">MED</text>`;
+        }
+
+        // ±σ labels — larger, above sigma lines, no legend box
+        [-1,1].forEach(sign => {
+            const v = mean + sign*stddev;
+            if (v < axisLo || v > axisHi) return;
+            const x = xPos(v);
+            svg += `<text x="${x.toFixed(1)}" y="${pad.t-2}" text-anchor="middle" font-size="11" font-weight="700" fill="rgba(167,139,250,0.95)">${sign>0?'+σ':'−σ'}</text>`;
+        });
+
+        // Null bar
+        if (nullCount > 0) {
+            const nullH = Math.max(2, (nullCount/(n+nullCount))*plotH);
+            svg += `<rect class="histo-null-bar" x="${W-pad.r+2}" y="${pad.t+plotH-nullH}" width="5" height="${nullH}" fill="#888" opacity="0.5"><title>${nullCount.toLocaleString()} null</title></rect>`;
+        }
+
+        // X-axis labels — 90° rotation
+        const nTicks = isPopped ? 8 : isLegend ? 4 : 5;
+        Array.from({length: nTicks}, (_, i) => axisLo + (i/(nTicks-1))*axisRange).forEach(v => {
+            const x = xPos(v);
+            svg += `<text transform="translate(${x.toFixed(1)},${pad.t+plotH+3}) rotate(-90)" text-anchor="end" font-size="10" font-weight="500" fill="rgba(210,210,225,0.95)">${axFmt(v)}</text>`;
+        });
+
+        svg += '</svg>';
+        container.innerHTML = svg;
+    }
+
+    // ── Wire bar interactions ──
+    container.querySelectorAll('.histo-bar').forEach(rect => {
+        const lo = parseFloat(rect.dataset.lo), hi = parseFloat(rect.dataset.hi);
+
+        rect.addEventListener('mouseenter', () => {
+            // Only highlight if no range filter active for this prop, or this is the active bin
+            if (numericRangeFilter?.prop === key) return;
+            allFeatures.forEach(f => {
+                const v = Number(f.properties[key]);
+                if (!isNaN(v) && v >= lo && v < hi + (hi === max ? 0.0001 : 0)) {
+                    map.setFeatureState({ source: 'geojson-data', id: f.properties._gvid }, { highlighted: true });
+                    highlightedIds.add(f.properties._gvid);
+                }
+            });
+        });
+        rect.addEventListener('mouseleave', () => {
+            if (numericRangeFilter?.prop === key) return;
+            highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
+            highlightedIds.clear();
+        });
+
+        // Click: 2-state cycle — highlight → filter → clear
+        rect.addEventListener('click', () => {
+            const isSameBin = numericRangeFilter?.prop === key &&
+                              Math.abs(numericRangeFilter.lo - lo) < 0.0001 &&
+                              Math.abs(numericRangeFilter.hi - hi) < 0.0001;
+            const currentState = isSameBin ? numericRangeFilter.state : 0;
+
+            // Clear previous states
+            clearAllFilterStates();
+            numericRangeFilter = null;
+
+            if (currentState === 0) {
+                // → highlight: show matching features in green
+                numericRangeFilter = { prop: key, lo, hi, state: 1 };
+                allFeatures.forEach(f => {
+                    const v = Number(f.properties[key]);
+                    const matches = !isNaN(v) && v >= lo && v <= hi;
+                    if (matches) {
+                        map.setFeatureState({ source: 'geojson-data', id: f.properties._gvid }, { highlighted: true });
+                        highlightedIds.add(f.properties._gvid);
+                    }
+                });
+            } else if (currentState === 1) {
+                // → filter: hide non-matching
+                numericRangeFilter = { prop: key, lo, hi, state: 2 };
+                allFeatures.forEach(f => {
+                    const v = Number(f.properties[key]);
+                    const matches = !isNaN(v) && v >= lo && v <= hi;
+                    const id = f.properties._gvid;
+                    if (matches) {
+                        map.setFeatureState({ source: 'geojson-data', id }, { filtered: true, hidden: false });
+                        selectedIds.add(id);
+                    } else {
+                        map.setFeatureState({ source: 'geojson-data', id }, { hidden: true });
+                        hiddenIds.add(id);
+                    }
+                });
+                updateLayerFilters();
+            }
+            // state 2 → already cleared above → stays null (clear)
+            renderSidebar();
+            updateSelectionBar();
+            updatePointRadius();
+        });
+    });
+}
+
+
+// Linear interpolation between two hex colors
+function lerpColor(a, b, t) {
+    const ah = parseInt(a.slice(1), 16), bh = parseInt(b.slice(1), 16);
+    const ar = (ah>>16)&0xff, ag = (ah>>8)&0xff, ab = ah&0xff;
+    const br = (bh>>16)&0xff, bg = (bh>>8)&0xff, bb = bh&0xff;
+    const rr = Math.round(ar + (br-ar)*t);
+    const rg = Math.round(ag + (bg-ag)*t);
+    const rb = Math.round(ab + (bb-ab)*t);
+    return '#' + [rr,rg,rb].map(x => x.toString(16).padStart(2,'0')).join('');
+}
+
+function openHistoPopout(key) {
+    histoPoppedKey = key;
+    const panel = document.getElementById('histo-popout-panel');
+    const canvas = document.getElementById('histo-popout-canvas');
+    const title  = document.getElementById('histo-popout-title');
+    const slider = document.getElementById('bins-popout');
+    const label  = document.getElementById('bins-popout-label');
+    title.textContent = key + ' — distribution';
+    slider.value = numericBinCount;
+    label.textContent = numericBinCount;
+
+    // Vertical popout → right side; horizontal → bottom center
+    if (histoOrientation === 'vertical') {
+        panel.style.cssText = 'display:block;position:fixed;right:16px;top:50%;transform:translateY(-50%);z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px 8px;box-shadow:0 8px 32px rgba(0,0,0,0.6);min-width:220px;max-width:260px;';
+    } else {
+        panel.style.cssText = 'display:block;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px 8px;box-shadow:0 8px 32px rgba(0,0,0,0.6);min-width:440px;max-width:600px;';
+    }
+    renderHistogram(key, canvas);
+    renderSidebar();
+}
+
+function closeHistoPopout() {
+    histoPoppedKey = null;
+    document.getElementById('histo-popout-panel').style.display = 'none';
+    renderSidebar();
+}
+
+document.getElementById('histo-popout-orient').addEventListener('click', () => {
+    histoOrientation = histoOrientation === 'horizontal' ? 'vertical' : 'horizontal';
+    const canvas = document.getElementById('histo-popout-canvas');
+    if (histoPoppedKey) {
+        // Reposition panel based on new orientation
+        const panel = document.getElementById('histo-popout-panel');
+        if (histoOrientation === 'vertical') {
+            panel.style.cssText = 'display:block;position:fixed;right:16px;top:50%;transform:translateY(-50%);z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px 8px;box-shadow:0 8px 32px rgba(0,0,0,0.6);min-width:220px;max-width:260px;';
+        } else {
+            panel.style.cssText = 'display:block;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px 8px;box-shadow:0 8px 32px rgba(0,0,0,0.6);min-width:440px;max-width:600px;';
+        }
+        renderHistogram(histoPoppedKey, canvas);
+    }
+    // Update orient button label
+    document.getElementById('histo-popout-orient').textContent = histoOrientation === 'horizontal' ? '↕' : '↔';
+    renderSidebar();
+});
+document.getElementById('histo-popout-close').addEventListener('click', closeHistoPopout);
+document.getElementById('bins-popout').addEventListener('input', function() {
+    numericBinCount = +this.value;
+    document.getElementById('bins-popout-label').textContent = numericBinCount;
+    const canvas = document.getElementById('histo-popout-canvas');
+    if (histoPoppedKey) renderHistogram(histoPoppedKey, canvas);
+    // Sync inline panel bin slider
+    const inlineSlider = document.getElementById('bins-' + histoPoppedKey);
+    if (inlineSlider) { inlineSlider.value = numericBinCount; }
+    const inlineLabel = document.getElementById('bins-label-' + histoPoppedKey);
+    if (inlineLabel) inlineLabel.textContent = numericBinCount;
+});
+
 function renderSidebar() {
     updateLegendCard();
     const list = document.getElementById('props-list');
@@ -4326,7 +5365,10 @@ function renderSidebar() {
 
         const metaEl = document.createElement('span');
         metaEl.className = 'prop-meta';
-        metaEl.innerHTML = `<span class="prop-count-badge" title="${badgeTip}">${badgeVal}${pctHtml}</span><span class="prop-arrow">▶</span>`;
+        const typeIcon = propData[key]?.isNumeric ? '<span style="font-size:9px;color:var(--text-muted);opacity:0.6;font-family:var(--mono);margin-right:2px">123</span>'
+                       : propData[key]?.isColorProp ? '<span style="font-size:9px;color:var(--text-muted);opacity:0.6;margin-right:2px">⬤</span>'
+                       : '';
+        metaEl.innerHTML = `${typeIcon}<span class="prop-count-badge" title="${badgeTip}">${badgeVal}${pctHtml}</span><span class="prop-arrow">▶</span>`;
         metaEl.querySelector('.prop-arrow').addEventListener('click', () => {
             const opening = openPropKey !== key;
             openPropKey = (openPropKey === key) ? null : key;
@@ -4354,26 +5396,32 @@ function renderSidebar() {
         if (isOpen) {
             const bar = document.createElement('div');
             bar.className = 'palette-bar';
-            const currentScheme = (paletteProp === key) ? paletteScheme : 'Set1';
+            const isNumeric = !!(propData[key]?.isNumeric);
+            const currentScheme = (paletteProp === key) ? paletteScheme : (isNumeric ? 'quantile' : 'Set1');
             const isNative = currentScheme === 'native';
+            const isQuant  = isQuantitativeScheme(currentScheme);
 
-            // Build swatch strip — native: show actual colors; colorbrewer: show first 5
+            // Build swatch strip
             let swatchStrip = '';
             if (isNative && paletteProp === key) {
                 const nativeColors = Object.values(paletteMap).filter(c => c !== PALETTE_FALLBACK).slice(0, 5);
                 swatchStrip = nativeColors.map(c =>
                     `<span class="palette-swatch" style="background:${c};width:10px;height:10px;border-radius:2px;flex-shrink:0"></span>`
                 ).join('');
-            } else if (!isNative) {
+            } else if (isQuant) {
+                const rampColors = getQuantitativeRampColors(paletteQuantScheme, 6);
+                swatchStrip = rampColors.map(c =>
+                    `<span class="palette-swatch" style="background:${c};width:10px;height:10px;border-radius:2px;flex-shrink:0"></span>`
+                ).join('');
+            } else {
                 const previewColors = getPaletteColors(currentScheme).slice(0, 5);
                 swatchStrip = previewColors.map(c =>
                     `<span class="palette-swatch" style="background:${c};width:10px;height:10px;border-radius:2px;flex-shrink:0"></span>`
                 ).join('');
             }
 
-            const schemeLabel = isNative ? '⬤ Native' : currentScheme;
-            // Hide rotate/shuffle in native mode (no palette to cycle through)
-            const rotShuffle = isNative ? '' :
+            const schemeLabel = isNative ? '⬤ Native' : isQuant ? paletteQuantScheme : currentScheme;
+            const rotShuffle = (isNative || isQuant) ? '' :
                 `<button class="palette-rotate-btn" title="Rotate colors one step">↻</button>
                  <button class="palette-shuffle-btn" title="Shuffle color order">⇄</button>`;
 
@@ -4383,7 +5431,6 @@ function renderSidebar() {
                 ${rotShuffle}
                 <button class="palette-off-btn" title="Remove coloring">✕</button>`;
 
-            // ↻ Rotate button (not shown in native mode)
             bar.querySelector('.palette-rotate-btn')?.addEventListener('click', e => {
                 e.stopPropagation();
                 if (!paletteProp || paletteProp !== key) return;
@@ -4393,7 +5440,6 @@ function renderSidebar() {
                 applyPaletteVariant();
             });
 
-            // Palette dropdown — toggle on/off
             bar.querySelector('.palette-scheme-btn').addEventListener('click', e => {
                 e.stopPropagation();
                 const existing = document.querySelector('.palette-dropdown');
@@ -4403,18 +5449,41 @@ function renderSidebar() {
                 const btnRect = e.currentTarget.getBoundingClientRect();
                 menu.style.cssText = `position:fixed;left:${btnRect.left}px;top:${btnRect.bottom+4}px;z-index:600;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);min-width:180px;max-height:320px;overflow-y:auto;`;
 
-                // Native option — shown when this property has color values
+                if (isNumeric) {
+                    const qGrp = document.createElement('div');
+                    qGrp.style.cssText = 'padding:4px 10px 2px;font-size:9px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);';
+                    qGrp.textContent = 'Quantitative';
+                    menu.appendChild(qGrp);
+                    QUANTITATIVE_RAMPS.forEach(ramp => {
+                        const item = document.createElement('div');
+                        const isActive = isQuant && ramp === paletteQuantScheme;
+                        item.style.cssText = `display:flex;align-items:center;gap:6px;padding:5px 10px;cursor:pointer;font-size:11px;font-family:var(--mono);color:${isActive?'var(--text)':'var(--text-muted)'};background:${isActive?'var(--surface2)':'transparent'};`;
+                        const colors = getQuantitativeRampColors(ramp, 7);
+                        const strip = colors.map(c => `<span style="display:inline-block;width:10px;height:10px;background:${c};border-radius:1px;flex-shrink:0"></span>`).join('');
+                        item.innerHTML = `<span style="display:inline-flex;gap:1px">${strip}</span><span>${ramp}</span>`;
+                        item.addEventListener('mouseenter', () => item.style.background = 'var(--surface2)');
+                        item.addEventListener('mouseleave', () => item.style.background = isActive ? 'var(--surface2)' : 'transparent');
+                        item.addEventListener('click', ev => {
+                            ev.stopPropagation(); menu.remove();
+                            paletteQuantScheme = ramp;
+                            if (!isQuantitativeScheme(paletteScheme)) paletteScheme = 'quantile';
+                            paletteStops = null;
+                            if (!paletteProp || paletteProp !== key) paletteProp = key;
+                            applyPaletteToLayers(); renderSidebar(); pushHashState();
+                        });
+                        menu.appendChild(item);
+                    });
+                }
+
                 if (propData[key]?.isColorProp) {
                     const nativeGrp = document.createElement('div');
-                    nativeGrp.style.cssText = 'padding:4px 10px 2px;font-size:9px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);';
+                    nativeGrp.style.cssText = 'padding:4px 10px 2px;font-size:9px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);border-top:1px solid var(--border);';
                     nativeGrp.textContent = 'Native';
                     menu.appendChild(nativeGrp);
                     const nativeItem = document.createElement('div');
                     const nativeActive = currentScheme === 'native';
                     nativeItem.style.cssText = `display:flex;align-items:center;gap:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-family:var(--mono);color:${nativeActive?'var(--text)':'var(--text-muted)'};background:${nativeActive?'var(--surface2)':'transparent'};`;
-                    // Show actual color swatches from data
-                    const nativeColors = Object.keys(propData[key].valueCounts)
-                        .map(v => parseColorValue(v)).filter(Boolean).slice(0, 8);
+                    const nativeColors = Object.keys(propData[key].valueCounts).map(v => parseColorValue(v)).filter(Boolean).slice(0, 8);
                     const nativeStrip = nativeColors.map(c => `<span style="display:inline-block;width:10px;height:10px;background:${c};border-radius:1px;flex-shrink:0"></span>`).join('');
                     nativeItem.innerHTML = `<span style="display:inline-flex;gap:1px">${nativeStrip}</span><span>⬤ Use property colors</span>`;
                     nativeItem.addEventListener('mouseenter', () => nativeItem.style.background = 'var(--surface2)');
@@ -4444,16 +5513,15 @@ function renderSidebar() {
                 const closeMenu = ev => { if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('click', closeMenu); } };
                 setTimeout(() => document.addEventListener('click', closeMenu), 0);
             });
+
             bar.querySelector('.palette-shuffle-btn')?.addEventListener('click', e => {
                 e.stopPropagation();
                 if (!paletteProp || paletteProp !== key) return;
                 const allColors = getPaletteColors(paletteScheme);
                 const nCols = allColors.length;
-                // Build default spread indices for the colored (non-fallback) value slots
-                const sorted = Object.entries(propData[key]?.valueCounts || {}).sort((a, b) => b[1] - a[1]);
-                const nVals = sorted.length;
+                const sortedVals = Object.entries(propData[key]?.valueCounts || {}).sort((a, b) => b[1] - a[1]);
+                const nVals = sortedVals.length;
                 const coloredCount = Math.min(nVals, nCols);
-                // Start with the default indices, then Fisher-Yates shuffle them
                 const defaultIndices = Array.from({ length: coloredCount }, (_, i) =>
                     nVals <= nCols ? Math.round(i * (nCols - 1) / Math.max(nVals - 1, 1)) : i % nCols
                 );
@@ -4467,6 +5535,15 @@ function renderSidebar() {
             });
             bar.querySelector('.palette-off-btn').addEventListener('click', e => { e.stopPropagation(); clearPalette(); });
             valuesEl.appendChild(bar);
+
+            // Numeric properties: show stats + histogram, skip categorical value list
+            if (isNumeric) {
+                valuesEl.classList.add('numeric');
+                renderNumericPanel(key, valuesEl);
+                list.appendChild(propEl);
+                list.appendChild(valuesEl);
+                return;
+            }
         }
 
         sortedValues.forEach(([val, count]) => {
@@ -4601,6 +5678,19 @@ function doExclude(key, val) {
 function clearAllFilterStates() {
     highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
     highlightedIds.clear();
+    // Clear numeric range filter state
+    if (numericRangeFilter) {
+        if (numericRangeFilter.state === 2) {
+            hiddenIds.forEach(id => {
+                const f = allFeatures[id];
+                const geomHidden = f && geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
+                map.setFeatureState({ source: 'geojson-data', id }, { hidden: geomHidden, filtered: false });
+            });
+            hiddenIds.clear();
+            selectedIds.clear();
+        }
+        numericRangeFilter = null;
+    }
     if (activeFilter && (activeFilter.mode === 'filter' || activeFilter.mode === 'exclude')) {
         const { prop, value } = activeFilter;
         hiddenIds.forEach(id => {
@@ -4893,6 +5983,29 @@ document.getElementById('point-radius-pill').addEventListener('click', e => {
     updatePointRadius();
 });
 
+// ── LINES STYLE ──
+document.getElementById('line-width-pill').addEventListener('click', e => {
+    const opt = e.target.closest('.style-opt');
+    if (!opt) return;
+    document.querySelectorAll('#line-width-pill .style-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    lineWidthMode = opt.dataset.val;
+    applyLineStyle();
+});
+document.getElementById('line-radius-pill').addEventListener('click', e => {
+    const opt = e.target.closest('.style-opt');
+    if (!opt) return;
+    document.querySelectorAll('#line-radius-pill .style-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    lineRadiusMode = opt.dataset.val;
+    applyLineStyle();
+});
+document.getElementById('chk-poly-border').addEventListener('change', function() {
+    polyBorders = this.checked;
+    document.getElementById('lbl-poly-border').classList.toggle('active', this.checked);
+    applyLineStyle();
+});
+
 // ── PROJECTION PILL ──
 let mapProjection = 'globe'; // track for URL hash
 document.getElementById('projection-pill').addEventListener('click', e => {
@@ -4930,7 +6043,17 @@ function updateSelectionBar() {
     const statusHint = document.getElementById('filter-status-hint');
     const statusTag  = document.getElementById('filter-status-tag');
     if (statusHint && statusTag) {
-        if (activeFilter) {
+        if (numericRangeFilter && numericRangeFilter.state > 0) {
+            const mode = numericRangeFilter.state === 1 ? 'highlight' : 'filter';
+            const modeIcons = { highlight: '●', filter: '◑' };
+            document.getElementById('filter-status-icon').textContent = modeIcons[mode];
+            const stats = propData[numericRangeFilter.prop]?.numericStats;
+            const isInt = stats?.sorted.every(v => Number.isInteger(v));
+            const lo = fmt4(numericRangeFilter.lo, isInt), hi = fmt4(numericRangeFilter.hi, isInt);
+            document.getElementById('filter-status-text').textContent = `${numericRangeFilter.prop}: ${lo}–${hi}`;
+            statusTag.className = `visible mode-${mode}`;
+            statusHint.style.display = 'none';
+        } else if (activeFilter) {
             const modeIcons = { highlight: '●', filter: '◑', exclude: '✕' };
             document.getElementById('filter-status-icon').textContent = modeIcons[activeFilter.mode] || '';
             document.getElementById('filter-status-text').textContent = `${activeFilter.prop}: ${activeFilter.value}`;
@@ -4999,7 +6122,7 @@ function resetAll() {
     allFeatures = [];
     allMidpoints = [];
     midpointsCacheValid = false;
-    paletteProp = null; paletteMap = {}; paletteScheme = 'Set1'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false;
+    paletteProp = null; paletteMap = {}; paletteScheme = 'Set1'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false; paletteReversed = false; numericRangeFilter = null;
     // Reset dots pill to Off
     dotsMode = 'off';
     document.querySelectorAll('.dots-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'off'));
