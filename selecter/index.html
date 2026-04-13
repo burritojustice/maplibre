@@ -568,7 +568,7 @@
         #style-panel-toggle:hover { color: var(--text); }
         #style-panel-toggle .sp-arrow { font-size: 9px; transition: transform 0.2s; }
         #style-panel-toggle.open .sp-arrow { transform: rotate(90deg); }
-        #style-panel-body { display: none; }
+        #style-panel-body { display: none; max-height: 40vh; overflow-y: auto; }
         #style-panel-body.open { display: block; }
         .style-section {
             display: flex; align-items: center; gap: 8px;
@@ -1152,7 +1152,8 @@
                         <div id="point-style-pill" class="style-pill">
                             <button class="style-opt active" data-val="hollow" title="Hollow ring — palette color as stroke">○ Ring</button>
                             <button class="style-opt" data-val="filled" title="Solid fill — palette color as fill">● Fill</button>
-                            <button class="style-opt" data-val="outlined" title="Filled with dark border">◉ Border</button>
+                            <button class="style-opt" data-val="outlined" title="Filled with dark border">◉ Blk</button>
+                            <button class="style-opt" data-val="outlined-white" title="Filled with white border">◎ Wht</button>
                             <button class="style-opt" data-val="outline" title="White fill, dark border — ignores palette">⊕ B&W</button>
                         </div>
                     </div>
@@ -1187,11 +1188,40 @@
                             <button class="style-opt" data-val="fixed" title="Fixed line width at all zoom levels">Fixed</button>
                         </div>
                     </div>
+
+                </div>
+            </div>
+            <!-- Polygons subsection (closed by default) -->
+            <div class="style-subsection">
+                <button class="style-subsection-toggle" data-sub="polygons">
+                    <span class="ss-arrow">▶</span> Polygons
+                </button>
+                <div class="style-subsection-body" id="sub-polygons">
                     <div class="style-section">
-                        <span class="style-section-label">Polygons</span>
-                        <label class="geom-check-label active" id="lbl-poly-border" title="Show polygon outlines/borders">
-                            <input type="checkbox" id="chk-poly-border" checked> Borders
-                        </label>
+                        <span class="style-section-label">Outline</span>
+                        <div id="poly-outline-pill" class="style-pill">
+                            <button class="style-opt" data-val="none" title="No polygon outline">None</button>
+                            <button class="style-opt" data-val="white" title="White outline">White</button>
+                            <button class="style-opt active" data-val="grey" title="Grey outline (default)">Grey</button>
+                            <button class="style-opt" data-val="black" title="Black outline">Black</button>
+                            <button class="style-opt" data-val="palette" title="Outline uses the palette/feature color">Palette</button>
+                        </div>
+                    </div>
+                    <div class="style-section">
+                        <span class="style-section-label">Fill</span>
+                        <div id="poly-fill-pill" class="style-pill">
+                            <button class="style-opt active" data-val="palette" title="Fill uses the palette/feature color">Palette</button>
+                            <button class="style-opt" data-val="grey" title="Flat grey fill">Grey</button>
+                            <button class="style-opt" data-val="none" title="No fill (outline only)">None</button>
+                        </div>
+                    </div>
+                    <div class="style-section">
+                        <span class="style-section-label">Size</span>
+                        <div id="poly-size-pill" class="style-pill">
+                            <button class="style-opt active" data-val="zoom" title="Outline width scales with zoom">Zoom</button>
+                            <button class="style-opt" data-val="density" title="Thinner outlines for dense polygon layers">Density</button>
+                            <button class="style-opt" data-val="fixed" title="Fixed outline width at all zoom levels">Fixed</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1470,12 +1500,11 @@ map.once('load', () => {
     document.getElementById('basemap-style-pill').addEventListener('click', e => {
         const opt = e.target.closest('.style-opt');
         if (!opt) return;
-        document.querySelectorAll('#basemap-style-pill .style-opt').forEach(o => o.classList.remove('active'));
-        opt.classList.add('active');
         const val = opt.dataset.val;
-        currentBasemapStyle = val;
-
         if (val === 'hide') {
+            currentBasemapStyle = val;
+            document.querySelectorAll('#basemap-style-pill .style-opt').forEach(o => o.classList.remove('active'));
+            opt.classList.add('active');
             map.getStyle().layers.forEach(l => {
                 if (!l.id.startsWith('gv-') && !l.id.startsWith('tile-')) {
                     try { map.setLayoutProperty(l.id, 'visibility', 'none'); } catch {}
@@ -1483,30 +1512,7 @@ map.once('load', () => {
             });
             return;
         }
-
-        const newUrl = `https://api.protomaps.com/styles/v5/${val}/en.json?key=${PROTOMAPS_KEY}`;
-        const fc = allFeatures.length > 0 ? { type: 'FeatureCollection', features: allFeatures } : null;
-        const midFC = allMidpoints.length > 0 ? { type: 'FeatureCollection', features: allMidpoints } : null;
-
-        map.setStyle(newUrl);
-        map.once('style.load', () => {
-            setupTileInteraction();
-            setupTileOverlayLayers();
-            discoverBasemapGroups();
-            applyBasemapCheckboxStates();
-            updateLabelColors();
-            if (fc) {
-                setupGeoJsonLayers(fc);
-                if (midFC && map.getSource('geojson-midpoints')) {
-                    map.getSource('geojson-midpoints').setData(midFC);
-                }
-                applyPaletteToLayers();
-                applyGeomFilters();
-                updateLayerFilters();
-                updateLabels();
-                updatePointRadius();
-            }
-        });
+        switchBasemapTo(val);
     });
 
     document.getElementById('chk-bm-roads').addEventListener('change', function() {
@@ -1532,6 +1538,8 @@ map.on('moveend', () => {
     if (map.loaded()) pushHashState();
     if (dotsMode !== 'off' && allMidpoints.length > 0) updateDotsLayer();
     updatePointRadius();
+    if (lineRadiusMode === 'density') applyLineStyle();
+    if (polySizeMode === 'density') applyPolyStyle();
 });
 
 // ── STATE ──
@@ -1572,8 +1580,10 @@ let midpointsCacheValid = false; // invalidated on new file load or filter chang
 let pointStyle = 'hollow'; // 'hollow' | 'filled' | 'outlined' | 'outline'
 let pointRadiusMode = 'density'; // 'density' | 'zoom'
 let lineWidthMode = 'thin';   // 'thin' | 'medium' | 'thick'
-let lineRadiusMode = 'zoom';  // 'zoom' | 'fixed'
-let polyBorders = true;       // show polygon outlines
+let lineRadiusMode = 'zoom';  // 'zoom' | 'fixed' | 'density'
+let polyFillMode    = 'palette'; // 'palette' | 'grey' | 'none'
+let polyOutlineMode = 'grey';    // 'none' | 'white' | 'grey' | 'black' | 'palette'
+let polySizeMode    = 'zoom';    // 'zoom' | 'density' | 'fixed'
 
 // ── PALETTE COLORING STATE ──
 let paletteProp = null;       // property key being colored, null = off
@@ -3444,6 +3454,7 @@ function setupGeoJsonLayers(fc) {
     map.addLayer({ id: 'gv-fill', type: 'fill', source: 'geojson-data',
         filter: ['==', ['geometry-type'], 'Polygon'],
         paint: { 'fill-color': colorExpr,
+            'fill-outline-color': 'transparent',
             'fill-opacity': ['case',
                 ['boolean', ['feature-state', 'hidden'],      false], 0,
                 ['boolean', ['feature-state', 'selected'],    false], 0.6,
@@ -3452,10 +3463,10 @@ function setupGeoJsonLayers(fc) {
                 ['boolean', ['feature-state', 'hovered'],     false], 0.4,
                 0.25] }
     });
+    // gv-outline: static border for all polygons (grey/white/black/none)
     map.addLayer({ id: 'gv-outline', type: 'line', source: 'geojson-data',
         filter: ['==', ['geometry-type'], 'Polygon'],
-        paint: { 'line-color': colorExpr, 'line-opacity': visExpr,
-            'line-width': ['case', ['boolean', ['feature-state', 'highlighted'], false], 2.5, ['boolean', ['feature-state', 'selected'], false], 2, 1] }
+        paint: { 'line-color': '#888888', 'line-opacity': visExpr, 'line-width': 1.2 }
     });
     map.addLayer({ id: 'gv-line-casing', type: 'line', source: 'geojson-data',
         filter: ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]],
@@ -3466,11 +3477,23 @@ function setupGeoJsonLayers(fc) {
         paint: { 'line-color': colorExpr, 'line-opacity': visExpr,
             'line-width': ['case', ['boolean', ['feature-state', 'highlighted'], false], 3.5, 2] }
     });
-    map.addLayer({ id: 'gv-point', type: 'circle', source: 'geojson-data',
-        filter: ['==', ['geometry-type'], 'Point'],
-        paint: { 'circle-color': 'rgba(255,255,255,0.10)', 'circle-radius': 5,
-            'circle-stroke-color': colorExpr, 'circle-stroke-width': 2,
-            'circle-opacity': visExpr, 'circle-stroke-opacity': visExpr }
+    // gv-outline-interact added here — BELOW gv-point in the stack so point hit-testing wins
+    // Still visually on top of polygon fill/outline because lines render over fills
+    map.addLayer({ id: 'gv-outline-interact', type: 'line', source: 'geojson-data',
+        filter: ['==', ['geometry-type'], 'Polygon'],
+        paint: {
+            'line-color': ['case',
+                ['boolean', ['feature-state', 'selected'],    false], '#e040fb',
+                ['boolean', ['feature-state', 'highlighted'], false], '#6ee7b7',
+                ['boolean', ['feature-state', 'hovered'],     false], '#2dd4bf',
+                'transparent'],
+            'line-opacity': ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1],
+            'line-width': ['case',
+                ['boolean', ['feature-state', 'highlighted'], false], 4,
+                ['boolean', ['feature-state', 'selected'],    false], 3,
+                ['boolean', ['feature-state', 'hovered'],     false], 2.5,
+                0]
+        }
     });
 
     addLabelLayer();
@@ -3492,6 +3515,25 @@ function setupGeoJsonLayers(fc) {
         map.on('mouseleave', 'gv-dots', onMouseLeave);
         map.on('click', 'gv-dots', onFeatureClick);
     }
+
+    // gv-point added last so it's topmost — ensures point clicks are never intercepted
+    map.addLayer({ id: 'gv-point', type: 'circle', source: 'geojson-data',
+        filter: ['==', ['geometry-type'], 'Point'],
+        paint: { 'circle-color': 'rgba(255,255,255,0.10)', 'circle-radius': 5,
+            'circle-stroke-color': colorExpr, 'circle-stroke-width': 2,
+            'circle-opacity': visExpr, 'circle-stroke-opacity': visExpr }
+    });
+    // Remove any previously registered handlers on these layers before re-wiring.
+    // map.setStyle() rebuilds tile layers but KEEPS GeoJSON layer event listeners,
+    // so without this, each basemap switch would add another copy of every handler.
+    const gvLayers = ['gv-fill', 'gv-line', 'gv-point', 'gv-outline', 'gv-outline-interact', 'gv-dots'];
+    gvLayers.forEach(lyr => {
+        map.off('mousemove', lyr, onMouseMove);
+        map.off('mouseleave', lyr, onMouseLeave);
+        map.off('click', lyr, onFeatureClick);
+        map.off('click', lyr, onOutlineInteractClick);
+    });
+
     ['gv-fill', 'gv-line', 'gv-point'].forEach(lyr => {
         map.on('mousemove', lyr, onMouseMove);
         map.on('mouseleave', lyr, onMouseLeave);
@@ -3499,6 +3541,10 @@ function setupGeoJsonLayers(fc) {
     });
     map.on('mousemove', 'gv-outline', onMouseMove);
     map.on('mouseleave', 'gv-outline', onMouseLeave);
+    map.on('mousemove', 'gv-outline-interact', onMouseMove);
+    map.on('mouseleave', 'gv-outline-interact', onMouseLeave);
+    // Use the module-level named handler so map.off can remove it on next setup
+    map.on('click', 'gv-outline-interact', onOutlineInteractClick);
 }
 
 function setupTileOverlayLayers() {
@@ -3588,6 +3634,7 @@ function ingestGeoJSON(geojson, filename, skipFit = false) {
     lastHoveredId = null; hoveredMapId = null;
     closeHistoPopout();
     paletteProp = null; paletteMap = {}; paletteScheme = 'Set1'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false; paletteReversed = false; numericRangeFilter = null; numericTypeOverrides = {};
+    polyFillMode = 'palette'; polyOutlineMode = 'grey'; polySizeMode = 'zoom';
     updateLabelHint();
     document.getElementById('save-visible-btn').style.visibility = 'hidden';
     if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
@@ -3659,6 +3706,14 @@ function ingestGeoJSON(geojson, filename, skipFit = false) {
         `${formatSourceName(currentSourceName)}<br><span style="font-size:11px">${allFeatures.length.toLocaleString()} features · ${Object.keys(propData).length} props · ${vertLbl} vertices<br>${fmtBytes(datasetBytes)} total · geom ~${geomEst}% · attrs ~${100-geomEst}%</span>`;
     // Update point radius after data loads — use idle so tiles have rendered
     map.once('idle', updatePointRadius);
+    map.once('idle', applyPolyStyle);
+
+    // Suggest white basemap when file is polygon-only and basemap is dark
+    const types = new Set(allFeatures.map(f => geomTypeOf(f)).filter(Boolean));
+    if (types.size === 1 && types.has('poly') &&
+        (currentBasemapStyle === 'dark' || currentBasemapStyle === 'black')) {
+        showBasemapSuggestion();
+    }
     logMemory('after ingestGeoJSON');
 }
 
@@ -4103,9 +4158,10 @@ function applyPaletteToLayers() {
         paletteExpr = paletteProp ? buildPaletteColorExpr(paletteProp, paletteMap) : '#3b82f6';
     }
     const colorExpr = buildFullColorExpr(paletteExpr);
-    map.setPaintProperty('gv-fill',    'fill-color',  colorExpr);
-    map.setPaintProperty('gv-outline', 'line-color',  colorExpr);
-    map.setPaintProperty('gv-line',    'line-color',  colorExpr);
+    // gv-fill and gv-outline are handled by applyPolyStyle
+    applyPolyStyle();
+    // Lines get the full palette color expression
+    map.setPaintProperty('gv-line', 'line-color', colorExpr);
     applyPointStyle();
 }
 
@@ -4153,6 +4209,10 @@ function applyPointStyle() {
         map.setPaintProperty('gv-point', 'circle-color', colorExpr);
         map.setPaintProperty('gv-point', 'circle-stroke-color', 'rgba(30,30,30,0.85)');
         map.setPaintProperty('gv-point', 'circle-stroke-width', 1.5);
+    } else if (pointStyle === 'outlined-white') {
+        map.setPaintProperty('gv-point', 'circle-color', colorExpr);
+        map.setPaintProperty('gv-point', 'circle-stroke-color', 'rgba(255,255,255,0.95)');
+        map.setPaintProperty('gv-point', 'circle-stroke-width', 1.5);
     } else if (pointStyle === 'outline') {
         // B&W: white fill, dark stroke — ignores palette and filter color
         map.setPaintProperty('gv-point', 'circle-color', 'rgba(255,255,255,0.92)');
@@ -4168,41 +4228,178 @@ function applyPointStyle() {
     map.setPaintProperty('gv-point', 'circle-stroke-opacity', visExpr);
 }
 
+// Maps visible line count to a base width, analogous to densityRadius for points.
+function lineDensityWidth(n) {
+    if (n <=    50) return 1.8;
+    if (n <=   200) return 1.4;
+    if (n <=   800) return 1.0;
+    if (n <=  3000) return 0.7;
+    if (n <= 10000) return 0.45;
+    return 0.3;
+}
+
+let _lineRadiusTimer = null;
 function applyLineStyle() {
     if (!map.getLayer('gv-line')) return;
     const widths = { thin: [1, 2], medium: [2, 4], thick: [3, 6] };
     const [wThin, wThick] = widths[lineWidthMode] || [1, 2];
 
-    let lineWidth, casingWidth;
     if (lineRadiusMode === 'density') {
-        // Count visible line features to determine density
-        const lineCount = allFeatures.filter(f => {
-            const t = f.geometry?.type;
-            return t === 'LineString' || t === 'MultiLineString';
-        }).length;
-        // Dense (>5k lines): start very thin and grow slowly with zoom
-        // Sparse (<200 lines): same as zoom mode
-        const densityFactor = lineCount > 5000 ? 0.4
-                            : lineCount > 2000 ? 0.6
-                            : lineCount > 500  ? 0.8
-                            : 1.0;
-        const dThin  = Math.max(0.3, wThin  * densityFactor);
-        const dThick = Math.max(0.8, wThick * densityFactor);
-        lineWidth   = ['interpolate', ['linear'], ['zoom'], 8, dThin, 16, dThick];
-        casingWidth = ['interpolate', ['linear'], ['zoom'], 8, dThin + 1.5, 16, dThick + 2];
-    } else if (lineRadiusMode === 'zoom') {
-        lineWidth   = ['interpolate', ['linear'], ['zoom'], 8, wThin, 16, wThick];
-        casingWidth = ['interpolate', ['linear'], ['zoom'], 8, wThin + 2, 16, wThick + 2];
+        clearTimeout(_lineRadiusTimer);
+        _lineRadiusTimer = setTimeout(() => {
+            if (!map.getLayer('gv-line')) return;
+            // Count visible line features in viewport, excluding hidden (filtered-out) features
+            let visibleCount = 0;
+            try {
+                const rendered = map.queryRenderedFeatures({ layers: ['gv-line'] });
+                const seen = new Set();
+                rendered.forEach(f => {
+                    const id = f.id ?? f.properties?._gvid;
+                    if (id == null || seen.has(id)) return;
+                    seen.add(id);
+                    if (!hiddenIds.has(id)) visibleCount++;
+                });
+            } catch {
+                // Fallback: count all non-hidden line features in the file
+                visibleCount = allFeatures.filter(f => {
+                    const t = f.geometry?.type;
+                    return (t === 'LineString' || t === 'MultiLineString') && !hiddenIds.has(f.properties._gvid);
+                }).length;
+            }
+            const base = lineDensityWidth(visibleCount);
+            // Scale base by the user's width mode choice (thin/medium/thick)
+            const scaledBase  = Math.max(0.2, base * (wThin  / 1.0));
+            const scaledThick = Math.max(0.5, base * (wThick / 2.0));
+            const lineWidth   = ['interpolate', ['linear'], ['zoom'],
+                8,  scaledBase,
+                13, (scaledBase + scaledThick) / 2,
+                16, scaledThick];
+            const casingWidth = ['interpolate', ['linear'], ['zoom'],
+                8,  scaledBase + 1.5,
+                16, scaledThick + 2];
+            map.setPaintProperty('gv-line', 'line-width', lineWidth);
+            map.setPaintProperty('gv-line-casing', 'line-width', casingWidth);
+        }, 150);
     } else {
-        lineWidth   = wThin;
-        casingWidth = wThin + 2;
+        clearTimeout(_lineRadiusTimer);
+        let lineWidth, casingWidth;
+        if (lineRadiusMode === 'zoom') {
+            lineWidth   = ['interpolate', ['linear'], ['zoom'], 8, wThin, 16, wThick];
+            casingWidth = ['interpolate', ['linear'], ['zoom'], 8, wThin + 2, 16, wThick + 2];
+        } else { // fixed
+            lineWidth   = wThin;
+            casingWidth = wThin + 2;
+        }
+        map.setPaintProperty('gv-line', 'line-width', lineWidth);
+        map.setPaintProperty('gv-line-casing', 'line-width', casingWidth);
+    }
+}
+
+let _polySizeTimer = null;
+function applyPolyStyle() {
+    if (!map.getLayer('gv-fill') || !map.getLayer('gv-outline')) return;
+    const hasInteractLayer = !!map.getLayer('gv-outline-interact');
+
+    // ── Fill ──
+    let paletteExpr;
+    if (isQuantitativeScheme(paletteScheme) && paletteProp && paletteStops) {
+        paletteExpr = buildQuantitativePaletteColorExpr(paletteProp, paletteStops);
+    } else {
+        paletteExpr = paletteProp ? buildPaletteColorExpr(paletteProp, paletteMap) : '#3b82f6';
+    }
+    const interactFillExpr = buildFullColorExpr(paletteExpr);
+
+    if (polyFillMode === 'none') {
+        map.setPaintProperty('gv-fill', 'fill-opacity', ['case',
+            ['boolean', ['feature-state', 'hidden'], false], 0, 0]);
+    } else if (polyFillMode === 'grey') {
+        map.setPaintProperty('gv-fill', 'fill-color', ['case',
+            ['boolean', ['feature-state', 'selected'],    false], '#e040fb',
+            ['boolean', ['feature-state', 'filtered'],    false], '#fbbf24',
+            ['boolean', ['feature-state', 'highlighted'], false], '#6ee7b7',
+            ['boolean', ['feature-state', 'hovered'],     false], '#2dd4bf',
+            '#888888']);
+        map.setPaintProperty('gv-fill', 'fill-opacity', ['case',
+            ['boolean', ['feature-state', 'hidden'],      false], 0,
+            ['boolean', ['feature-state', 'selected'],    false], 0.6,
+            ['boolean', ['feature-state', 'filtered'],    false], 0.55,
+            ['boolean', ['feature-state', 'highlighted'], false], 0.35,
+            ['boolean', ['feature-state', 'hovered'],     false], 0.4,
+            0.25]);
+    } else { // palette
+        map.setPaintProperty('gv-fill', 'fill-color', interactFillExpr);
+        map.setPaintProperty('gv-fill', 'fill-opacity', ['case',
+            ['boolean', ['feature-state', 'hidden'],      false], 0,
+            ['boolean', ['feature-state', 'selected'],    false], 0.6,
+            ['boolean', ['feature-state', 'filtered'],    false], 0.55,
+            ['boolean', ['feature-state', 'highlighted'], false], 0.35,
+            ['boolean', ['feature-state', 'hovered'],     false], 0.4,
+            0.25]);
     }
 
-    map.setPaintProperty('gv-line', 'line-width', lineWidth);
-    map.setPaintProperty('gv-line-casing', 'line-width', casingWidth);
-    // Polygon borders
-    if (map.getLayer('gv-outline')) {
-        map.setLayoutProperty('gv-outline', 'visibility', polyBorders ? 'visible' : 'none');
+    // ── Outline visibility ──
+    const outlineVisible = polyOutlineMode !== 'none';
+    map.setLayoutProperty('gv-outline', 'visibility', outlineVisible ? 'visible' : 'none');
+    if (hasInteractLayer) map.setLayoutProperty('gv-outline-interact', 'visibility', 'visible'); // always visible — handles hover
+    if (!outlineVisible) return;
+
+    // ── Outline color ──
+    const staticColors = { white: '#ffffff', grey: '#888888', black: '#111111' };
+    const visExpr = ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1];
+
+    if (polyOutlineMode === 'palette') {
+        map.setPaintProperty('gv-outline', 'line-color', interactFillExpr);
+    } else {
+        const baseColor = staticColors[polyOutlineMode] || '#888888';
+        map.setPaintProperty('gv-outline', 'line-color', ['case',
+            ['boolean', ['feature-state', 'selected'],    false], '#e040fb',
+            ['boolean', ['feature-state', 'highlighted'], false], '#6ee7b7',
+            ['boolean', ['feature-state', 'hovered'],     false], '#2dd4bf',
+            baseColor]);
+    }
+    map.setPaintProperty('gv-outline', 'line-opacity', visExpr);
+
+    // ── Outline width: Zoom / Density / Fixed ──
+    // Interaction widths: highlighted→4px, selected→3px, normal→varies
+    // gv-outline-interact always uses the same interaction widths regardless of size mode
+    if (hasInteractLayer) {
+        map.setPaintProperty('gv-outline-interact', 'line-width', ['case',
+            ['boolean', ['feature-state', 'highlighted'], false], 4,
+            ['boolean', ['feature-state', 'selected'],    false], 3,
+            ['boolean', ['feature-state', 'hovered'],     false], 2.5,
+            0]);
+    }
+    if (polySizeMode === 'zoom') {
+        map.setPaintProperty('gv-outline', 'line-width', ['interpolate', ['linear'], ['zoom'], 8, 0.8, 16, 1.5]);
+    } else if (polySizeMode === 'fixed') {
+        map.setPaintProperty('gv-outline', 'line-width', 1.2);
+    } else {
+        // Density: viewport query with debounce, same pattern as lines/points
+        clearTimeout(_polySizeTimer);
+        _polySizeTimer = setTimeout(() => {
+            if (!map.getLayer('gv-outline')) return;
+            let visibleCount = 0;
+            try {
+                const rendered = map.queryRenderedFeatures({ layers: ['gv-fill'] });
+                const seen = new Set();
+                rendered.forEach(f => {
+                    const id = f.id ?? f.properties?._gvid;
+                    if (id == null || seen.has(id)) return;
+                    seen.add(id);
+                    if (!hiddenIds.has(id)) visibleCount++;
+                });
+            } catch {
+                visibleCount = allFeatures.filter(f => {
+                    const t = f.geometry?.type;
+                    return (t === 'Polygon' || t === 'MultiPolygon') && !hiddenIds.has(f.properties._gvid);
+                }).length;
+            }
+            const baseW = visibleCount > 5000 ? 0.4
+                        : visibleCount > 1000 ? 0.7
+                        : visibleCount > 200  ? 1.0
+                        : 1.2;
+            map.setPaintProperty('gv-outline', 'line-width', baseW);
+        }, 150);
     }
 }
 // Maps visible point count to a base radius, then applies zoom interpolation around it.
@@ -4479,7 +4676,7 @@ function updateLayerFilters() {
 
     // Geometry type visibility — toggle entire layers
     const geomLayers = {
-        poly:  ['gv-fill', 'gv-outline'],
+        poly:  ['gv-fill', 'gv-outline', 'gv-outline-interact'],
         line:  ['gv-line-casing', 'gv-line'],
         point: ['gv-point']
     };
@@ -4689,7 +4886,7 @@ function renderNumericPanel(key, container) {
         ['IQR',      fmt4(stats.iqr, false)],
         ['Range',    fmt4(stats.range, isInt)],
         ['Std Dev',  fmt4(stats.stddev, false)],
-        ['Negative', stats.negCount.toLocaleString()],
+        ['Sum',      fmt4(stats.sum, isInt)],
         ['Q3',       fmt4(stats.q3, isInt)],
     ];
     statDefs.forEach(([label, value]) => {
@@ -5986,6 +6183,15 @@ function onMouseLeave() {
 }
 
 // ── CLICK: PIN POPUP + SELECT ──
+function onOutlineInteractClick(e) {
+    const f = e.features && e.features[0];
+    if (!f) return;
+    const t = f.geometry?.type;
+    if (t === 'Polygon' || t === 'MultiPolygon') {
+        onFeatureClick(e);
+    }
+}
+
 function onFeatureClick(e) {
     e.preventDefault();
     const f = e.features[0]; if (!f) return;
@@ -6205,11 +6411,126 @@ document.getElementById('line-radius-pill').addEventListener('click', e => {
     lineRadiusMode = opt.dataset.val;
     applyLineStyle();
 });
-document.getElementById('chk-poly-border').addEventListener('change', function() {
-    polyBorders = this.checked;
-    document.getElementById('lbl-poly-border').classList.toggle('active', this.checked);
-    applyLineStyle();
+// ── POLYGON STYLE PILLS ──
+document.getElementById('poly-outline-pill').addEventListener('click', e => {
+    const opt = e.target.closest('.style-opt');
+    if (!opt) return;
+    document.querySelectorAll('#poly-outline-pill .style-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    polyOutlineMode = opt.dataset.val;
+    applyPolyStyle();
 });
+document.getElementById('poly-fill-pill').addEventListener('click', e => {
+    const opt = e.target.closest('.style-opt');
+    if (!opt) return;
+    document.querySelectorAll('#poly-fill-pill .style-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    polyFillMode = opt.dataset.val;
+    applyPolyStyle();
+});
+document.getElementById('poly-size-pill').addEventListener('click', e => {
+    const opt = e.target.closest('.style-opt');
+    if (!opt) return;
+    document.querySelectorAll('#poly-size-pill .style-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    polySizeMode = opt.dataset.val;
+    applyPolyStyle();
+});
+
+// ── BASEMAP HELPERS ──
+// Generation counter — incremented on every basemap switch.
+let _basemapGeneration = 0;
+
+function switchBasemapTo(val) {
+    currentBasemapStyle = val;
+    document.querySelectorAll('#basemap-style-pill .style-opt').forEach(o => {
+        o.classList.toggle('active', o.dataset.val === val);
+    });
+
+    // Snapshot data before setStyle wipes the map
+    const fc    = allFeatures.length > 0 ? { type: 'FeatureCollection', features: allFeatures } : null;
+    const midFC = allMidpoints.length > 0 ? { type: 'FeatureCollection', features: allMidpoints } : null;
+
+    // Snapshot current interaction state so we can restore it after the style reloads
+    const savedSelected  = new Set(selectedIds);
+    const savedHidden    = new Set(hiddenIds);
+    const savedFiltered  = activeFilter ? { ...activeFilter } : null;
+
+    const myGen = ++_basemapGeneration;
+
+    // Use map.on (not map.once) so a double-fire of style.load doesn't consume the handler early.
+    // We manually remove the listener after our generation fires successfully.
+    let _styleLoadFired = false;
+    const onStyleLoad = () => {
+        if (myGen !== _basemapGeneration) {
+            return;
+        }
+        if (_styleLoadFired) {
+            return;
+        }
+        _styleLoadFired = true;
+        map.off('style.load', onStyleLoad);
+
+
+        setupTileInteraction();
+        setupTileOverlayLayers();
+        discoverBasemapGroups();
+        applyBasemapCheckboxStates();
+        updateLabelColors();
+        if (fc) {
+            setupGeoJsonLayers(fc);
+            if (midFC && map.getSource('geojson-midpoints')) {
+                map.getSource('geojson-midpoints').setData(midFC);
+            }
+            applyPaletteToLayers();
+            applyGeomFilters();
+            updateLayerFilters();
+            updateLabels();
+
+            // Restore feature states that setStyle wiped
+            map.once('idle', () => {
+                if (myGen !== _basemapGeneration) return;
+                savedSelected.forEach(id => {
+                    map.setFeatureState({ source: 'geojson-data', id }, { selected: true });
+                });
+                savedHidden.forEach(id => {
+                    map.setFeatureState({ source: 'geojson-data', id }, { hidden: true });
+                });
+                if (savedFiltered) {
+                    // Re-apply filtered state visually
+                    allFeatures.forEach(f => {
+                        const id = f.properties._gvid;
+                        if (savedSelected.has(id)) {
+                            map.setFeatureState({ source: 'geojson-data', id }, { filtered: true });
+                        }
+                    });
+                }
+                updatePointRadius();
+                applyPolyStyle();
+            });
+        }
+    };
+
+    map.on('style.load', onStyleLoad);
+    console.log(`[basemap] calling map.setStyle for gen ${myGen} (${val})`);
+    map.setStyle(`https://api.protomaps.com/styles/v5/${val}/en.json?key=${PROTOMAPS_KEY}`);
+}
+
+let _basemapToastEl = null;
+function showBasemapSuggestion() {
+    if (_basemapToastEl) { _basemapToastEl.remove(); _basemapToastEl = null; }
+    const toast = document.createElement('div');
+    _basemapToastEl = toast;
+    toast.style.cssText = 'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;box-shadow:0 4px 20px rgba(0,0,0,0.5);display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-dim);white-space:nowrap;';
+    toast.innerHTML = `<span>Polygon-only file — switch to White basemap? <span style="opacity:0.55;font-size:10px">(or choose in Style → Basemap)</span></span>
+        <button id="bm-suggest-white" style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:11px;padding:3px 8px;color:var(--text)">White</button>
+        <button id="bm-suggest-dismiss" style="background:transparent;border:none;cursor:pointer;font-size:14px;color:var(--text-muted);padding:0 2px">✕</button>`;
+    document.body.appendChild(toast);
+    toast.querySelector('#bm-suggest-white').addEventListener('click', () => { switchBasemapTo('white'); toast.remove(); _basemapToastEl = null; });
+    toast.querySelector('#bm-suggest-dismiss').addEventListener('click', () => { toast.remove(); _basemapToastEl = null; });
+    // Auto-dismiss after 8 seconds
+    setTimeout(() => { if (_basemapToastEl === toast) { toast.remove(); _basemapToastEl = null; } }, 8000);
+}
 
 // ── PROJECTION PILL ──
 let mapProjection = 'globe'; // track for URL hash
