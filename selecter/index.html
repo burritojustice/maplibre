@@ -6306,11 +6306,19 @@ function onMouseMove(e) {
         if (fid !== lastHoveredId) {
             lastHoveredId = fid;
             const props = cleanProps(f.properties);
-            const entries = Object.entries(props).filter(([, v]) => v !== null && v !== undefined && v !== '');
+            const entries = sortEntriesByActivity(
+                Object.entries(props).filter(([, v]) => v !== null && v !== undefined && v !== '')
+            );
             if (!entries.length) { hoverPopup.remove(); return; }
-            const rows = entries.map(([k, v]) =>
-                `<div class="popup-row no-click"><span class="popup-key">${escHtml(k)}</span><span class="popup-val">${escHtml(String(v))}</span></div>`
-            ).join('');
+            const rows = entries.map(([k, v]) => {
+                const priority = propActivityPriority(k);
+                const dot = priority === 0
+                    ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${Object.values(paletteMap)[0]||'var(--accent)'};margin-right:4px;flex-shrink:0;vertical-align:middle"></span>`
+                    : priority === 1
+                    ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--text-muted);margin-right:4px;flex-shrink:0;vertical-align:middle;opacity:0.6"></span>`
+                    : '';
+                return `<div class="popup-row no-click"><span class="popup-key">${dot}${escHtml(k)}</span><span class="popup-val">${escHtml(String(v))}</span></div>`;
+            }).join('');
             hoverPopup.setHTML(`<div class="popup-inner">${rows}</div><div class="popup-hint">Click to pin &amp; interact</div>`);
             hoverPopup.addTo(map);
         }
@@ -6371,14 +6379,36 @@ function onFeatureClick(e) {
 
 function cleanProps(raw) { const p = { ...raw }; delete p._gvid; return p; }
 
+// Returns a sort priority for a property key — lower = more active = sorts to top.
+// palette prop: 0, label prop: 1, active filter on this key: 2, otherwise: 3
+function propActivityPriority(key) {
+    if (paletteProp === key) return 0;
+    if (labelProps.has(key)) return 1;
+    if (activeFilter && activeFilter.prop === key) return 2;
+    if (numericRangeFilter && numericRangeFilter.prop === key) return 2;
+    return 3;
+}
+
+function sortEntriesByActivity(entries) {
+    return [...entries].sort((a, b) => propActivityPriority(a[0]) - propActivityPriority(b[0]));
+}
+
 function buildFrozenHTML() {
     const props = cleanProps(frozenFeatureProps || {});
-    const entries = Object.entries(props).filter(([, v]) => v !== null && v !== undefined && v !== '');
+    const entries = sortEntriesByActivity(
+        Object.entries(props).filter(([, v]) => v !== null && v !== undefined && v !== '')
+    );
     const rows = entries.map(([k, v]) => {
         const st = popupRowStates[k] || 0;
         const cls = st === 1 ? ' state-highlight' : st === 2 ? ' state-filter' : st === 3 ? ' state-exclude' : '';
+        const priority = propActivityPriority(k);
+        const dot = priority === 0
+            ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${Object.values(paletteMap)[0]||'var(--accent)'};margin-right:4px;flex-shrink:0;vertical-align:middle"></span>`
+            : priority === 1
+            ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--text-muted);margin-right:4px;flex-shrink:0;vertical-align:middle;opacity:0.6"></span>`
+            : '';
         return `<div class="popup-row${cls}" data-key="${escHtml(k)}" data-val="${escHtml(String(v))}">
-            <span class="popup-key">${escHtml(k)}</span>
+            <span class="popup-key">${dot}${escHtml(k)}</span>
             <span class="popup-val">${escHtml(String(v))}</span>
         </div>`;
     }).join('');
