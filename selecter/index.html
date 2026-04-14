@@ -143,6 +143,8 @@
         #map-panel.active { display: flex; }
         #file-panel { display: flex; flex-direction: column; flex: 1; overflow: hidden; min-height: 0; }
         #file-panel.hidden { display: none; }
+        /* When all file-panel content hidden (Map Tiles tab), show only the tab strip */
+        #sidebar:not(.map-tab-visible) { min-height: 0; }
 
         #map-panel-header {
             padding: 14px 16px 10px;
@@ -344,7 +346,7 @@
 
 
         /* Props list */
-        #props-list { overflow-y: auto; flex: 1; }
+        #props-list { overflow-y: auto; flex: 1; min-height: 80px; }
         #props-list::-webkit-scrollbar { width: 4px; }
         #props-list::-webkit-scrollbar-track { background: transparent; }
         #props-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
@@ -556,7 +558,15 @@
         #filter-status-clear:hover { color: var(--red); }
 
         /* ── STYLE PANEL ── */
-        #style-panel { flex-shrink: 0; border-top: 1px solid var(--border); }
+        /* Sticky at bottom of sidebar so it's always accessible and doesn't bury props */
+        #style-panel {
+            flex-shrink: 0;
+            border-top: 1px solid var(--border);
+            position: sticky;
+            bottom: 0;
+            background: var(--surface);
+            z-index: 5; /* above scrolling props list */
+        }
         #style-panel-toggle {
             width: 100%; display: flex; align-items: center; gap: 6px;
             padding: 6px 14px; background: var(--surface2);
@@ -568,7 +578,7 @@
         #style-panel-toggle:hover { color: var(--text); }
         #style-panel-toggle .sp-arrow { font-size: 9px; transition: transform 0.2s; }
         #style-panel-toggle.open .sp-arrow { transform: rotate(90deg); }
-        #style-panel-body { display: none; max-height: 40vh; overflow-y: auto; }
+        #style-panel-body { display: none; max-height: 38vh; overflow-y: auto; }
         #style-panel-body.open { display: block; }
         .style-section {
             display: flex; align-items: center; gap: 8px;
@@ -998,6 +1008,12 @@
             #map-props-list { display: none; }
             #map-panel-toggle { display: block; }
             #sidebar.map-expanded #map-props-list { display: block; }
+            /* On mobile, style-panel comes before the file-panel so it's visible at top */
+            #sidebar-tabs    { order: 1; }
+            #file-panel      { order: 3; }
+            #filter-status-row { order: 4; display: none; }
+            #sidebar.expanded #filter-status-row { display: flex; }
+            #style-panel     { order: 2; }
         }
 
         #file-input { display: none; }
@@ -1188,6 +1204,15 @@
                             <button class="style-opt" data-val="fixed" title="Fixed line width at all zoom levels">Fixed</button>
                         </div>
                     </div>
+                    <div class="style-section">
+                        <span class="style-section-label">Outline</span>
+                        <div id="line-outline-pill" class="style-pill">
+                            <button class="style-opt active" data-val="none" title="No line casing/outline">None</button>
+                            <button class="style-opt" data-val="light" title="Subtle light casing">Light</button>
+                            <button class="style-opt" data-val="grey" title="Grey casing">Grey</button>
+                            <button class="style-opt" data-val="dark" title="Dark casing for contrast on light basemaps">Dark</button>
+                        </div>
+                    </div>
 
                 </div>
             </div>
@@ -1238,8 +1263,8 @@
                             <button class="style-opt" data-val="white" title="White basemap">White</button>
                             <button class="style-opt" data-val="light" title="Light basemap">Light</button>
                             <button class="style-opt" data-val="grayscale" title="Grayscale basemap">Gray</button>
-                            <button class="style-opt active" data-val="dark" title="Dark basemap">Dark</button>
-                            <button class="style-opt" data-val="black" title="Black basemap">Black</button>
+                            <button class="style-opt" data-val="dark" title="Dark basemap">Dark</button>
+                            <button class="style-opt active" data-val="black" title="Black basemap">Black</button>
                             <button class="style-opt" data-val="hide" title="Hide basemap entirely">Hide</button>
                         </div>
                     </div>
@@ -1256,6 +1281,12 @@
                         </label>
                         <label class="basemap-check active" id="lbl-bm-buildings" title="Show/hide building footprints">
                             <input type="checkbox" id="chk-bm-buildings" checked> Buildings
+                        </label>
+                        <label class="basemap-check active" id="lbl-bm-landuse" title="Show/hide landuse fills (parks, water, etc.)">
+                            <input type="checkbox" id="chk-bm-landuse" checked> Landuse
+                        </label>
+                        <label class="basemap-check active" id="lbl-bm-poi" title="Show/hide point-of-interest icons and labels">
+                            <input type="checkbox" id="chk-bm-poi" checked> POI
                         </label>
                     </div>
                     <div class="style-section">
@@ -1425,7 +1456,7 @@
 </div>
 
 <script>
-const styleUrl = 'https://api.protomaps.com/styles/v5/dark/en.json?key=ffc24a4325d458ce';
+const styleUrl = 'https://api.protomaps.com/styles/v5/black/en.json?key=ffc24a4325d458ce';
 
 function fmtBytes(b) {
     if (b >= 1e6) return (b / 1e6).toFixed(1) + 'MB';
@@ -1478,7 +1509,7 @@ const map = new maplibregl.Map({
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
 // ── BASEMAP GROUPS — module-scope so basemap switcher can update them ──
-const basemapGroups = { roads: [], places: [], streets: [], buildings: [] };
+const basemapGroups = { roads: [], places: [], streets: [], buildings: [], landuse: [], poi: [] };
 function toggleBasemapGroup(group, visible) {
     const vis = visible ? 'visible' : 'none';
     (basemapGroups[group] || []).forEach(id => {
@@ -1487,7 +1518,7 @@ function toggleBasemapGroup(group, visible) {
 }
 
 const PROTOMAPS_KEY = 'ffc24a4325d458ce';
-let currentBasemapStyle = 'dark';
+let currentBasemapStyle = 'black';
 
 map.once('load', () => {
     map.setProjection({ type: 'globe' }); // default projection
@@ -1531,6 +1562,14 @@ map.once('load', () => {
     document.getElementById('chk-bm-buildings').addEventListener('change', function() {
         toggleBasemapGroup('buildings', this.checked);
         document.getElementById('lbl-bm-buildings').classList.toggle('active', this.checked);
+    });
+    document.getElementById('chk-bm-landuse').addEventListener('change', function() {
+        toggleBasemapGroup('landuse', this.checked);
+        document.getElementById('lbl-bm-landuse').classList.toggle('active', this.checked);
+    });
+    document.getElementById('chk-bm-poi').addEventListener('change', function() {
+        toggleBasemapGroup('poi', this.checked);
+        document.getElementById('lbl-bm-poi').classList.toggle('active', this.checked);
     });
 });
 // Always keep lat/lon/zoom in the hash so sharing the URL preserves the view
@@ -1582,6 +1621,7 @@ let pointStyle = 'hollow'; // 'hollow' | 'filled' | 'outlined' | 'outline'
 let pointRadiusMode = 'density'; // 'density' | 'zoom'
 let lineWidthMode = 'thin';   // 'thin' | 'medium' | 'thick'
 let lineRadiusMode = 'zoom';  // 'zoom' | 'fixed' | 'density'
+let lineOutlineMode = 'none'; // 'none' | 'light' | 'grey' | 'dark'
 let polyFillMode    = 'palette'; // 'palette' | 'grey' | 'none'
 let polyOutlineMode = 'grey';    // 'none' | 'white' | 'grey' | 'black' | 'palette'
 let polySizeMode    = 'zoom';    // 'zoom' | 'density' | 'fixed'
@@ -2535,6 +2575,9 @@ function switchTab(tab) {
     document.getElementById('tab-map').classList.toggle('active', tab === 'map');
     document.getElementById('file-panel').classList.toggle('hidden', tab !== 'file');
     document.getElementById('map-panel').classList.toggle('active', tab === 'map');
+    // filter-status-row and style-panel only relevant on the file tab
+    document.getElementById('filter-status-row').style.display = tab === 'file' ? '' : 'none';
+    document.getElementById('style-panel').style.display = tab === 'file' ? '' : 'none';
 
     const sidebar = document.getElementById('sidebar');
     if (tab === 'map') {
@@ -3221,7 +3264,7 @@ function pushHashState() {
     if (mapProjection === 'mercator') parts.push('projection=mercator');
     if (legendMode) parts.push('view=legend');
     // Basemap (only when non-default)
-    if (currentBasemapStyle !== 'dark') parts.push(`bm=${encodeURIComponent(currentBasemapStyle)}`);
+    if (currentBasemapStyle !== 'black') parts.push(`bm=${encodeURIComponent(currentBasemapStyle)}`);
     // Polygon style (only when non-default)
     const polyDefaults = { fill: 'palette', outline: 'grey', size: 'zoom' };
     if (polyFillMode !== polyDefaults.fill || polyOutlineMode !== polyDefaults.outline || polySizeMode !== polyDefaults.size) {
@@ -3322,7 +3365,7 @@ async function restoreFromHash() {
     }
 
     // Restore basemap
-    if (params.bm && params.bm !== 'dark') {
+    if (params.bm && params.bm !== 'black') {
         switchBasemapTo(params.bm);
     }
 
@@ -3606,9 +3649,11 @@ function discoverBasemapGroups() {
         const id = l.id.toLowerCase(), sl = (l['source-layer'] || '').toLowerCase();
         if (l.type === 'line' && (sl.includes('road') || sl.includes('transit') || id.includes('road'))) basemapGroups.roads.push(l.id);
         else if (sl.includes('building') || id.includes('building')) basemapGroups.buildings.push(l.id);
+        else if (sl.includes('landuse') || sl.includes('land') || id.includes('landuse') || id.includes('water') || id.includes('park') || id.includes('green')) basemapGroups.landuse.push(l.id);
         else if (l.type === 'symbol') {
             if (sl.includes('place') || id.includes('place') || id.includes('city') || id.includes('country') || id.includes('state')) basemapGroups.places.push(l.id);
             else if (sl.includes('road') || id.includes('road') || id.includes('street') || id.includes('transit') || id.includes('shield')) basemapGroups.streets.push(l.id);
+            else if (sl.includes('poi') || id.includes('poi') || id.includes('point_of_interest') || id.includes('amenity') || id.includes('attraction')) basemapGroups.poi.push(l.id);
         }
     });
 }
@@ -4313,6 +4358,18 @@ function applyLineStyle() {
         }
         map.setPaintProperty('gv-line', 'line-width', lineWidth);
         map.setPaintProperty('gv-line-casing', 'line-width', casingWidth);
+    }
+    // Apply casing color based on outline mode
+    if (map.getLayer('gv-line-casing')) {
+        const casingColors = {
+            none:  'rgba(0,0,0,0)',
+            light: 'rgba(255,255,255,0.25)',
+            grey:  'rgba(128,128,128,0.5)',
+            dark:  'rgba(0,0,0,0.45)'
+        };
+        const casingOpacity = lineOutlineMode === 'none' ? 0 : 1;
+        map.setPaintProperty('gv-line-casing', 'line-color', casingColors[lineOutlineMode] || 'rgba(0,0,0,0)');
+        map.setPaintProperty('gv-line-casing', 'line-opacity', casingOpacity);
     }
 }
 
@@ -6436,6 +6493,14 @@ document.getElementById('line-radius-pill').addEventListener('click', e => {
     document.querySelectorAll('#line-radius-pill .style-opt').forEach(o => o.classList.remove('active'));
     opt.classList.add('active');
     lineRadiusMode = opt.dataset.val;
+    applyLineStyle();
+});
+document.getElementById('line-outline-pill').addEventListener('click', e => {
+    const opt = e.target.closest('.style-opt');
+    if (!opt) return;
+    document.querySelectorAll('#line-outline-pill .style-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    lineOutlineMode = opt.dataset.val;
     applyLineStyle();
 });
 // ── POLYGON STYLE PILLS ──
