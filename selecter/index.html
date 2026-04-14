@@ -65,7 +65,6 @@
         #sidebar.legend-mode #sidebar-tabs,
         #sidebar.legend-mode #file-panel > *:not(#legend-card),
         #sidebar.legend-mode #map-panel,
-        #sidebar.legend-mode #style-panel,
         #sidebar.legend-mode #filter-status-row { display: none !important; }
         #sidebar.legend-mode #legend-card { display: flex; }
         #selection-bar.legend-mode { display: none !important; }
@@ -3040,7 +3039,7 @@ function positionSidebar() {
     }
 }
 
-let legendMode = window.innerWidth <= 600; // legend mode by default on mobile
+let legendMode = false; // legend mode is explicit user choice, not mobile default
 
 function toggleLegendMode(forceTo) {
     legendMode = (forceTo !== undefined) ? forceTo : !legendMode;
@@ -3163,8 +3162,29 @@ window.addEventListener('resize', positionSidebar);
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const btn = document.getElementById('sidebar-toggle');
+    const isMobile = window.innerWidth <= 600;
     sidebar.classList.toggle('expanded');
-    btn.textContent = sidebar.classList.contains('expanded') ? '▲ Hide Properties' : '▼ Show Properties';
+    const isExpanded = sidebar.classList.contains('expanded');
+    btn.textContent = isExpanded ? '▲ Hide Properties' : '▼ Show Properties';
+
+    if (isMobile) {
+        // On mobile: fully hide the sidebar when collapsed; show a floating restore button
+        sidebar.style.display = isExpanded ? '' : 'none';
+        let restoreBtn = document.getElementById('mobile-restore-sidebar');
+        if (!isExpanded) {
+            if (!restoreBtn) {
+                restoreBtn = document.createElement('button');
+                restoreBtn.id = 'mobile-restore-sidebar';
+                restoreBtn.textContent = '☰';
+                restoreBtn.style.cssText = 'position:fixed;top:12px;left:12px;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:16px;cursor:pointer;color:var(--text-muted);box-shadow:0 2px 8px rgba(0,0,0,0.4)';
+                restoreBtn.addEventListener('click', toggleSidebar);
+                document.body.appendChild(restoreBtn);
+            }
+            restoreBtn.style.display = 'block';
+        } else if (restoreBtn) {
+            restoreBtn.style.display = 'none';
+        }
+    }
     requestAnimationFrame(positionSidebar);
 }
 
