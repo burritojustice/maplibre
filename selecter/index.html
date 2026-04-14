@@ -1210,8 +1210,9 @@
                     <div class="style-section">
                         <span class="style-section-label">Fill</span>
                         <div id="poly-fill-pill" class="style-pill">
-                            <button class="style-opt active" data-val="palette" title="Fill uses the palette/feature color">Palette</button>
-                            <button class="style-opt" data-val="grey" title="Flat grey fill">Grey</button>
+                            <button class="style-opt active" data-val="palette" title="Auto opacity — transparent on light basemaps, bright on dark">Palette</button>
+                            <button class="style-opt" data-val="bright" title="High opacity fill (0.85) regardless of basemap">Bright</button>
+                            <button class="style-opt" data-val="grey" title="Flat grey fill, auto opacity">Grey</button>
                             <button class="style-opt" data-val="none" title="No fill (outline only)">None</button>
                         </div>
                     </div>
@@ -1234,8 +1235,8 @@
                     <div class="style-section" id="basemap-section">
                         <span class="style-section-label">Style</span>
                         <div id="basemap-style-pill" class="style-pill">
-                            <button class="style-opt" data-val="light" title="Light basemap">Light</button>
                             <button class="style-opt" data-val="white" title="White basemap">White</button>
+                            <button class="style-opt" data-val="light" title="Light basemap">Light</button>
                             <button class="style-opt" data-val="grayscale" title="Grayscale basemap">Gray</button>
                             <button class="style-opt active" data-val="dark" title="Dark basemap">Dark</button>
                             <button class="style-opt" data-val="black" title="Black basemap">Black</button>
@@ -3219,6 +3220,13 @@ function pushHashState() {
     if (openPropKey) parts.push(`openprop=${encodeURIComponent(openPropKey)}`);
     if (mapProjection === 'mercator') parts.push('projection=mercator');
     if (legendMode) parts.push('view=legend');
+    // Basemap (only when non-default)
+    if (currentBasemapStyle !== 'dark') parts.push(`bm=${encodeURIComponent(currentBasemapStyle)}`);
+    // Polygon style (only when non-default)
+    const polyDefaults = { fill: 'palette', outline: 'grey', size: 'zoom' };
+    if (polyFillMode !== polyDefaults.fill || polyOutlineMode !== polyDefaults.outline || polySizeMode !== polyDefaults.size) {
+        parts.push(`polystyle=${encodeURIComponent(`${polyFillMode},${polyOutlineMode},${polySizeMode}`)}`);
+    }
     // Palette: prop::scheme, optionally ::r<offset> or ::p<i,j,k,...>
     if (paletteProp) {
         let variant = '';
@@ -3311,6 +3319,19 @@ async function restoreFromHash() {
         map.setProjection({ type: 'mercator' });
         document.querySelectorAll('#projection-pill .style-opt').forEach(o =>
             o.classList.toggle('active', o.dataset.val === 'mercator'));
+    }
+
+    // Restore basemap
+    if (params.bm && params.bm !== 'dark') {
+        switchBasemapTo(params.bm);
+    }
+
+    // Restore polygon style settings
+    if (params.polystyle) {
+        const [fill, outline, size] = params.polystyle.split(',');
+        if (fill)    { polyFillMode    = fill;    document.querySelectorAll('#poly-fill-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === fill)); }
+        if (outline) { polyOutlineMode = outline; document.querySelectorAll('#poly-outline-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === outline)); }
+        if (size)    { polySizeMode    = size;    document.querySelectorAll('#poly-size-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === size)); }
     }
 
     // Restore legend mode
@@ -4309,6 +4330,12 @@ function applyPolyStyle() {
     }
     const interactFillExpr = buildFullColorExpr(paletteExpr);
 
+    // Auto-opacity: 'palette' and 'grey' use higher opacity on dark/black basemaps
+    const isDarkBase = currentBasemapStyle === 'dark' || currentBasemapStyle === 'black';
+    const baseOpacity = (polyFillMode === 'bright') ? 0.85
+                      : isDarkBase ? 0.75
+                      : 0.35;
+
     if (polyFillMode === 'none') {
         map.setPaintProperty('gv-fill', 'fill-opacity', ['case',
             ['boolean', ['feature-state', 'hidden'], false], 0, 0]);
@@ -4321,20 +4348,20 @@ function applyPolyStyle() {
             '#888888']);
         map.setPaintProperty('gv-fill', 'fill-opacity', ['case',
             ['boolean', ['feature-state', 'hidden'],      false], 0,
-            ['boolean', ['feature-state', 'selected'],    false], 0.6,
-            ['boolean', ['feature-state', 'filtered'],    false], 0.55,
-            ['boolean', ['feature-state', 'highlighted'], false], 0.35,
-            ['boolean', ['feature-state', 'hovered'],     false], 0.4,
-            0.25]);
-    } else { // palette
+            ['boolean', ['feature-state', 'selected'],    false], Math.min(1, baseOpacity + 0.25),
+            ['boolean', ['feature-state', 'filtered'],    false], Math.min(1, baseOpacity + 0.2),
+            ['boolean', ['feature-state', 'highlighted'], false], Math.min(1, baseOpacity + 0.1),
+            ['boolean', ['feature-state', 'hovered'],     false], Math.min(1, baseOpacity + 0.15),
+            baseOpacity]);
+    } else { // palette or bright
         map.setPaintProperty('gv-fill', 'fill-color', interactFillExpr);
         map.setPaintProperty('gv-fill', 'fill-opacity', ['case',
             ['boolean', ['feature-state', 'hidden'],      false], 0,
-            ['boolean', ['feature-state', 'selected'],    false], 0.6,
-            ['boolean', ['feature-state', 'filtered'],    false], 0.55,
-            ['boolean', ['feature-state', 'highlighted'], false], 0.35,
-            ['boolean', ['feature-state', 'hovered'],     false], 0.4,
-            0.25]);
+            ['boolean', ['feature-state', 'selected'],    false], Math.min(1, baseOpacity + 0.15),
+            ['boolean', ['feature-state', 'filtered'],    false], Math.min(1, baseOpacity + 0.1),
+            ['boolean', ['feature-state', 'highlighted'], false], Math.min(1, baseOpacity + 0.05),
+            ['boolean', ['feature-state', 'hovered'],     false], Math.min(1, baseOpacity + 0.1),
+            baseOpacity]);
     }
 
     // ── Outline visibility ──
@@ -6418,7 +6445,7 @@ document.getElementById('poly-outline-pill').addEventListener('click', e => {
     document.querySelectorAll('#poly-outline-pill .style-opt').forEach(o => o.classList.remove('active'));
     opt.classList.add('active');
     polyOutlineMode = opt.dataset.val;
-    applyPolyStyle();
+    applyPolyStyle(); pushHashState();
 });
 document.getElementById('poly-fill-pill').addEventListener('click', e => {
     const opt = e.target.closest('.style-opt');
@@ -6426,7 +6453,7 @@ document.getElementById('poly-fill-pill').addEventListener('click', e => {
     document.querySelectorAll('#poly-fill-pill .style-opt').forEach(o => o.classList.remove('active'));
     opt.classList.add('active');
     polyFillMode = opt.dataset.val;
-    applyPolyStyle();
+    applyPolyStyle(); pushHashState();
 });
 document.getElementById('poly-size-pill').addEventListener('click', e => {
     const opt = e.target.closest('.style-opt');
@@ -6434,7 +6461,7 @@ document.getElementById('poly-size-pill').addEventListener('click', e => {
     document.querySelectorAll('#poly-size-pill .style-opt').forEach(o => o.classList.remove('active'));
     opt.classList.add('active');
     polySizeMode = opt.dataset.val;
-    applyPolyStyle();
+    applyPolyStyle(); pushHashState();
 });
 
 // ── BASEMAP HELPERS ──
@@ -6446,6 +6473,12 @@ function switchBasemapTo(val) {
     document.querySelectorAll('#basemap-style-pill .style-opt').forEach(o => {
         o.classList.toggle('active', o.dataset.val === val);
     });
+
+    // Auto-set fill mode default based on basemap darkness (only when on auto modes)
+    if (polyFillMode === 'palette' || polyFillMode === 'grey') {
+        // No change to mode — applyPolyStyle reads currentBasemapStyle to pick opacity
+    }
+    // If user has explicitly chosen 'bright', leave it unchanged
 
     // Snapshot data before setStyle wipes the map
     const fc    = allFeatures.length > 0 ? { type: 'FeatureCollection', features: allFeatures } : null;
