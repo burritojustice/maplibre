@@ -1241,10 +1241,19 @@
                         </div>
                     </div>
                     <div class="style-section">
+                        <span class="style-section-label">Width</span>
+                        <div id="poly-width-pill" class="style-pill">
+                            <button class="style-opt" data-val="hair" title="Hairline (0.3px base) — best for very dense layers">Hair</button>
+                            <button class="style-opt active" data-val="thin" title="Thin (0.8px base)">Thin</button>
+                            <button class="style-opt" data-val="mid" title="Medium (1.5px base)">Mid</button>
+                            <button class="style-opt" data-val="thick" title="Thick (2.5px base)">Thick</button>
+                        </div>
+                    </div>
+                    <div class="style-section">
                         <span class="style-section-label">Size</span>
                         <div id="poly-size-pill" class="style-pill">
-                            <button class="style-opt active" data-val="zoom" title="Outline width scales with zoom">Zoom</button>
-                            <button class="style-opt" data-val="density" title="Thinner outlines for dense polygon layers">Density</button>
+                            <button class="style-opt" data-val="zoom" title="Outline width scales with zoom">Zoom</button>
+                            <button class="style-opt active" data-val="density" title="Scales width and opacity by visible polygon count — best for large datasets">Density</button>
                             <button class="style-opt" data-val="fixed" title="Fixed outline width at all zoom levels">Fixed</button>
                         </div>
                     </div>
@@ -1623,7 +1632,8 @@ let lineRadiusMode = 'zoom';  // 'zoom' | 'fixed' | 'density'
 let lineOutlineMode = 'none'; // 'none' | 'light' | 'grey' | 'dark'
 let polyFillMode    = 'palette'; // 'palette' | 'grey' | 'none'
 let polyOutlineMode = 'grey';    // 'none' | 'white' | 'grey' | 'black' | 'palette'
-let polySizeMode    = 'zoom';    // 'zoom' | 'density' | 'fixed'
+let polySizeMode    = 'density'; // 'zoom' | 'density' | 'fixed' — density is better default
+let polyWidthMode   = 'thin';    // 'hair' | 'thin' | 'mid' | 'thick'
 
 // ── PALETTE COLORING STATE ──
 let paletteProp = null;       // property key being colored, null = off
@@ -3286,9 +3296,9 @@ function pushHashState() {
     // Basemap (only when non-default)
     if (currentBasemapStyle !== 'black') parts.push(`bm=${encodeURIComponent(currentBasemapStyle)}`);
     // Polygon style (only when non-default)
-    const polyDefaults = { fill: 'palette', outline: 'grey', size: 'zoom' };
-    if (polyFillMode !== polyDefaults.fill || polyOutlineMode !== polyDefaults.outline || polySizeMode !== polyDefaults.size) {
-        parts.push(`polystyle=${encodeURIComponent(`${polyFillMode},${polyOutlineMode},${polySizeMode}`)}`);
+    const polyDefaults = { fill: 'palette', outline: 'grey', size: 'density', width: 'thin' };
+    if (polyFillMode !== polyDefaults.fill || polyOutlineMode !== polyDefaults.outline || polySizeMode !== polyDefaults.size || polyWidthMode !== polyDefaults.width) {
+        parts.push(`polystyle=${encodeURIComponent(`${polyFillMode},${polyOutlineMode},${polySizeMode},${polyWidthMode}`)}`);
     }
     // Palette: prop::scheme, optionally ::r<offset> or ::p<i,j,k,...>
     if (paletteProp) {
@@ -3391,10 +3401,11 @@ async function restoreFromHash() {
 
     // Restore polygon style settings
     if (params.polystyle) {
-        const [fill, outline, size] = params.polystyle.split(',');
+        const [fill, outline, size, width] = params.polystyle.split(',');
         if (fill)    { polyFillMode    = fill;    document.querySelectorAll('#poly-fill-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === fill)); }
         if (outline) { polyOutlineMode = outline; document.querySelectorAll('#poly-outline-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === outline)); }
         if (size)    { polySizeMode    = size;    document.querySelectorAll('#poly-size-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === size)); }
+        if (width)   { polyWidthMode   = width;   document.querySelectorAll('#poly-width-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === width)); }
     }
 
     // Restore legend mode
@@ -3720,7 +3731,7 @@ function ingestGeoJSON(geojson, filename, skipFit = false) {
     lastHoveredId = null; hoveredMapId = null;
     closeHistoPopout();
     paletteProp = null; paletteMap = {}; paletteScheme = 'Set1'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false; paletteReversed = false; numericRangeFilter = null; numericTypeOverrides = {};
-    polyFillMode = 'palette'; polyOutlineMode = 'grey'; polySizeMode = 'zoom';
+    polyFillMode = 'palette'; polyOutlineMode = 'grey'; polySizeMode = 'density'; polyWidthMode = 'thin';
     updateLabelHint();
     document.getElementById('save-visible-btn').style.visibility = 'hidden';
     if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
@@ -4463,9 +4474,14 @@ function applyPolyStyle() {
     }
     map.setPaintProperty('gv-outline', 'line-opacity', visExpr);
 
-    // ── Outline width: Zoom / Density / Fixed ──
-    // Interaction widths: highlighted→4px, selected→3px, normal→varies
-    // gv-outline-interact always uses the same interaction widths regardless of size mode
+    // ── Outline width: Zoom / Density / Fixed + Width mode ──
+    // Base widths for each width mode (thin, zoom range)
+    const polyBaseWidths = { hair: 0.3, thin: 0.8, mid: 1.5, thick: 2.5 };
+    const polyThickWidths = { hair: 0.6, thin: 1.5, mid: 2.5, thick: 4.0 };
+    const wBase  = polyBaseWidths[polyWidthMode]  ?? 0.8;
+    const wThick = polyThickWidths[polyWidthMode] ?? 1.5;
+
+    // gv-outline-interact interaction widths always use full-weight regardless of size mode
     if (hasInteractLayer) {
         map.setPaintProperty('gv-outline-interact', 'line-width', ['case',
             ['boolean', ['feature-state', 'highlighted'], false], 4,
@@ -4473,12 +4489,18 @@ function applyPolyStyle() {
             ['boolean', ['feature-state', 'hovered'],     false], 2.5,
             0]);
     }
+
     if (polySizeMode === 'zoom') {
-        map.setPaintProperty('gv-outline', 'line-width', ['interpolate', ['linear'], ['zoom'], 8, 0.8, 16, 1.5]);
+        map.setPaintProperty('gv-outline', 'line-width',
+            ['interpolate', ['linear'], ['zoom'], 8, wBase, 16, wThick]);
+        map.setPaintProperty('gv-outline', 'line-opacity', visExpr);
+
     } else if (polySizeMode === 'fixed') {
-        map.setPaintProperty('gv-outline', 'line-width', 1.2);
+        map.setPaintProperty('gv-outline', 'line-width', wBase);
+        map.setPaintProperty('gv-outline', 'line-opacity', visExpr);
+
     } else {
-        // Density: viewport query with debounce, same pattern as lines/points
+        // Density mode: viewport query, debounced — scales BOTH width AND opacity
         clearTimeout(_polySizeTimer);
         _polySizeTimer = setTimeout(() => {
             if (!map.getLayer('gv-outline')) return;
@@ -4498,11 +4520,28 @@ function applyPolyStyle() {
                     return (t === 'Polygon' || t === 'MultiPolygon') && !hiddenIds.has(f.properties._gvid);
                 }).length;
             }
-            const baseW = visibleCount > 5000 ? 0.4
-                        : visibleCount > 1000 ? 0.7
-                        : visibleCount > 200  ? 1.0
-                        : 1.2;
-            map.setPaintProperty('gv-outline', 'line-width', baseW);
+
+            // Width and opacity both scale down with polygon count
+            // At very high counts (100k+) outline is nearly invisible — just a hint
+            let densityFactor, opacityFactor;
+            if      (visibleCount > 200000) { densityFactor = 0.10; opacityFactor = 0.15; }
+            else if (visibleCount >  50000) { densityFactor = 0.15; opacityFactor = 0.20; }
+            else if (visibleCount >  20000) { densityFactor = 0.20; opacityFactor = 0.30; }
+            else if (visibleCount >  10000) { densityFactor = 0.30; opacityFactor = 0.45; }
+            else if (visibleCount >   5000) { densityFactor = 0.45; opacityFactor = 0.55; }
+            else if (visibleCount >   2000) { densityFactor = 0.60; opacityFactor = 0.65; }
+            else if (visibleCount >    500) { densityFactor = 0.75; opacityFactor = 0.80; }
+            else                            { densityFactor = 1.00; opacityFactor = 1.00; }
+
+            const dBase  = Math.max(0.1, wBase  * densityFactor);
+            const dThick = Math.max(0.2, wThick * densityFactor);
+
+            // Zoom interpolation even in density mode — lines still grow as you zoom in
+            map.setPaintProperty('gv-outline', 'line-width',
+                ['interpolate', ['linear'], ['zoom'], 8, dBase, 14, (dBase+dThick)/2, 18, dThick]);
+            // Hidden features → 0; visible features → scaled opacity
+            map.setPaintProperty('gv-outline', 'line-opacity', ['case',
+                ['boolean', ['feature-state', 'hidden'], false], 0, opacityFactor]);
         }, 150);
     }
 }
@@ -6538,6 +6577,14 @@ document.getElementById('poly-fill-pill').addEventListener('click', e => {
     document.querySelectorAll('#poly-fill-pill .style-opt').forEach(o => o.classList.remove('active'));
     opt.classList.add('active');
     polyFillMode = opt.dataset.val;
+    applyPolyStyle(); pushHashState();
+});
+document.getElementById('poly-width-pill').addEventListener('click', e => {
+    const opt = e.target.closest('.style-opt');
+    if (!opt) return;
+    document.querySelectorAll('#poly-width-pill .style-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    polyWidthMode = opt.dataset.val;
     applyPolyStyle(); pushHashState();
 });
 document.getElementById('poly-size-pill').addEventListener('click', e => {
