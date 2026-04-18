@@ -319,18 +319,20 @@
             flex-wrap: wrap;
             min-height: 26px;
         }
-        #label-hint-text {
+        #label-hint-text, #filter-status-label {
             font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
             text-transform: uppercase; color: var(--text-muted);
             flex-shrink: 0; cursor: default;
         }
+        #filter-status-label { display: none; }
+        #filter-status-row.active #filter-status-label { display: inline; }
         #label-tags {
-            display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+            display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; flex: 1;
         }
         .label-tag {
-            background: rgba(110,231,183,0.12);
-            border: 1px solid rgba(110,231,183,0.3);
-            color: var(--accent);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
             font-family: var(--mono);
             font-size: 10px;
             padding: 1px 4px 1px 6px;
@@ -339,9 +341,9 @@
             display: inline-flex; align-items: center; gap: 3px;
         }
         .label-tag-x {
-            cursor: pointer; color: rgba(110,231,183,0.6); font-size: 12px; line-height: 1;
+            cursor: pointer; color: var(--text-muted); font-size: 12px; line-height: 1;
         }
-        .label-tag-x:hover { color: var(--accent); }
+        .label-tag-x:hover { color: var(--red); }
 
 
         /* Props list */
@@ -560,11 +562,12 @@
         /* Sticky at bottom of sidebar so it's always accessible and doesn't bury props */
         #style-panel {
             flex-shrink: 0;
-            border-top: 1px solid var(--border);
+            border-top: 2px solid rgba(45,212,191,0.35);
             position: sticky;
             bottom: 0;
             background: var(--surface);
             z-index: 5; /* above scrolling props list */
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.25);
         }
         #style-panel-toggle {
             width: 100%; display: flex; align-items: center; gap: 6px;
@@ -878,6 +881,7 @@
         .popup-row.state-exclude .popup-val { color: var(--red); }
         .popup-row.no-click { cursor: default; }
         .popup-row.no-click:hover { background: transparent; }
+        .popup-row.active-divider { border-bottom: 2px solid rgba(45,212,191,0.35); }
 
         .popup-key { font-family: var(--mono); font-size: 12px; color: var(--text-muted); min-width: 90px; flex-shrink: 0; cursor: pointer; }
         .popup-key:hover { color: var(--accent); text-decoration: underline; }
@@ -1071,7 +1075,7 @@
             <p id="sidebar-subtitle">No file loaded</p>
             <div id="prop-search-wrap">
                 <span id="prop-search-icon">⌕</span>
-                <input type="text" id="prop-search" placeholder="Search properties…">
+                <input type="text" id="prop-search" placeholder="Search properties and values…">
             </div>
             <!-- label hint with live active-label tags -->
             <div id="label-hint">
@@ -1111,7 +1115,7 @@
             <!-- Search -->
             <div id="map-search-wrap" style="position:relative; margin-bottom:8px; display:none">
                 <span id="map-search-icon">⌕</span>
-                <input type="text" id="map-search" placeholder="Search properties…">
+                <input type="text" id="map-search" placeholder="Search properties and values…">
             </div>
             <!-- Label hint — mirrors file tab label-hint -->
             <div id="map-label-hint">
@@ -1142,6 +1146,7 @@
 
     <!-- Filter status row: shows mode hint or active filter (clickable) -->
     <div id="filter-status-row">
+        <span id="filter-status-label">Filter</span>
         <span id="filter-status-hint"></span>
         <span id="filter-status-tag">
             <span id="filter-status-icon"></span>
@@ -1437,7 +1442,7 @@
     <!-- row 1: selected · save selected -->
     <div class="bar-row">
         <span class="stat-num red" id="sel-num">0</span>
-        <span class="stat-label">selected</span>
+        <span class="stat-label" id="sel-label">selected</span>
         <button class="bar-btn" id="save-btn" title="Save selected features as GeoJSON">⬇ Save Selected</button>
     </div>
     <!-- row 2: visible · save visible -->
@@ -3118,13 +3123,14 @@ function updateLegendCard() {
                 row.innerHTML = `<span class="legend-swatch" style="background:${color}"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${escHtml(val)}</span>${count !== '' ? `<span style="font-size:10px;color:var(--text-muted);flex-shrink:0">${count.toLocaleString()}</span>` : ''}`;
                 row.addEventListener('click', () => sidebarValueClick(paletteProp, val));
                 row.addEventListener('mouseenter', () => {
-                    if (activeFilter && activeFilter.prop === paletteProp && activeFilter.value === val) return;
+                    if (activeFilter?.mode === 'highlight') return;
                     allFeatures.forEach(f => {
                         if (String(f.properties[paletteProp]) === String(val))
                             map.setFeatureState({ source: 'geojson-data', id: f.properties._gvid }, { highlighted: true });
                     });
                 });
                 row.addEventListener('mouseleave', () => {
+                    if (activeFilter?.mode === 'highlight') return;
                     allFeatures.forEach(f => {
                         if (String(f.properties[paletteProp]) === String(val))
                             map.setFeatureState({ source: 'geojson-data', id: f.properties._gvid }, { highlighted: false });
@@ -3584,9 +3590,9 @@ function setupGeoJsonLayers(fc) {
                 'transparent'],
             'line-opacity': ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1],
             'line-width': ['case',
-                ['boolean', ['feature-state', 'highlighted'], false], 4,
-                ['boolean', ['feature-state', 'selected'],    false], 3,
-                ['boolean', ['feature-state', 'hovered'],     false], 2.5,
+                ['boolean', ['feature-state', 'highlighted'], false], ['interpolate', ['linear'], ['zoom'], 8, 1.5, 14, 2.5, 18, 3.5],
+                ['boolean', ['feature-state', 'selected'],    false], ['interpolate', ['linear'], ['zoom'], 8, 1.2, 14, 2.0, 18, 3.0],
+                ['boolean', ['feature-state', 'hovered'],     false], ['interpolate', ['linear'], ['zoom'], 8, 1.0, 14, 1.8, 18, 2.5],
                 0]
         }
     });
@@ -3823,8 +3829,8 @@ function addLabelLayer() {
         layout: {
             'text-field': '',
             'text-size': 11,
-            'text-offset': [0, 1.2],
-            'text-anchor': 'top',
+            'text-offset': [0, 0],
+            'text-anchor': 'center',
             'text-font': ['Noto Sans Regular'],
             'text-allow-overlap': false,
             'text-ignore-placement': false
@@ -4484,9 +4490,9 @@ function applyPolyStyle() {
     // gv-outline-interact interaction widths always use full-weight regardless of size mode
     if (hasInteractLayer) {
         map.setPaintProperty('gv-outline-interact', 'line-width', ['case',
-            ['boolean', ['feature-state', 'highlighted'], false], 4,
-            ['boolean', ['feature-state', 'selected'],    false], 3,
-            ['boolean', ['feature-state', 'hovered'],     false], 2.5,
+            ['boolean', ['feature-state', 'highlighted'], false], ['interpolate', ['linear'], ['zoom'], 8, 1.5, 14, 2.5, 18, 3.5],
+            ['boolean', ['feature-state', 'selected'],    false], ['interpolate', ['linear'], ['zoom'], 8, 1.2, 14, 2.0, 18, 3.0],
+            ['boolean', ['feature-state', 'hovered'],     false], ['interpolate', ['linear'], ['zoom'], 8, 1.0, 14, 1.8, 18, 2.5],
             0]);
     }
 
@@ -5376,7 +5382,7 @@ function renderHistogram(key, container) {
             const cnt = bin.count >= 1e5 ? (bin.count/1e3).toFixed(0)+'k' : bin.count.toLocaleString();
             const pctLo = isQuantitativeScheme(paletteScheme) ? ` · Q${getQuantileRank(bin.lo)}%` : '';
             const binLabel = `Bin ${bi+1}/${nBins}`;
-            svg += `<rect class="histo-bar" x="${pad.l}" y="${y.toFixed(1)}" width="${Math.max(0.5,bw).toFixed(1)}" height="${bh.toFixed(1)}" fill="${color}" opacity="${opacity}" data-lo="${bin.lo.toFixed(6)}" data-hi="${bin.hi.toFixed(6)}" data-count="${bin.count}"><title>${binLabel} · ${axFmt(bin.lo)}–${axFmt(bin.hi)}: ${cnt}${pctLo}</title></rect>`;
+            svg += `<rect class="histo-bar" x="${pad.l}" y="${y.toFixed(1)}" width="${Math.max(0.5,bw).toFixed(1)}" height="${bh.toFixed(1)}" fill="${color}" opacity="${opacity}" data-lo="${bin.lo.toFixed(6)}" data-hi="${bin.hi.toFixed(6)}" data-count="${bin.count}" data-color="${color}"><title>${binLabel} · ${axFmt(bin.lo)}–${axFmt(bin.hi)}: ${cnt}${pctLo}</title></rect>`;
         });
         svg += `</g>`;
 
@@ -5458,6 +5464,7 @@ function renderHistogram(key, container) {
                 });
             });
             nullRectV.addEventListener('mouseleave', () => {
+                if (activeFilter?.mode === 'highlight') return;
                 highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
                 highlightedIds.clear();
             });
@@ -5528,7 +5535,7 @@ function renderHistogram(key, container) {
             if (activeRange && !isFiltered) opacity *= 0.3;
             const cnt = bin.count >= 1e5 ? (bin.count/1e3).toFixed(0)+'k' : bin.count.toLocaleString();
             const pctLo = isQuantitativeScheme(paletteScheme) ? ` · Q${getQuantileRank(bin.lo)}%` : '';
-            svg += `<rect class="histo-bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bwPx.toFixed(1)}" height="${Math.max(0.5,bh).toFixed(1)}" fill="${color}" opacity="${opacity}" data-lo="${bin.lo.toFixed(6)}" data-hi="${bin.hi.toFixed(6)}" data-count="${bin.count}"><title>Bin ${bi+1}/${nBins} · ${axFmt(bin.lo)}–${axFmt(bin.hi)}: ${cnt}${pctLo}</title></rect>`;
+            svg += `<rect class="histo-bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bwPx.toFixed(1)}" height="${Math.max(0.5,bh).toFixed(1)}" fill="${color}" opacity="${opacity}" data-lo="${bin.lo.toFixed(6)}" data-hi="${bin.hi.toFixed(6)}" data-count="${bin.count}" data-color="${color}"><title>Bin ${bi+1}/${nBins} · ${axFmt(bin.lo)}–${axFmt(bin.hi)}: ${cnt}${pctLo}</title></rect>`;
         });
         svg += `</g>`;
 
@@ -5608,6 +5615,7 @@ function renderHistogram(key, container) {
                 });
             });
             nullRect.addEventListener('mouseleave', () => {
+                if (activeFilter?.mode === 'highlight') return;
                 highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
                 highlightedIds.clear();
             });
@@ -5631,18 +5639,22 @@ function renderHistogram(key, container) {
         });
         rect.addEventListener('mouseleave', () => {
             if (numericRangeFilter?.prop === key) return;
+            if (activeFilter?.mode === 'highlight') return;
             highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
             highlightedIds.clear();
         });
 
-        // Click: 2-state cycle — highlight → filter → clear
+        // Click: 3-state cycle — highlight → filter (bar color) → exclude → clear
         rect.addEventListener('click', () => {
             const isSameBin = numericRangeFilter?.prop === key &&
                               Math.abs(numericRangeFilter.lo - lo) < 0.0001 &&
                               Math.abs(numericRangeFilter.hi - hi) < 0.0001;
             const currentState = isSameBin ? numericRangeFilter.state : 0;
+            const binColor = rect.dataset.color || 'var(--accent)';
 
-            // Clear previous states
+            // Explicitly clear highlighted state before transitions
+            highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
+            highlightedIds.clear();
             clearAllFilterStates();
             numericRangeFilter = null;
 
@@ -5651,33 +5663,67 @@ function renderHistogram(key, container) {
                 numericRangeFilter = { prop: key, lo, hi, state: 1 };
                 allFeatures.forEach(f => {
                     const v = Number(f.properties[key]);
-                    const matches = !isNaN(v) && v >= lo && v <= hi;
-                    if (matches) {
-                        map.setFeatureState({ source: 'geojson-data', id: f.properties._gvid }, { highlighted: true });
-                        highlightedIds.add(f.properties._gvid);
+                    if (!isNaN(v) && v >= lo && v <= hi) {
+                        const id = f.properties._gvid;
+                        map.setFeatureState({ source: 'geojson-data', id }, { highlighted: true });
+                        highlightedIds.add(id);
                     }
                 });
             } else if (currentState === 1) {
-                // → filter: hide non-matching
-                numericRangeFilter = { prop: key, lo, hi, state: 2 };
+                // → filter: keep only matching, color them with the bar's histogram color
+                numericRangeFilter = { prop: key, lo, hi, state: 2, color: binColor };
                 allFeatures.forEach(f => {
                     const v = Number(f.properties[key]);
                     const matches = !isNaN(v) && v >= lo && v <= hi;
                     const id = f.properties._gvid;
+                    const geomHidden = geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
                     if (matches) {
-                        map.setFeatureState({ source: 'geojson-data', id }, { filtered: true, hidden: false });
+                        map.setFeatureState({ source: 'geojson-data', id }, { filtered: true, highlighted: false, hidden: geomHidden });
                         selectedIds.add(id);
                     } else {
                         map.setFeatureState({ source: 'geojson-data', id }, { hidden: true });
                         hiddenIds.add(id);
                     }
                 });
+                // Override the palette color expression to use bar's histogram color for filtered features
+                if (map.getLayer('gv-fill')) {
+                    const fillOp = map.getPaintProperty('gv-fill', 'fill-opacity');
+                    map.setPaintProperty('gv-fill', 'fill-color', ['case',
+                        ['boolean', ['feature-state', 'selected'],  false], '#e040fb',
+                        ['boolean', ['feature-state', 'filtered'],  false], binColor,
+                        ['boolean', ['feature-state', 'hovered'],   false], '#2dd4bf',
+                        '#888888']);
+                }
+                if (map.getLayer('gv-point')) {
+                    map.setPaintProperty('gv-point', 'circle-stroke-color', ['case',
+                        ['boolean', ['feature-state', 'selected'],  false], '#e040fb',
+                        ['boolean', ['feature-state', 'filtered'],  false], binColor,
+                        ['boolean', ['feature-state', 'hovered'],   false], '#2dd4bf',
+                        '#888888']);
+                }
+                updateLayerFilters();
+            } else if (currentState === 2) {
+                // → exclude: hide matching, show rest
+                numericRangeFilter = { prop: key, lo, hi, state: 3 };
+                allFeatures.forEach(f => {
+                    const v = Number(f.properties[key]);
+                    const matches = !isNaN(v) && v >= lo && v <= hi;
+                    const id = f.properties._gvid;
+                    const geomHidden = geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
+                    if (matches) {
+                        map.setFeatureState({ source: 'geojson-data', id }, { hidden: true, filtered: false });
+                        hiddenIds.add(id);
+                    } else {
+                        map.setFeatureState({ source: 'geojson-data', id }, { hidden: geomHidden, filtered: false });
+                    }
+                });
                 updateLayerFilters();
             }
-            // state 2 → already cleared above → stays null (clear)
+            // state 3 → already cleared above → stays null (clear)
             renderSidebar();
             updateSelectionBar();
             updatePointRadius();
+            applyPolyStyle();
         });
     });
 }
@@ -6106,7 +6152,8 @@ function renderSidebar() {
 
             // Hover: temporarily highlight matching features for size boost, unless already filtered
             vi.addEventListener('mouseenter', () => {
-                if (activeFilter && activeFilter.prop === key && activeFilter.value === val) return;
+                // Don't override an active highlight filter by hovering a different value
+                if (activeFilter?.mode === 'highlight') return;
                 if (!map.getLayer('gv-point')) return;
                 allFeatures.forEach(f => {
                     if (String(f.properties[key]) === String(val)) {
@@ -6116,7 +6163,9 @@ function renderSidebar() {
                 });
             });
             vi.addEventListener('mouseleave', () => {
-                if (activeFilter && activeFilter.prop === key && activeFilter.value === val) return;
+                // If a highlight filter is active (for any value), never clear highlighted state on mouse-out
+                // Only clearAllFilterStates() or explicit user action should remove an active highlight
+                if (activeFilter?.mode === 'highlight') return;
                 highlightedIds.forEach(id => {
                     map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false });
                 });
@@ -6153,6 +6202,9 @@ function sidebarValueClick(key, val) {
         activeFilter = { prop: key, value: val, mode: 'exclude' };
         doExclude(key, val);
     } else {
+        // Cycling back to clear — explicitly remove highlight since clearAllFilterStates no longer does it
+        highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
+        highlightedIds.clear();
         activeFilter = null;
     }
     renderSidebar();
@@ -6171,6 +6223,9 @@ function sidebarValueClick(key, val) {
 
 // ── HIGHLIGHT / FILTER ──
 function doHighlight(key, val) {
+    // Clear any previous highlighted state first (in the same sync call, before setting new ones)
+    highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
+    highlightedIds.clear();
     allFeatures.forEach(f => {
         if (String(f.properties[key]) === String(val)) {
             const id = f.properties._gvid;
@@ -6221,11 +6276,12 @@ function doExclude(key, val) {
 }
 
 function clearAllFilterStates() {
-    highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
-    highlightedIds.clear();
+    // highlighted state is intentionally NOT cleared here — doHighlight() clears+resets it
+    // atomically in the same call to avoid the setFeatureState batch-order race.
+    // Callers that want to clear highlight without replacing it must clear highlightedIds manually.
     // Clear numeric range filter state
     if (numericRangeFilter) {
-        if (numericRangeFilter.state === 2) {
+        if (numericRangeFilter.state === 2 || numericRangeFilter.state === 3) {
             hiddenIds.forEach(id => {
                 const f = allFeatures[id];
                 const geomHidden = f && geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
@@ -6235,6 +6291,8 @@ function clearAllFilterStates() {
             selectedIds.clear();
         }
         numericRangeFilter = null;
+        // Restore palette color expression after bar-color filter
+        if (map.getLayer('gv-fill') || map.getLayer('gv-point')) applyPaletteToLayers();
     }
     if (activeFilter && (activeFilter.mode === 'filter' || activeFilter.mode === 'exclude')) {
         const { prop, value } = activeFilter;
@@ -6310,14 +6368,16 @@ function onMouseMove(e) {
                 Object.entries(props).filter(([, v]) => v !== null && v !== undefined && v !== '')
             );
             if (!entries.length) { hoverPopup.remove(); return; }
-            const rows = entries.map(([k, v]) => {
+            const hoverDividerIdx = lastActiveIndex(entries);
+            const rows = entries.map(([k, v], i) => {
                 const priority = propActivityPriority(k);
                 const dot = priority === 0
                     ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${Object.values(paletteMap)[0]||'var(--accent)'};margin-right:4px;flex-shrink:0;vertical-align:middle"></span>`
                     : priority === 1
                     ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--text-muted);margin-right:4px;flex-shrink:0;vertical-align:middle;opacity:0.6"></span>`
                     : '';
-                return `<div class="popup-row no-click"><span class="popup-key">${dot}${escHtml(k)}</span><span class="popup-val">${escHtml(String(v))}</span></div>`;
+                const divider = (i === hoverDividerIdx && i < entries.length - 1) ? ' active-divider' : '';
+                return `<div class="popup-row no-click${divider}"><span class="popup-key">${dot}${escHtml(k)}</span><span class="popup-val">${escHtml(String(v))}</span></div>`;
             }).join('');
             hoverPopup.setHTML(`<div class="popup-inner">${rows}</div><div class="popup-hint">Click to pin &amp; interact</div>`);
             hoverPopup.addTo(map);
@@ -6393,12 +6453,21 @@ function sortEntriesByActivity(entries) {
     return [...entries].sort((a, b) => propActivityPriority(a[0]) - propActivityPriority(b[0]));
 }
 
+// Returns index of the last entry with priority < 3 (i.e., last active prop)
+// Used to place the teal divider line below the active properties block
+function lastActiveIndex(entries) {
+    let last = -1;
+    entries.forEach(([k], i) => { if (propActivityPriority(k) < 3) last = i; });
+    return last;
+}
+
 function buildFrozenHTML() {
     const props = cleanProps(frozenFeatureProps || {});
     const entries = sortEntriesByActivity(
         Object.entries(props).filter(([, v]) => v !== null && v !== undefined && v !== '')
     );
-    const rows = entries.map(([k, v]) => {
+    const frozenDividerIdx = lastActiveIndex(entries);
+    const rows = entries.map(([k, v], i) => {
         const st = popupRowStates[k] || 0;
         const cls = st === 1 ? ' state-highlight' : st === 2 ? ' state-filter' : st === 3 ? ' state-exclude' : '';
         const priority = propActivityPriority(k);
@@ -6407,7 +6476,8 @@ function buildFrozenHTML() {
             : priority === 1
             ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--text-muted);margin-right:4px;flex-shrink:0;vertical-align:middle;opacity:0.6"></span>`
             : '';
-        return `<div class="popup-row${cls}" data-key="${escHtml(k)}" data-val="${escHtml(String(v))}">
+        const divider = (i === frozenDividerIdx && i < entries.length - 1) ? ' active-divider' : '';
+        return `<div class="popup-row${cls}${divider}" data-key="${escHtml(k)}" data-val="${escHtml(String(v))}">
             <span class="popup-key">${dot}${escHtml(k)}</span>
             <span class="popup-val">${escHtml(String(v))}</span>
         </div>`;
@@ -6463,7 +6533,11 @@ function attachFrozenEvents() {
             if (next === 1) { activeFilter = { prop: key, value: val, mode: 'highlight' }; doHighlight(key, val); }
             else if (next === 2) { activeFilter = { prop: key, value: val, mode: 'filter' }; doFilterSelect(key, val); }
             else if (next === 3) { activeFilter = { prop: key, value: val, mode: 'exclude' }; doExclude(key, val); }
-            else { activeFilter = null; }
+            else {
+                highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
+                highlightedIds.clear();
+                activeFilter = null;
+            }
             renderSidebar();
             updateSelectionBar();
             // Restore both scroll positions
@@ -6512,6 +6586,9 @@ document.getElementById('filter-status-tag').addEventListener('click', e => {
 });
 document.getElementById('filter-status-clear').addEventListener('click', e => {
     e.stopPropagation();
+    // Explicitly clear highlighted state — clearAllFilterStates() deliberately skips it
+    highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
+    highlightedIds.clear();
     clearAllFilterStates();
     activeFilter = null; popupRowStates = {};
     renderSidebar();
@@ -6747,7 +6824,17 @@ function updateSelectionBar() {
     const numSelected = selectedIds.size;
     const dataLoaded = totalFeatures > 0;
 
-    document.getElementById('sel-num').textContent = numSelected.toLocaleString();
+    const selLabelEl = document.getElementById('sel-label');
+    if (activeFilter?.mode === 'highlight') {
+        document.getElementById('sel-num').textContent = highlightedIds.size.toLocaleString();
+        if (selLabelEl) selLabelEl.textContent = 'highlighted';
+    } else if (activeFilter?.mode === 'filter') {
+        document.getElementById('sel-num').textContent = selectedIds.size.toLocaleString();
+        if (selLabelEl) selLabelEl.textContent = 'filtered';
+    } else {
+        document.getElementById('sel-num').textContent = numSelected.toLocaleString();
+        if (selLabelEl) selLabelEl.textContent = 'selected';
+    }
     document.getElementById('vis-num').textContent = numVisible.toLocaleString();
     document.getElementById('hid-num').textContent = numHidden.toLocaleString();
 
@@ -6765,8 +6852,8 @@ function updateSelectionBar() {
     const statusTag  = document.getElementById('filter-status-tag');
     if (statusHint && statusTag) {
         if (numericRangeFilter && numericRangeFilter.state > 0) {
-            const mode = numericRangeFilter.state === 1 ? 'highlight' : 'filter';
-            const modeIcons = { highlight: '●', filter: '◑' };
+            const mode = numericRangeFilter.state === 1 ? 'highlight' : numericRangeFilter.state === 2 ? 'filter' : 'exclude';
+            const modeIcons = { highlight: '●', filter: '◑', exclude: '✕' };
             document.getElementById('filter-status-icon').textContent = modeIcons[mode];
             const stats = propData[numericRangeFilter.prop]?.numericStats;
             const isInt = stats?.sorted.every(v => Number.isInteger(v));
@@ -6774,15 +6861,18 @@ function updateSelectionBar() {
             document.getElementById('filter-status-text').textContent = `${numericRangeFilter.prop}: ${lo}–${hi}`;
             statusTag.className = `visible mode-${mode}`;
             statusHint.style.display = 'none';
+            document.getElementById('filter-status-row').classList.add('active');
         } else if (activeFilter) {
             const modeIcons = { highlight: '●', filter: '◑', exclude: '✕' };
             document.getElementById('filter-status-icon').textContent = modeIcons[activeFilter.mode] || '';
             document.getElementById('filter-status-text').textContent = `${activeFilter.prop}: ${activeFilter.value}`;
             statusTag.className = `visible mode-${activeFilter.mode}`;
             statusHint.style.display = 'none';
+            document.getElementById('filter-status-row').classList.add('active');
         } else {
             statusTag.className = '';
             statusHint.style.display = '';
+            document.getElementById('filter-status-row').classList.remove('active');
         }
     }
 
