@@ -1217,6 +1217,17 @@
                             <button class="style-opt" data-val="dark" title="Dark casing for contrast on light basemaps">Dark</button>
                         </div>
                     </div>
+                    <div class="style-section">
+                        <span class="style-section-label">Dash</span>
+                        <div id="line-dash-pill" class="style-pill" style="gap:0">
+                            <button class="style-opt active" data-val="solid"       title="Solid line"       style="padding:3px 6px;letter-spacing:-1px">—</button>
+                            <button class="style-opt"        data-val="dash"        title="Long dash"        style="padding:3px 6px;letter-spacing:2px">– –</button>
+                            <button class="style-opt"        data-val="shortdash"   title="Short dash"       style="padding:3px 6px;letter-spacing:2px">- -</button>
+                            <button class="style-opt"        data-val="dot"         title="Dotted"           style="padding:3px 6px;letter-spacing:3px">· ·</button>
+                            <button class="style-opt"        data-val="dashdot"     title="Dash-dot"         style="padding:3px 5px;letter-spacing:1px">–·–</button>
+                            <button class="style-opt"        data-val="dashdotdot"  title="Dash-dot-dot"     style="padding:3px 5px;letter-spacing:1px">–··–</button>
+                        </div>
+                    </div>
 
                 </div>
             </div>
@@ -1635,6 +1646,7 @@ let pointRadiusMode = 'density'; // 'density' | 'zoom'
 let lineWidthMode = 'thin';   // 'thin' | 'medium' | 'thick'
 let lineRadiusMode = 'zoom';  // 'zoom' | 'fixed' | 'density'
 let lineOutlineMode = 'none'; // 'none' | 'light' | 'grey' | 'dark'
+let lineDashMode   = 'solid';  // 'solid' | 'dash' | 'shortdash' | 'dot' | 'dashdot'
 let polyFillMode    = 'palette'; // 'palette' | 'grey' | 'none'
 let polyOutlineMode = 'grey';    // 'none' | 'white' | 'grey' | 'black' | 'palette'
 let polySizeMode    = 'density'; // 'zoom' | 'density' | 'fixed' — density is better default
@@ -3160,16 +3172,31 @@ function updateLegendCard() {
         legendLabelsSection.style.display = 'none';
     }
 
-    // Active filter
+    // Active filter (categorical) + numeric palette filter range
     const legendFilterSection = document.getElementById('legend-filter-section');
     const legendFilter = document.getElementById('legend-filter');
+    const filterLines = [];
     if (activeFilter) {
-        legendFilterSection.style.display = 'flex';
         const modeSymbol = activeFilter.mode === 'highlight' ? '◎' : activeFilter.mode === 'filter' ? '⬡' : '✕';
-        legendFilter.textContent = `${modeSymbol} ${activeFilter.prop}: ${activeFilter.value}`;
         legendFilter.className = `mode-${activeFilter.mode}`;
+        filterLines.push(`${modeSymbol} ${activeFilter.prop}: ${activeFilter.value}`);
+    } else {
+        legendFilter.className = '';
+    }
+    // Numeric palette filter range
+    if (paletteProp && (paletteFilterLo !== null || paletteFilterHi !== null)) {
+        const lo = paletteFilterLo !== null ? fmt4(paletteFilterLo) : '—';
+        const hi = paletteFilterHi !== null ? fmt4(paletteFilterHi) : '—';
+        filterLines.push(`${paletteProp}: ${lo} – ${hi}`);
+    } else if (numericRangeFilter && numericRangeFilter.state >= 1 && numericRangeFilter.lo !== null) {
+        filterLines.push(`${numericRangeFilter.prop}: ${fmt4(numericRangeFilter.lo)} – ${fmt4(numericRangeFilter.hi)}`);
+    }
+    if (filterLines.length > 0) {
+        legendFilterSection.style.display = 'flex';
+        legendFilter.innerHTML = filterLines.map(l => `<div>${escHtml(l)}</div>`).join('');
     } else {
         legendFilterSection.style.display = 'none';
+        legendFilter.innerHTML = '';
     }
 }
 
@@ -3306,6 +3333,16 @@ function pushHashState() {
     if (polyFillMode !== polyDefaults.fill || polyOutlineMode !== polyDefaults.outline || polySizeMode !== polyDefaults.size || polyWidthMode !== polyDefaults.width) {
         parts.push(`polystyle=${encodeURIComponent(`${polyFillMode},${polyOutlineMode},${polySizeMode},${polyWidthMode}`)}`);
     }
+    // Numeric palette filter params (only when non-default)
+    if (paletteFilterLo !== null || paletteFilterHi !== null || paletteFilterHide ||
+        paletteClampLow !== 2 || paletteClampHigh !== 98) {
+        const lo  = paletteFilterLo  !== null ? paletteFilterLo  : '';
+        const hi  = paletteFilterHi  !== null ? paletteFilterHi  : '';
+        const hid = paletteFilterHide ? '1' : '0';
+        const cl  = paletteClampLow  !== 2   ? paletteClampLow  : '';
+        const ch  = paletteClampHigh !== 98  ? paletteClampHigh : '';
+        parts.push(`numfilter=${encodeURIComponent(`${lo},${hi},${hid},${cl},${ch}`)}`);
+    }
     // Palette: prop::scheme, optionally ::r<offset> or ::p<i,j,k,...>
     if (paletteProp) {
         let variant = '';
@@ -3405,6 +3442,15 @@ async function restoreFromHash() {
         switchBasemapTo(params.bm);
     }
 
+    // Restore numeric filter params
+    if (params.numfilter) {
+        const [lo, hi, hid, cl, ch] = params.numfilter.split(',');
+        if (lo !== '') paletteFilterLo = parseFloat(lo);
+        if (hi !== '') paletteFilterHi = parseFloat(hi);
+        paletteFilterHide = hid === '1';
+        if (cl !== '') paletteClampLow  = parseInt(cl);
+        if (ch !== '') paletteClampHigh = parseInt(ch);
+    }
     // Restore polygon style settings
     if (params.polystyle) {
         const [fill, outline, size, width] = params.polystyle.split(',');
@@ -3589,11 +3635,16 @@ function setupGeoJsonLayers(fc) {
                 ['boolean', ['feature-state', 'hovered'],     false], '#2dd4bf',
                 'transparent'],
             'line-opacity': ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1],
-            'line-width': ['case',
-                ['boolean', ['feature-state', 'highlighted'], false], ['interpolate', ['linear'], ['zoom'], 8, 1.5, 14, 2.5, 18, 3.5],
-                ['boolean', ['feature-state', 'selected'],    false], ['interpolate', ['linear'], ['zoom'], 8, 1.2, 14, 2.0, 18, 3.0],
-                ['boolean', ['feature-state', 'hovered'],     false], ['interpolate', ['linear'], ['zoom'], 8, 1.0, 14, 1.8, 18, 2.5],
-                0]
+            'line-width': ['interpolate', ['linear'], ['zoom'],
+                8,  ['case', ['boolean', ['feature-state', 'highlighted'], false], 1.5,
+                             ['boolean', ['feature-state', 'selected'],    false], 1.2,
+                             ['boolean', ['feature-state', 'hovered'],     false], 1.0, 0],
+                14, ['case', ['boolean', ['feature-state', 'highlighted'], false], 2.5,
+                             ['boolean', ['feature-state', 'selected'],    false], 2.0,
+                             ['boolean', ['feature-state', 'hovered'],     false], 1.8, 0],
+                18, ['case', ['boolean', ['feature-state', 'highlighted'], false], 3.5,
+                             ['boolean', ['feature-state', 'selected'],    false], 3.0,
+                             ['boolean', ['feature-state', 'hovered'],     false], 2.5, 0]]
         }
     });
 
@@ -3703,27 +3754,127 @@ function applyBasemapCheckboxStates() {
 }
 
 // ── FILE LOADING ──
+// ── PROGRESS OVERLAY ──
+let _progressOverlay = null;
+function showProgress(msg) {
+    if (!_progressOverlay) {
+        _progressOverlay = document.createElement('div');
+        _progressOverlay.style.cssText = 'position:fixed;inset:0;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(15,15,17,0.75);backdrop-filter:blur(2px);';
+        document.body.appendChild(_progressOverlay);
+    }
+    _progressOverlay.innerHTML = `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 28px;min-width:280px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.6)">
+            <div style="font-size:13px;color:var(--text);margin-bottom:10px;font-weight:500">${msg}</div>
+            <div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden">
+                <div id="progress-bar-fill" style="height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width 0.15s ease"></div>
+            </div>
+            <div id="progress-bar-detail" style="font-size:10px;color:var(--text-muted);margin-top:8px;font-family:var(--mono)"></div>
+        </div>`;
+}
+function updateProgress(pct, detail) {
+    const fill = document.getElementById('progress-bar-fill');
+    const det  = document.getElementById('progress-bar-detail');
+    if (fill) fill.style.width = Math.round(pct) + '%';
+    if (det && detail) det.textContent = detail;
+}
+function hideProgress() {
+    if (_progressOverlay) { _progressOverlay.remove(); _progressOverlay = null; }
+}
+
 function loadFile(file) {
+    const fmtMB = b => b >= 1e6 ? (b/1e6).toFixed(1)+'MB' : b >= 1e3 ? (b/1e3).toFixed(0)+'KB' : b+'B';
+    showProgress(`Loading ${file.name}`);
+    updateProgress(0, fmtMB(file.size) + ' total');
     const reader = new FileReader();
+    reader.onprogress = e => {
+        if (e.lengthComputable) {
+            const pct = (e.loaded / e.total) * 40; // reading = first 40%
+            updateProgress(pct, `Reading… ${fmtMB(e.loaded)} / ${fmtMB(e.total)}`);
+        }
+    };
     reader.onload = e => {
         const text = e.target.result;
-        let geojson;
-        try { geojson = JSON.parse(text); } catch {
-            const lines = text.trim().split('\n').filter(l => l.trim());
-            const features = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
-            if (features.length) geojson = { type: 'FeatureCollection', features };
-        }
-        if (!geojson) return alert('Could not parse file.');
-        if (geojson.type === 'Feature') geojson = { type: 'FeatureCollection', features: [geojson] };
-        datasetBytes = text.length;
-        closeWelcome();
-        currentDataUrl = null;
-        currentSourceName = file.name.replace(/\.(geojson|json|geojsonl)$/i, '');
-        document.getElementById('share-btn').classList.remove('visible');
-        clearHashExceptMap();
-        ingestGeoJSON(geojson, file.name);
+        updateProgress(40, 'Parsing…');
+        // Yield to browser to render the progress bar before blocking JSON.parse
+        requestAnimationFrame(() => setTimeout(() => {
+            let geojson;
+            try { geojson = JSON.parse(text); } catch {
+                const lines = text.trim().split('\n').filter(l => l.trim());
+                updateProgress(50, `Parsing ${lines.length.toLocaleString()} lines…`);
+                const features = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+                if (features.length) geojson = { type: 'FeatureCollection', features };
+            }
+            if (!geojson) { hideProgress(); return alert('Could not parse file.'); }
+            if (geojson.type === 'Feature') geojson = { type: 'FeatureCollection', features: [geojson] };
+            const n = geojson.features.length;
+            updateProgress(65, `${n.toLocaleString()} features · ~${fmtMB(text.length)}`);
+            datasetBytes = text.length;
+            closeWelcome();
+            currentDataUrl = null;
+            currentSourceName = file.name.replace(/\.(geojson|json|geojsonl)$/i, '');
+            document.getElementById('share-btn').classList.remove('visible');
+            clearHashExceptMap();
+            requestAnimationFrame(() => setTimeout(() => {
+                updateProgress(75, `Building ${n.toLocaleString()} features…`);
+                requestAnimationFrame(() => setTimeout(() => {
+                    ingestGeoJSON(geojson, file.name);
+                    updateProgress(100, 'Done');
+                    setTimeout(hideProgress, 300);
+                }, 0));
+            }, 0));
+        }, 0));
     };
     reader.readAsText(file);
+}
+
+function autoDetectLineDensity() {
+    const lineFeatures = allFeatures.filter(f => {
+        const t = f.geometry?.type;
+        return t === 'LineString' || t === 'MultiLineString';
+    });
+    if (lineFeatures.length < 100) return; // too few to matter
+
+    const lineFrac = lineFeatures.length / allFeatures.length;
+    if (lineFrac < 0.5) return; // dataset is not predominantly lines
+
+    // Compute total vertex count and bbox
+    let totalCoords = 0;
+    let minLng=Infinity, maxLng=-Infinity, minLat=Infinity, maxLat=-Infinity;
+    lineFeatures.forEach(f => {
+        const cs = [];
+        collectCoords(f.geometry, cs);
+        totalCoords += cs.length;
+        cs.forEach(c => {
+            if (c[0] < minLng) minLng = c[0];
+            if (c[0] > maxLng) maxLng = c[0];
+            if (c[1] < minLat) minLat = c[1];
+            if (c[1] > maxLat) maxLat = c[1];
+        });
+    });
+
+    const bboxArea = (maxLng - minLng) * (maxLat - minLat);
+    if (bboxArea <= 0) return;
+
+    // Primary signal: vertices per square degree
+    // This captures true network density regardless of how segments are split.
+    // Short block-level streets have few vertices each but pack many into a small area.
+    // A sparse bike network has fewer total vertices even with high feature count.
+    const vertexDensity = totalCoords / bboxArea;
+
+    // Reference values from known datasets:
+    // Seattle roads (28K feat, 187K vert): vertex density ~very high → density mode ✓
+    // SF roads (17K feat, 60K vert): high → density mode ✓
+    // NYC bike (28K feat, 107K vert): moderate — too thin in density mode ✗
+    // SF bike (5K feat, 23K vert): low → leave as zoom ✓
+    //
+    // Threshold at ~5M vertices/deg² separates road grids from bike/trail networks.
+    // Also require >500 features to avoid triggering on small dense local areas.
+    const isDense = lineFeatures.length > 500 && vertexDensity > 5_000_000;
+
+    if (isDense) {
+        lineRadiusMode = 'density';
+        document.querySelectorAll('#line-radius-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'density'));
+    }
 }
 
 function ingestGeoJSON(geojson, filename, skipFit = false) {
@@ -3732,12 +3883,20 @@ function ingestGeoJSON(geojson, filename, skipFit = false) {
         properties: { ...f.properties, _gvid: i }
     }));
 
-    selectedIds.clear(); highlightedIds.clear(); hiddenIds.clear();
+    selectedIds.clear(); highlightedIds.clear(); hiddenIds.clear(); filterHiddenIds.clear();
     activeFilter = null; popupRowStates = {}; openPropKey = null; labelProps.clear();
     lastHoveredId = null; hoveredMapId = null;
     closeHistoPopout();
     paletteProp = null; paletteMap = {}; paletteScheme = 'Set1'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false; paletteReversed = false; numericRangeFilter = null; numericTypeOverrides = {};
+    paletteFilterLo = null; paletteFilterHi = null; paletteFilterHide = false;
+    paletteClampLow = 2; paletteClampHigh = 98; paletteStops = null;
     polyFillMode = 'palette'; polyOutlineMode = 'grey'; polySizeMode = 'density'; polyWidthMode = 'thin';
+    lineWidthMode = 'thin'; lineRadiusMode = 'zoom'; lineOutlineMode = 'none'; lineDashMode = 'solid';
+    // Sync line pills to defaults
+    document.querySelectorAll('#line-width-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'thin'));
+    document.querySelectorAll('#line-radius-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'zoom'));
+    document.querySelectorAll('#line-outline-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'none'));
+    document.querySelectorAll('#line-dash-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'solid'));
     updateLabelHint();
     document.getElementById('save-visible-btn').style.visibility = 'hidden';
     if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
@@ -3767,17 +3926,28 @@ function ingestGeoJSON(geojson, filename, skipFit = false) {
         if (map.getLayer('gv-labels')) map.removeLayer('gv-labels');
         if (map.getLayer('gv-labels-line')) map.removeLayer('gv-labels-line');
         addLabelLayer();
+        // Re-apply default color expressions — palette was cleared so features show as default blue
+        applyPaletteToLayers();
+        applyPolyStyle();
     } else {
         setupGeoJsonLayers(fc);
     }
 
     if (!skipFit) {
         try {
-            const coords = [];
-            allFeatures.forEach(f => collectCoords(f.geometry, coords));
-            if (coords.length) {
-                const lngs = coords.map(c => c[0]), lats = coords.map(c => c[1]);
-                map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 40, maxZoom: 14 });
+            let minLng=Infinity, maxLng=-Infinity, minLat=Infinity, maxLat=-Infinity;
+            allFeatures.forEach(f => {
+                const cs = [];
+                collectCoords(f.geometry, cs);
+                cs.forEach(c => {
+                    if (c[0] < minLng) minLng = c[0];
+                    if (c[0] > maxLng) maxLng = c[0];
+                    if (c[1] < minLat) minLat = c[1];
+                    if (c[1] > maxLat) maxLat = c[1];
+                });
+            });
+            if (isFinite(minLng)) {
+                map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 40, maxZoom: 16 });
             }
         } catch {}
     }
@@ -3792,6 +3962,9 @@ function ingestGeoJSON(geojson, filename, skipFit = false) {
         paletteMap = buildPaletteMap(autoColorKey, 'native', 0, null);
         applyPaletteToLayers();
     }
+
+    // Auto-detect dense line datasets (street grids, contours) and switch to density mode
+    autoDetectLineDensity();
 
     renderSidebar();
     applyGeomFilters();
@@ -4117,7 +4290,12 @@ let paletteStops     = null; // [{value, color}] computed by buildQuantitativeSt
 let paletteQuantScheme = 'YlOrRd'; // colorbrewer ramp for quantitative coloring (default warm ramp)
 
 const QUANTITATIVE_SCHEMES = ['linear', 'quantile', 'jenks'];
-const QUANTITATIVE_RAMPS = ['YlOrRd','YlOrBr','Reds','Oranges','Blues','Purples','Greens','BuPu','RdYlBu','Spectral','RdYlGn','PuOr'];
+const QUANTITATIVE_RAMPS = [
+    // Sequential
+    'YlOrRd','YlOrBr','YlGn','YlGnBu','Reds','Oranges','Greens','Blues','Purples','Greys','BuPu','BuGn','GnBu','OrRd','PuBu','PuBuGn','PuRd','RdPu',
+    // Diverging
+    'Spectral','RdYlBu','RdBu','BrBG','PiYG','PRGn','PuOr','RdGy','RdYlGn'
+];
 
 function getQuantitativeRampColors(ramp, nStops) {
     const scheme = colorbrewer[ramp];
@@ -4223,13 +4401,26 @@ function buildQuantitativeStops(prop, scheme, rampColors, clampLow, clampHigh, n
 
 function buildQuantitativePaletteColorExpr(prop, stops) {
     if (!stops || stops.length < 2) return PALETTE_FALLBACK;
-    const stats = propData[prop]?.numericStats;
-    const nullColor = PALETTE_FALLBACK;
+    const outOfRangeColor = 'rgba(120,120,130,0.35)'; // dim grey for filtered-out values
+    const nullColor = outOfRangeColor; // nulls same as out-of-range
 
-    // For null values, use fallback
     const interpolate = ['interpolate', ['linear'], ['to-number', ['get', prop], -Infinity]];
     stops.forEach(s => { interpolate.push(s.value, s.color); });
 
+    const sMin = stops[0].value, sMax = stops[stops.length - 1].value;
+
+    // Values outside filter range get dim grey; nulls same
+    if (paletteFilterLo !== null || paletteFilterHi !== null) {
+        const lo = paletteFilterLo !== null ? paletteFilterLo : -Infinity;
+        const hi = paletteFilterHi !== null ? paletteFilterHi :  Infinity;
+        return ['case',
+            ['==', ['get', prop], null],  outOfRangeColor,
+            ['!',  ['has', prop]],         outOfRangeColor,
+            ['<',  ['to-number', ['get', prop], lo - 1], lo], outOfRangeColor,
+            ['>',  ['to-number', ['get', prop], hi + 1], hi], outOfRangeColor,
+            interpolate
+        ];
+    }
     return ['case',
         ['==', ['get', prop], null], nullColor,
         ['!', ['has', prop]],        nullColor,
@@ -4265,6 +4456,37 @@ function applyPaletteToLayers() {
     applyPolyStyle();
     // Lines get the full palette color expression
     map.setPaintProperty('gv-line', 'line-color', colorExpr);
+    // Dashed lines for out-of-range features when filter is active
+    // Note: line-dasharray is not data-driven in MapLibre; out-of-range lines use opacity instead
+    // Apply Hide: hide features outside filter range
+    // Always clear previously filter-hidden features first, then re-evaluate with new range
+    if (filterHiddenIds.size > 0) {
+        filterHiddenIds.forEach(id => {
+            const f = allFeatures.find(f => f.properties._gvid === id);
+            const geomHidden = f && geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
+            map.setFeatureState({ source: 'geojson-data', id }, { hidden: geomHidden });
+            hiddenIds.delete(id);
+        });
+        filterHiddenIds.clear();
+    }
+    if (paletteFilterHide && paletteProp && isQuantitativeScheme(paletteScheme)) {
+        const lo = paletteFilterLo !== null ? paletteFilterLo : -Infinity;
+        const hi = paletteFilterHi !== null ? paletteFilterHi :  Infinity;
+        allFeatures.forEach(f => {
+            const raw = f.properties[paletteProp];
+            const n = Number(raw);
+            const outOfRange = raw === null || raw === undefined || raw === '' || isNaN(n) || n < lo || n > hi;
+            if (outOfRange) {
+                const id = f.properties._gvid;
+                map.setFeatureState({ source: 'geojson-data', id }, { hidden: true });
+                hiddenIds.add(id);
+                filterHiddenIds.add(id);
+            }
+        });
+        updateLayerFilters();
+        updateSelectionBar();
+    }
+    updateFilterHideCountDisplay();
     applyPointStyle();
 }
 
@@ -4404,9 +4626,35 @@ function applyLineStyle() {
             grey:  'rgba(128,128,128,0.5)',
             dark:  'rgba(0,0,0,0.45)'
         };
-        const casingOpacity = lineOutlineMode === 'none' ? 0 : 1;
         map.setPaintProperty('gv-line-casing', 'line-color', casingColors[lineOutlineMode] || 'rgba(0,0,0,0)');
-        map.setPaintProperty('gv-line-casing', 'line-opacity', casingOpacity);
+        if (lineOutlineMode === 'none' || !geomVisible.line) {
+            // Hide entirely: scalar 0 is cheaper than an expression
+            map.setPaintProperty('gv-line-casing', 'line-opacity', 0);
+        } else {
+            // Use per-feature hidden state so filtered/hidden individual features hide their casing
+            map.setPaintProperty('gv-line-casing', 'line-opacity',
+                ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1]);
+        }
+    }
+    // Apply dash pattern — line-cap must be 'round' for dot patterns
+    // For solid: remove dasharray entirely (setting [1,0] causes MapLibre expression evaluate errors)
+    if (map.getLayer('gv-line')) {
+        const dashPatterns = {
+            dash:       { dash: [5, 2.5],                      cap: 'square' },
+            shortdash:  { dash: [2.5, 2.5],                    cap: 'square' },
+            dot:        { dash: [0.1, 2.5],                    cap: 'round'  },
+            dashdot:    { dash: [5, 2.5, 0.1, 2.5],            cap: 'round'  },
+            dashdotdot: { dash: [5, 2.5, 0.1, 2.5, 0.1, 2.5], cap: 'round'  },
+        };
+        const pat = dashPatterns[lineDashMode];
+        if (pat) {
+            map.setLayoutProperty('gv-line', 'line-cap', pat.cap);
+            map.setPaintProperty('gv-line', 'line-dasharray', pat.dash);
+        } else {
+            // solid: remove dasharray and reset cap
+            map.setLayoutProperty('gv-line', 'line-cap', 'butt');
+            try { map.setPaintProperty('gv-line', 'line-dasharray', null); } catch {}
+        }
     }
 }
 
@@ -4489,11 +4737,16 @@ function applyPolyStyle() {
 
     // gv-outline-interact interaction widths always use full-weight regardless of size mode
     if (hasInteractLayer) {
-        map.setPaintProperty('gv-outline-interact', 'line-width', ['case',
-            ['boolean', ['feature-state', 'highlighted'], false], ['interpolate', ['linear'], ['zoom'], 8, 1.5, 14, 2.5, 18, 3.5],
-            ['boolean', ['feature-state', 'selected'],    false], ['interpolate', ['linear'], ['zoom'], 8, 1.2, 14, 2.0, 18, 3.0],
-            ['boolean', ['feature-state', 'hovered'],     false], ['interpolate', ['linear'], ['zoom'], 8, 1.0, 14, 1.8, 18, 2.5],
-            0]);
+        map.setPaintProperty('gv-outline-interact', 'line-width', ['interpolate', ['linear'], ['zoom'],
+            8,  ['case', ['boolean', ['feature-state', 'highlighted'], false], 1.5,
+                         ['boolean', ['feature-state', 'selected'],    false], 1.2,
+                         ['boolean', ['feature-state', 'hovered'],     false], 1.0, 0],
+            14, ['case', ['boolean', ['feature-state', 'highlighted'], false], 2.5,
+                         ['boolean', ['feature-state', 'selected'],    false], 2.0,
+                         ['boolean', ['feature-state', 'hovered'],     false], 1.8, 0],
+            18, ['case', ['boolean', ['feature-state', 'highlighted'], false], 3.5,
+                         ['boolean', ['feature-state', 'selected'],    false], 3.0,
+                         ['boolean', ['feature-state', 'hovered'],     false], 2.5, 0]]);
     }
 
     if (polySizeMode === 'zoom') {
@@ -4610,8 +4863,16 @@ function activatePalette(prop, scheme) {
     paletteProp = prop;
     // Auto-detect numeric and switch to quantitative mode
     if (propData[prop]?.isNumeric && !isQuantitativeScheme(scheme) && scheme !== 'native') {
-        paletteScheme = 'quantile';
-        paletteQuantScheme = 'YlOrRd';
+        // For numeric properties picking a colorbrewer ramp (Diverging/Sequential),
+        // switch to quantile mode using that ramp
+        const isDivOrSeq = PALETTE_GROUPS['Diverging']?.includes(scheme) || PALETTE_GROUPS['Sequential']?.includes(scheme);
+        if (isDivOrSeq) {
+            paletteScheme = 'quantile';
+            paletteQuantScheme = scheme;
+        } else {
+            paletteScheme = 'quantile';
+            paletteQuantScheme = 'YlOrRd';
+        }
     } else {
         paletteScheme = scheme;
     }
@@ -4833,6 +5094,8 @@ function updateLayerFilters() {
         const vis = geomVisible[gtype] ? 'visible' : 'none';
         layers.forEach(id => { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis); });
     });
+    // Re-apply line style so casing opacity respects geomVisible.line
+    if (map.getLayer('gv-line')) applyLineStyle();
 
     // Labels: use ID-based filter to exclude hidden features from collision calculation
     // Only feasible because label layers render a small subset of features
@@ -5006,6 +5269,20 @@ let numericRangeFilter = null; // {prop, lo, hi, state} for bin click 2-state cy
 let histoOrientation = 'vertical'; // 'horizontal' | 'vertical'
 let paletteFilterLo  = null; // user-set hard min (null = no filter)
 let paletteFilterHi  = null; // user-set hard max (null = no filter)
+let paletteFilterHide = false; // hide features outside filter range
+let filterHiddenIds = new Set(); // tracks features hidden by palette filter (separate from user hiddenIds)
+
+function updateFilterHideCountDisplay() {
+    if (!paletteProp) return;
+    const id = 'filter-hide-count-' + paletteProp.replace(/[^a-zA-Z0-9]/g, '_');
+    const el = document.getElementById(id);
+    if (!el || !el.isConnected) return;
+    if (paletteFilterHide && filterHiddenIds.size > 0) {
+        el.innerHTML = 'Hide<br><span style="text-decoration:line-through;font-family:var(--mono);font-size:9px;opacity:0.8">' + filterHiddenIds.size.toLocaleString() + '</span>';
+    } else {
+        el.textContent = 'Hide';
+    }
+}
 let numericTypeOverrides = {}; // key → 'force-categorical' | 'force-numeric'
 
 function renderNumericPanel(key, container) {
@@ -5138,40 +5415,101 @@ function renderNumericPanel(key, container) {
     filterRow.className = 'numeric-clamp-row';
     const filterLoVal = paletteFilterLo !== null ? paletteFilterLo : stats.min;
     const filterHiVal = paletteFilterHi !== null ? paletteFilterHi : stats.max;
+    filterRow.style.flexWrap = 'wrap';
     filterRow.innerHTML = `<span>Filter</span>
-        <input type="number" id="filter-lo-${key}" value="${filterLoVal}" step="any" style="width:68px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono)">
+        <input type="number" id="filter-lo-${key}" value="${filterLoVal}" step="any" style="width:64px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono)">
         <span style="color:var(--text-muted)">–</span>
-        <input type="number" id="filter-hi-${key}" value="${filterHiVal}" step="any" style="width:68px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono)">
-        <button id="filter-reset-${key}" style="background:transparent;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:10px;padding:1px 5px;color:var(--text-muted)" title="Reset to data min/max">✕</button>`;
+        <input type="number" id="filter-hi-${key}" value="${filterHiVal}" step="any" style="width:64px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono)">
+        <button id="filter-reset-${key}" style="background:transparent;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:10px;padding:1px 5px;color:var(--text-muted)" title="Reset to data min/max">✕</button>
+        <label id="filter-hide-label-${key}" style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--text-muted);cursor:pointer;white-space:nowrap;" title="Hide features outside filter range">
+            <input type="checkbox" id="filter-hide-${key}" style="cursor:pointer">
+            <span id="filter-hide-count-${key.replace(/[^a-zA-Z0-9]/g, '_')}">Hide</span>
+        </label>`;
     panel.appendChild(filterRow);
 
     const filterLoInput = filterRow.querySelector(`#filter-lo-${key}`);
     const filterHiInput = filterRow.querySelector(`#filter-hi-${key}`);
     const applyFilterInputs = () => {
-        const lo = parseFloat(filterLoInput.value);
-        const hi = parseFloat(filterHiInput.value);
+        // Re-query inputs from live DOM — the closure references may be stale after renderSidebar
+        const liveLoInput = document.getElementById(`filter-lo-${key}`);
+        const liveHiInput = document.getElementById(`filter-hi-${key}`);
+        const lo = parseFloat(liveLoInput ? liveLoInput.value : filterLoInput.value);
+        const hi = parseFloat(liveHiInput ? liveHiInput.value : filterHiInput.value);
         if (!isNaN(lo)) paletteFilterLo = lo;
         if (!isNaN(hi)) paletteFilterHi = hi;
+        // If a histogram range filter is active, clear it — the palette filter takes precedence
+        if (numericRangeFilter) {
+            clearAllFilterStates();
+            numericRangeFilter = null;
+        }
         // Rebuild stats excluding out-of-range values
         propData[key].numericStats = computeNumericStatsFiltered(key, paletteFilterLo, paletteFilterHi);
         paletteStops = null;
         applyPaletteToLayers();
-        renderSidebar();
+        // Rebuild just the histogram — don't call renderSidebar() as it creates stale closures
+        const histoDiv = document.querySelector(`.numeric-panel [id^="histo-canvas-${key}"]`);
+        if (histoDiv) renderHistogram(key, histoDiv);
+        syncPopoutHistogram(key);
+        updateFilterHideCountDisplay();
+        updateSelectionBar();
+        pushHashState();
     };
+    // Use event delegation on document to survive renderSidebar() rebuilds
+    const filterChangeHandler = (e) => {
+        if (e.target.id === `filter-lo-${key}` || e.target.id === `filter-hi-${key}`) {
+            applyFilterInputs();
+        }
+    };
+    document.addEventListener('change', filterChangeHandler);
     filterLoInput.addEventListener('change', applyFilterInputs);
     filterHiInput.addEventListener('change', applyFilterInputs);
+    const filterHideChk = filterRow.querySelector(`#filter-hide-${key}`);
+    // filterHideCountEl no longer needed — updateFilterHideCountDisplay() queries DOM fresh
+    if (filterHideChk) {
+        filterHideChk.checked = paletteFilterHide;
+        filterHideChk.addEventListener('change', () => {
+            paletteFilterHide = filterHideChk.checked;
+            applyPaletteToLayers();
+            // updateFilterHideCountDisplay is called by applyPaletteToLayers
+            renderSidebar();
+            // Re-query after renderSidebar rebuilt the DOM
+            updateFilterHideCountDisplay();
+            pushHashState();
+        });
+    }
     filterRow.querySelector(`#filter-reset-${key}`).addEventListener('click', () => {
-        paletteFilterLo = null; paletteFilterHi = null;
+        // Restore hidden features BEFORE clearing filterHiddenIds — the restore loop
+        // in applyPaletteToLayers checks filterHiddenIds.size > 0, so we must restore first
+        filterHiddenIds.forEach(id => {
+            const f = allFeatures.find(f => f.properties._gvid === id);
+            const geomHidden = f && geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
+            map.setFeatureState({ source: 'geojson-data', id }, { hidden: geomHidden });
+            hiddenIds.delete(id);
+        });
+        filterHiddenIds.clear();
+        paletteFilterLo = null; paletteFilterHi = null; paletteFilterHide = false;
+        if (filterHideChk) filterHideChk.checked = false;
         propData[key].numericStats = computeNumericStats(key);
         paletteStops = null;
+        // Restore input values to actual data min/max
+        const stats = propData[key].numericStats;
+        const liveLoInput = document.getElementById(`filter-lo-${key}`);
+        const liveHiInput = document.getElementById(`filter-hi-${key}`);
+        if (liveLoInput) liveLoInput.value = stats.min;
+        if (liveHiInput) liveHiInput.value = stats.max;
         applyPaletteToLayers();
-        renderSidebar();
+        updateFilterHideCountDisplay();
+        updateLayerFilters();
+        updateSelectionBar();
+        const histoDiv = document.querySelector(`[id^="histo-canvas-${key}"]`);
+        if (histoDiv) renderHistogram(key, histoDiv);
+        syncPopoutHistogram(key);
     });
 
     // ── Clamp percentile sliders ──
     const clampRow = document.createElement('div');
     clampRow.className = 'numeric-clamp-row';
-    clampRow.innerHTML = `<span>Clip</span>
+    clampRow.innerHTML = `<span>Squish</span>
         <input type="range" id="clamp-lo-${key}" min="0" max="20" step="1" value="${paletteClampLow}" style="width:60px">
         <span id="clamp-lo-label-${key}">${paletteClampLow}%</span>
         <span style="color:var(--text-muted)">–</span>
@@ -5185,11 +5523,11 @@ function renderNumericPanel(key, container) {
     const hiLabel  = clampRow.querySelector(`#clamp-hi-label-${key}`);
     loSlider.addEventListener('input', () => {
         paletteClampLow = +loSlider.value; loLabel.textContent = paletteClampLow + '%';
-        paletteStops = null; applyPaletteToLayers(); renderHistogram(key, histoDiv);
+        paletteStops = null; applyPaletteToLayers(); renderHistogram(key, histoDiv); syncPopoutHistogram(key);
     });
     hiSlider.addEventListener('input', () => {
         paletteClampHigh = +hiSlider.value; hiLabel.textContent = paletteClampHigh + '%';
-        paletteStops = null; applyPaletteToLayers(); renderHistogram(key, histoDiv);
+        paletteStops = null; applyPaletteToLayers(); renderHistogram(key, histoDiv); syncPopoutHistogram(key);
     });
 
     // ── Histogram header (title + orientation + popout) ──
@@ -5390,11 +5728,11 @@ function renderHistogram(key, container) {
         const meanY = yPos(mean), medY = yPos(median);
         if (meanY >= pad.t && meanY <= pad.t+plotH) {
             svg += `<line x1="${pad.l}" y1="${meanY.toFixed(1)}" x2="${pad.l+plotW}" y2="${meanY.toFixed(1)}" stroke="rgba(110,231,183,0.95)" stroke-width="1.5"><title>Mean: ${fmt4(mean, isInt)}</title></line>`;
-            svg += `<text x="${pad.l+plotW+2}" y="${(meanY+3).toFixed(1)}" font-size="7" font-weight="700" fill="rgba(110,231,183,1)">MEAN</text>`;
+            svg += `<text x="${pad.l+plotW+2}" y="${(meanY+3).toFixed(1)}" font-size="7" font-weight="700" fill="rgba(110,231,183,1)" class="stat-hover-label" data-val="${fmt4(mean, isInt)}" data-label="Mean" style="cursor:default"><title>Mean: ${fmt4(mean, isInt)}</title>MEAN</text>`;
         }
         if (medY >= pad.t && medY <= pad.t+plotH) {
             svg += `<line x1="${pad.l}" y1="${medY.toFixed(1)}" x2="${pad.l+plotW}" y2="${medY.toFixed(1)}" stroke="rgba(147,197,253,0.9)" stroke-width="1.5" stroke-dasharray="4,2"><title>Median: ${fmt4(median, isInt)}</title></line>`;
-            svg += `<text x="${pad.l+plotW+2}" y="${(medY+3).toFixed(1)}" font-size="7" font-weight="700" fill="rgba(147,197,253,1)">MED</text>`;
+            svg += `<text x="${pad.l+plotW+2}" y="${(medY+3).toFixed(1)}" font-size="7" font-weight="700" fill="rgba(147,197,253,1)" class="stat-hover-label" data-val="${fmt4(median, isInt)}" data-label="Median" style="cursor:default"><title>Median: ${fmt4(median, isInt)}</title>MED</text>`;
         }
 
         // Q1 / Q3 lines (outside clip group, rendered above bars)
@@ -5403,7 +5741,7 @@ function renderHistogram(key, container) {
                 const yq = yPos(stats[k2]);
                 if (yq < pad.t || yq > pad.t+plotH) return;
                 svg += `<line x1="${pad.l}" y1="${yq.toFixed(1)}" x2="${pad.l+plotW}" y2="${yq.toFixed(1)}" stroke="rgba(167,139,250,0.75)" stroke-width="1.2" stroke-dasharray="3,2"/>`;
-                svg += `<text x="${pad.l+plotW+2}" y="${(yq+3).toFixed(1)}" font-size="8" font-weight="700" fill="rgba(167,139,250,0.9)">${label}</text>`;
+                svg += `<text x="${pad.l+plotW+2}" y="${(yq+3).toFixed(1)}" font-size="8" font-weight="700" fill="rgba(167,139,250,0.9)" class="stat-hover-label" data-val="${fmt4(stats[k2], isInt)}" data-label="${label}" style="cursor:default"><title>${label}: ${fmt4(stats[k2], isInt)}</title>${label}</text>`;
             });
         }
 
@@ -5412,7 +5750,7 @@ function renderHistogram(key, container) {
             const v = mean + sign*stddev;
             if (v < axisLo || v > axisHi) return;
             const y = yPos(v);
-            svg += `<text x="${pad.l+plotW+2}" y="${(y+3).toFixed(1)}" font-size="8" font-weight="700" fill="rgba(167,139,250,0.9)">${sign>0?'+σ':'−σ'}</text>`;
+            svg += `<text x="${pad.l+plotW+2}" y="${(y+3).toFixed(1)}" font-size="8" font-weight="700" fill="rgba(167,139,250,0.9)" class="stat-hover-label" data-val="${fmt4(v, isInt)}" data-label="${sign>0?'+σ':'−σ'}" style="cursor:default"><title>${sign>0?'+σ':'−σ'}: ${fmt4(v, isInt)}</title>${sign>0?'+σ':'−σ'}</text>`;
         });
 
         // Y-axis value labels — auto-density
@@ -5426,7 +5764,7 @@ function renderHistogram(key, container) {
         // Null bar at TOP (above the main plot area, as a horizontal bar)
         if (nullCount > 0) {
             const nullW = Math.max(2, (nullCount / (n + nullCount)) * plotW);
-            svg += `<rect class="histo-null-bar" x="${pad.l}" y="${pad.t - 7}" width="${nullW.toFixed(1)}" height="5" fill="#888" opacity="0.55" data-null="1"><title>${nullCount.toLocaleString()} null / non-numeric</title></rect>`;
+            svg += `<rect class="histo-null-bar" x="${pad.l}" y="${pad.t - 7}" width="${nullW.toFixed(1)}" height="5" fill="#888" opacity="0.55" data-null="1"><title>${nullCount.toLocaleString()} null / non-numeric / filtered out</title></rect>`;
             svg += `<text x="${pad.l - 3}" y="${pad.t - 4}" text-anchor="end" dominant-baseline="middle" font-size="8" fill="rgba(150,150,160,0.7)">∅</text>`;
         }
 
@@ -5451,10 +5789,17 @@ function renderHistogram(key, container) {
         }
 
         // Wire null bar hover → highlight null features
+        // Wire stat label hover tooltips
+        container.querySelectorAll('.stat-hover-label').forEach(el => {
+            el.addEventListener('mouseenter', ev => showStatTooltip(ev, el.dataset.label, el.dataset.val));
+            el.addEventListener('mouseleave', hideStatTooltip);
+        });
+
         const nullRectV = container.querySelector('[data-null="1"]');
         if (nullRectV) {
             nullRectV.style.cursor = 'pointer';
             nullRectV.addEventListener('mouseenter', () => {
+                if (activeFilter?.mode === 'highlight') return;
                 allFeatures.forEach(f => {
                     const v = f.properties[key];
                     if (v === null || v === undefined || v === '' || (typeof v !== 'boolean' && isNaN(Number(v)))) {
@@ -5468,6 +5813,7 @@ function renderHistogram(key, container) {
                 highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
                 highlightedIds.clear();
             });
+            nullRectV.addEventListener('click', () => nullBarClick(key));
         }
 
     } else {
@@ -5494,7 +5840,7 @@ function renderHistogram(key, container) {
             const nullX = pad.l - NULL_W;
             const nullY = pad.t + plotH - nullH;
             nullBarData = { x: nullX, y: nullY, w: NULL_W - 1, h: nullH };
-            svg += `<rect class="histo-null-bar" x="${nullX}" y="${nullY.toFixed(1)}" width="${NULL_W - 1}" height="${nullH.toFixed(1)}" fill="#888" opacity="0.55" data-null="1"><title>${nullCount.toLocaleString()} null / non-numeric</title></rect>`;
+            svg += `<rect class="histo-null-bar" x="${nullX}" y="${nullY.toFixed(1)}" width="${NULL_W - 1}" height="${nullH.toFixed(1)}" fill="#888" opacity="0.55" data-null="1"><title>${nullCount.toLocaleString()} null / non-numeric / filtered out</title></rect>`;
             svg += `<text x="${(nullX + (NULL_W-1)/2).toFixed(1)}" y="${pad.t+plotH+14}" text-anchor="middle" font-size="8" fill="rgba(150,150,160,0.7)">∅</text>`;
         }
 
@@ -5561,11 +5907,11 @@ function renderHistogram(key, container) {
         const medRow  = tooClose && medX > meanX ? pad.t + 9 : pad.t - 1;
         if (meanX >= pad.l && meanX <= pad.l+plotW) {
             svg += `<line x1="${meanX.toFixed(1)}" y1="${pad.t}" x2="${meanX.toFixed(1)}" y2="${pad.t+plotH}" stroke="rgba(110,231,183,0.95)" stroke-width="1.5"><title>Mean: ${fmt4(mean, isInt)}</title></line>`;
-            svg += `<text transform="translate(${(meanX+1).toFixed(1)},${meanRow}) rotate(-90)" text-anchor="start" font-size="7" font-weight="700" fill="rgba(110,231,183,1)">MEAN</text>`;
+            svg += `<text transform="translate(${(meanX+1).toFixed(1)},${meanRow}) rotate(-90)" text-anchor="start" font-size="7" font-weight="700" fill="rgba(110,231,183,1)" class="stat-hover-label" data-val="${fmt4(mean, isInt)}" data-label="Mean" style="cursor:default"><title>Mean: ${fmt4(mean, isInt)}</title>MEAN</text>`;
         }
         if (medX >= pad.l && medX <= pad.l+plotW) {
             svg += `<line x1="${medX.toFixed(1)}" y1="${pad.t}" x2="${medX.toFixed(1)}" y2="${pad.t+plotH}" stroke="rgba(147,197,253,0.9)" stroke-width="1.5" stroke-dasharray="4,2"><title>Median: ${fmt4(median, isInt)}</title></line>`;
-            svg += `<text transform="translate(${(medX+1).toFixed(1)},${medRow}) rotate(-90)" text-anchor="start" font-size="7" font-weight="700" fill="rgba(147,197,253,1)">MED</text>`;
+            svg += `<text transform="translate(${(medX+1).toFixed(1)},${medRow}) rotate(-90)" text-anchor="start" font-size="7" font-weight="700" fill="rgba(147,197,253,1)" class="stat-hover-label" data-val="${fmt4(median, isInt)}" data-label="Median" style="cursor:default"><title>Median: ${fmt4(median, isInt)}</title>MED</text>`;
         }
 
         // ±σ labels
@@ -5573,7 +5919,7 @@ function renderHistogram(key, container) {
             const v = mean + sign*stddev;
             if (v < axisLo || v > axisHi) return;
             const x = xPos(v);
-            svg += `<text x="${x.toFixed(1)}" y="${pad.t-2}" text-anchor="middle" font-size="11" font-weight="700" fill="rgba(167,139,250,0.95)">${sign>0?'+σ':'−σ'}</text>`;
+            svg += `<text x="${x.toFixed(1)}" y="${pad.t-2}" text-anchor="middle" font-size="11" font-weight="700" fill="rgba(167,139,250,0.95)" class="stat-hover-label" data-val="${fmt4(v, isInt)}" data-label="${sign>0?'+σ':'−σ'}" style="cursor:default"><title>${sign>0?'+σ':'−σ'}: ${fmt4(v, isInt)}</title>${sign>0?'+σ':'−σ'}</text>`;
         });
 
         // X-axis labels — 90° rotation
@@ -5602,10 +5948,17 @@ function renderHistogram(key, container) {
         }
 
         // Wire null bar hover → highlight null features
+        // Wire stat label hover tooltips
+        container.querySelectorAll('.stat-hover-label').forEach(el => {
+            el.addEventListener('mouseenter', ev => showStatTooltip(ev, el.dataset.label, el.dataset.val));
+            el.addEventListener('mouseleave', hideStatTooltip);
+        });
+
         const nullRect = container.querySelector('[data-null="1"]');
         if (nullRect) {
             nullRect.style.cursor = 'pointer';
             nullRect.addEventListener('mouseenter', () => {
+                if (activeFilter?.mode === 'highlight') return;
                 allFeatures.forEach(f => {
                     const v = f.properties[key];
                     if (v === null || v === undefined || v === '' || (typeof v !== 'boolean' && isNaN(Number(v)))) {
@@ -5619,6 +5972,7 @@ function renderHistogram(key, container) {
                 highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
                 highlightedIds.clear();
             });
+            nullRect.addEventListener('click', () => nullBarClick(key));
         }
     }
 
@@ -5738,6 +6092,95 @@ function lerpColor(a, b, t) {
     const rg = Math.round(ag + (bg-ag)*t);
     const rb = Math.round(ab + (bb-ab)*t);
     return '#' + [rr,rg,rb].map(x => x.toString(16).padStart(2,'0')).join('');
+}
+
+// 3-state click cycle for the null/non-numeric histogram bar
+function nullBarClick(key) {
+    const isNullMatch = f => {
+        const v = f.properties[key];
+        return v === null || v === undefined || v === '' || (typeof v !== 'boolean' && isNaN(Number(v)));
+    };
+    const isSameNull = numericRangeFilter?.prop === key && numericRangeFilter?.lo === null;
+    const currentState = isSameNull ? numericRangeFilter.state : 0;
+
+    highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
+    highlightedIds.clear();
+    clearAllFilterStates();
+    numericRangeFilter = null;
+
+    if (currentState === 0) {
+        // highlight null features
+        numericRangeFilter = { prop: key, lo: null, hi: null, state: 1 };
+        allFeatures.forEach(f => {
+            if (isNullMatch(f)) {
+                const id = f.properties._gvid;
+                map.setFeatureState({ source: 'geojson-data', id }, { highlighted: true });
+                highlightedIds.add(id);
+            }
+        });
+    } else if (currentState === 1) {
+        // filter: keep only null features
+        numericRangeFilter = { prop: key, lo: null, hi: null, state: 2 };
+        allFeatures.forEach(f => {
+            const id = f.properties._gvid;
+            const geomHidden = geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
+            if (isNullMatch(f)) {
+                map.setFeatureState({ source: 'geojson-data', id }, { filtered: true, highlighted: false, hidden: geomHidden });
+                selectedIds.add(id);
+            } else {
+                map.setFeatureState({ source: 'geojson-data', id }, { hidden: true });
+                hiddenIds.add(id);
+            }
+        });
+        updateLayerFilters();
+    } else if (currentState === 2) {
+        // exclude: hide null features, show rest
+        numericRangeFilter = { prop: key, lo: null, hi: null, state: 3 };
+        allFeatures.forEach(f => {
+            const id = f.properties._gvid;
+            const geomHidden = geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
+            if (isNullMatch(f)) {
+                map.setFeatureState({ source: 'geojson-data', id }, { hidden: true, filtered: false });
+                hiddenIds.add(id);
+            } else {
+                map.setFeatureState({ source: 'geojson-data', id }, { hidden: geomHidden, filtered: false });
+            }
+        });
+        updateLayerFilters();
+    }
+    renderSidebar();
+    updateSelectionBar();
+    updatePointRadius();
+}
+
+let _statTooltipEl = null;
+function showStatTooltip(ev, label, val) {
+    if (!_statTooltipEl) {
+        _statTooltipEl = document.createElement('div');
+        _statTooltipEl.style.cssText = 'position:fixed;z-index:800;background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;font-family:var(--mono);color:var(--text);pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,0.5);white-space:nowrap;';
+        document.body.appendChild(_statTooltipEl);
+    }
+    _statTooltipEl.textContent = `${label}: ${val}`;
+    _statTooltipEl.style.display = 'block';
+    const r = ev.target.getBoundingClientRect();
+    _statTooltipEl.style.left = (r.right + 6) + 'px';
+    _statTooltipEl.style.top  = (r.top - 4) + 'px';
+    // Clamp to viewport
+    requestAnimationFrame(() => {
+        if (!_statTooltipEl) return;
+        const tr = _statTooltipEl.getBoundingClientRect();
+        if (tr.right > window.innerWidth - 8) _statTooltipEl.style.left = (r.left - tr.width - 6) + 'px';
+        if (tr.bottom > window.innerHeight - 8) _statTooltipEl.style.top  = (window.innerHeight - tr.height - 8) + 'px';
+    });
+}
+function hideStatTooltip() {
+    if (_statTooltipEl) _statTooltipEl.style.display = 'none';
+}
+
+function syncPopoutHistogram(key) {
+    if (histoPoppedKey !== key) return;
+    const poppedContainer = document.querySelector('#histo-popout-panel .numeric-histogram');
+    if (poppedContainer) renderHistogram(key, poppedContainer);
 }
 
 function openHistoPopout(key) {
@@ -6083,7 +6526,10 @@ function renderSidebar() {
                     menu.appendChild(nativeItem);
                 }
 
+                const isNumericProp = propData[key]?.isNumeric;
                 Object.entries(PALETTE_GROUPS).forEach(([groupName, schemes]) => {
+                    // For numeric properties, skip Qualitative palettes (not perceptually meaningful for continuous data)
+                    if (isNumericProp && groupName === 'Qualitative') return;
                     const grpEl = document.createElement('div');
                     grpEl.style.cssText = 'padding:4px 10px 2px;font-size:9px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);border-top:1px solid var(--border);';
                     grpEl.textContent = groupName;
@@ -6282,8 +6728,10 @@ function clearAllFilterStates() {
     // Clear numeric range filter state
     if (numericRangeFilter) {
         if (numericRangeFilter.state === 2 || numericRangeFilter.state === 3) {
+            // Build id→feature map for O(1) lookup (hiddenIds contains _gvid values)
+            const featureById = new Map(allFeatures.map(f => [f.properties._gvid, f]));
             hiddenIds.forEach(id => {
-                const f = allFeatures[id];
+                const f = featureById.get(id);
                 const geomHidden = f && geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
                 map.setFeatureState({ source: 'geojson-data', id }, { hidden: geomHidden, filtered: false });
             });
@@ -6296,8 +6744,9 @@ function clearAllFilterStates() {
     }
     if (activeFilter && (activeFilter.mode === 'filter' || activeFilter.mode === 'exclude')) {
         const { prop, value } = activeFilter;
+        const featureById2 = new Map(allFeatures.map(f => [f.properties._gvid, f]));
         hiddenIds.forEach(id => {
-            const f = allFeatures[id];
+            const f = featureById2.get(id);
             const geomHidden = f && geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
             map.setFeatureState({ source: 'geojson-data', id }, { hidden: geomHidden, filtered: false });
         });
@@ -6586,11 +7035,21 @@ document.getElementById('filter-status-tag').addEventListener('click', e => {
 });
 document.getElementById('filter-status-clear').addEventListener('click', e => {
     e.stopPropagation();
-    // Explicitly clear highlighted state — clearAllFilterStates() deliberately skips it
+    // Clear highlighted state
     highlightedIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
     highlightedIds.clear();
+    // Clear palette hide filter hidden features
+    filterHiddenIds.forEach(id => {
+        const f = allFeatures.find(f => f.properties._gvid === id);
+        const geomHidden = f && geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
+        map.setFeatureState({ source: 'geojson-data', id }, { hidden: geomHidden });
+        hiddenIds.delete(id);
+    });
+    filterHiddenIds.clear();
     clearAllFilterStates();
     activeFilter = null; popupRowStates = {};
+    // Restore palette colors after any bar-color override
+    if (map.getLayer('gv-fill') || map.getLayer('gv-point')) applyPaletteToLayers();
     renderSidebar();
     updateSelectionBar();
     invalidateMidpointsCache();
@@ -6610,6 +7069,16 @@ document.getElementById('style-panel-toggle').addEventListener('click', () => {
     const open = body.classList.toggle('open');
     btn.classList.toggle('open', open);
     requestAnimationFrame(positionSidebar);
+});
+
+// Collapse style panel when hovering over properties list
+document.getElementById('props-list').addEventListener('mouseenter', () => {
+    const body = document.getElementById('style-panel-body');
+    if (body.classList.contains('open')) {
+        body.classList.remove('open');
+        document.getElementById('style-panel-toggle').classList.remove('open');
+        requestAnimationFrame(positionSidebar);
+    }
 });
 
 // ── STYLE SUBSECTION TOGGLES ──
@@ -6667,6 +7136,14 @@ document.getElementById('line-outline-pill').addEventListener('click', e => {
     document.querySelectorAll('#line-outline-pill .style-opt').forEach(o => o.classList.remove('active'));
     opt.classList.add('active');
     lineOutlineMode = opt.dataset.val;
+    applyLineStyle();
+});
+document.getElementById('line-dash-pill').addEventListener('click', e => {
+    const opt = e.target.closest('.style-opt');
+    if (!opt) return;
+    document.querySelectorAll('#line-dash-pill .style-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    lineDashMode = opt.dataset.val;
     applyLineStyle();
 });
 // ── POLYGON STYLE PILLS ──
@@ -6896,8 +7373,23 @@ document.getElementById('clear-btn').addEventListener('click', () => {
     selectedIds.clear();
     clearAllFilterStates();
     activeFilter = null; popupRowStates = {};
+    // Also restore filter-hidden features from palette Hide
+    filterHiddenIds.forEach(id => {
+        const f = allFeatures.find(f => f.properties._gvid === id);
+        const geomHidden = f && geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
+        map.setFeatureState({ source: 'geojson-data', id }, { hidden: geomHidden });
+        hiddenIds.delete(id);
+    });
+    filterHiddenIds.clear();
+    paletteFilterHide = false;
+    // Uncheck the Hide checkbox in the sidebar if visible
+    if (paletteProp) {
+        const chk = document.getElementById('filter-hide-' + paletteProp);
+        if (chk) chk.checked = false;
+        updateFilterHideCountDisplay();
+    }
     hiddenIds.forEach(id => {
-        const f = allFeatures[id];
+        const f = allFeatures.find(f => f.properties._gvid === id);
         const geomHidden = f && geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
         map.setFeatureState({ source: 'geojson-data', id }, { hidden: geomHidden });
     });
@@ -6970,6 +7462,26 @@ function resetAll() {
     currentDataUrl = null; currentSourceName = '';
     document.getElementById('share-btn').classList.remove('visible');
 
+    // Reset style state to defaults
+    pointStyle = 'hollow'; pointRadiusMode = 'density';
+    document.querySelectorAll('#point-style-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'hollow'));
+    document.querySelectorAll('#point-radius-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'density'));
+    lineWidthMode = 'thin'; lineRadiusMode = 'zoom'; lineOutlineMode = 'none'; lineDashMode = 'solid';
+    document.querySelectorAll('#line-width-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'thin'));
+    document.querySelectorAll('#line-radius-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'zoom'));
+    document.querySelectorAll('#line-outline-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'none'));
+    document.querySelectorAll('#line-dash-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'solid'));
+    polyFillMode = 'palette'; polyOutlineMode = 'grey'; polySizeMode = 'density'; polyWidthMode = 'thin';
+    document.querySelectorAll('#poly-fill-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'palette'));
+    document.querySelectorAll('#poly-outline-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'grey'));
+    document.querySelectorAll('#poly-size-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'density'));
+    document.querySelectorAll('#poly-width-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'thin'));
+    // Reset palette filter / squish
+    paletteFilterLo = null; paletteFilterHi = null; paletteFilterHide = false; filterHiddenIds.clear();
+    paletteClampLow = 2; paletteClampHigh = 98; paletteNumStops = 7; paletteLogScale = false;
+    // Reset basemap to default (black)
+    if (currentBasemapStyle !== 'black') switchBasemapTo('black');
+
     // Reset sidebar
     propData = {};
     document.getElementById('sidebar-subtitle').textContent = 'No file loaded';
@@ -7011,12 +7523,24 @@ function escHtml(s) {
 // Build a descriptive filename for saved GeoJSON
 // e.g. "parks-sport_tennis-selected.geojson" or "parks-visible.geojson"
 function buildSaveFilename(suffix) {
+    const sanitize = s => String(s).replace(/[\s/\\]+/g, '_').replace(/[^a-zA-Z0-9_\-\.]/g, '').slice(0, 40);
     const parts = [];
     if (currentSourceName) parts.push(currentSourceName);
     if (activeFilter) {
-        const sanitize = s => String(s).replace(/[\s/\\]+/g, '_').replace(/[^a-zA-Z0-9_\-\.]/g, '').slice(0, 40);
         const modeLabel = { highlight: 'hl', filter: 'show', exclude: 'hide' };
         parts.push(`${modeLabel[activeFilter.mode] || activeFilter.mode}_${sanitize(activeFilter.prop)}_${sanitize(activeFilter.value)}`);
+    }
+    // Add active palette property name
+    if (paletteProp && paletteProp !== activeFilter?.prop) {
+        parts.push(`by_${sanitize(paletteProp)}`);
+    }
+    // Add palette filter range if active
+    if (paletteProp && (paletteFilterLo !== null || paletteFilterHi !== null)) {
+        const lo = paletteFilterLo !== null ? paletteFilterLo : '';
+        const hi = paletteFilterHi !== null ? paletteFilterHi : '';
+        parts.push(`range_${lo}-${hi}`);
+    } else if (numericRangeFilter && numericRangeFilter.state >= 2 && numericRangeFilter.lo !== null) {
+        parts.push(`range_${sanitize(numericRangeFilter.prop)}_${numericRangeFilter.lo}-${numericRangeFilter.hi}`);
     }
     parts.push(suffix);
     return parts.join('-') + '.geojson';
@@ -7094,6 +7618,14 @@ function buildScreenshotFilename() {
         const parts = [];
         if (currentSourceName) parts.push(currentSourceName);
         if (activeFilter) parts.push(`${modeLabel[activeFilter.mode]}_${sanitize(activeFilter.prop)}_${sanitize(activeFilter.value)}`);
+        if (paletteProp && paletteProp !== activeFilter?.prop) parts.push(`by_${sanitize(paletteProp)}`);
+        if (paletteProp && (paletteFilterLo !== null || paletteFilterHi !== null)) {
+            const lo = paletteFilterLo !== null ? paletteFilterLo : '';
+            const hi = paletteFilterHi !== null ? paletteFilterHi : '';
+            parts.push(`range_${lo}-${hi}`);
+        } else if (numericRangeFilter && numericRangeFilter.state >= 2 && numericRangeFilter.lo !== null) {
+            parts.push(`range_${sanitize(numericRangeFilter.prop)}_${numericRangeFilter.lo}-${numericRangeFilter.hi}`);
+        }
         parts.push('screenshot');
         return parts.join('-') + '.png';
     }
@@ -7110,10 +7642,30 @@ function takeScreenshot() {
     sidebar.style.visibility = 'hidden';
     bar.style.visibility = 'hidden';
 
+    // Boost pixel ratio for high-res capture, then restore
+    const originalPixelRatio = window.devicePixelRatio || 1;
+    const targetRatio = Math.max(3, originalPixelRatio); // at least 3× for high-res output
+    try { map.setPixelRatio(targetRatio); } catch {}
+
     // MapLibre renders to a WebGL canvas. We need a fresh render frame to capture it.
     map.once('render', () => {
         try {
-            map.getCanvas().toBlob(blob => {
+            const mapCanvas = map.getCanvas();
+            // For Hide basemap: composite over black background so transparent pixels render black
+            let canvasToCapture = mapCanvas;
+            if (currentBasemapStyle === 'hide') {
+                const offscreen = document.createElement('canvas');
+                offscreen.width = mapCanvas.width;
+                offscreen.height = mapCanvas.height;
+                const ctx = offscreen.getContext('2d');
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, offscreen.width, offscreen.height);
+                ctx.drawImage(mapCanvas, 0, 0);
+                canvasToCapture = offscreen;
+            }
+            canvasToCapture.toBlob(blob => {
+                // Restore original pixel ratio
+                try { map.setPixelRatio(originalPixelRatio); } catch {}
                 sidebar.style.visibility = '';
                 bar.style.visibility = '';
                 btn.textContent = '📷';
@@ -7127,6 +7679,7 @@ function takeScreenshot() {
                 URL.revokeObjectURL(url);
             }, 'image/png');
         } catch (err) {
+            try { map.setPixelRatio(originalPixelRatio); } catch {}
             sidebar.style.visibility = '';
             bar.style.visibility = '';
             btn.textContent = '📷';
