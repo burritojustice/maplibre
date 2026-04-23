@@ -3261,26 +3261,35 @@ async function loadFromUrl() {
     const errEl = document.getElementById('url-error');
     errEl.style.display = 'none';
     document.getElementById('url-load').textContent = 'Loading…';
+    const urlName = raw.split('/').pop().split('?')[0] || 'data.geojson';
+    showProgress(`Loading ${urlName}`);
+    updateProgress(0, raw.slice(-50));
     try {
         const res = await fetch(raw);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) { hideProgress(); throw new Error(`HTTP ${res.status}`); }
+        updateProgress(40, 'Downloading…');
         const text = await res.text();
+        updateProgress(60, 'Parsing…');
         let geojson;
         try { geojson = JSON.parse(text); } catch {
             const lines = text.trim().split('\n').filter(l => l.trim());
             const features = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
             if (features.length) geojson = { type: 'FeatureCollection', features };
         }
-        if (!geojson) throw new Error('Could not parse response as GeoJSON');
+        if (!geojson) { hideProgress(); throw new Error('Could not parse response as GeoJSON'); }
         datasetBytes = text.length;
         if (geojson.type === 'Feature') geojson = { type: 'FeatureCollection', features: [geojson] };
+        updateProgress(75, `${geojson.features.length.toLocaleString()} features`);
         currentDataUrl = raw;
         currentSourceName = raw.split('/').pop().split('?')[0].replace(/\.(geojson|json|geojsonl)$/i, '') || 'data';
         closeWelcome();
         closeUrlModal();
         ingestGeoJSON(geojson, raw.split('/').pop() || 'data.geojson');
+        updateProgress(100, 'Done');
+        setTimeout(hideProgress, 400);
         pushHashState();
     } catch (err) {
+        hideProgress();
         errEl.textContent = `Error: ${err.message}`;
         errEl.style.display = 'block';
     } finally {
@@ -3874,6 +3883,14 @@ function autoDetectLineDensity() {
     if (isDense) {
         lineRadiusMode = 'density';
         document.querySelectorAll('#line-radius-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'density'));
+        setTimeout(() => {
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:400;background:var(--surface);border:1px solid var(--accent);border-radius:8px;padding:8px 14px;font-size:11px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,0.5);max-width:280px;text-align:center;pointer-events:none;opacity:0;transition:opacity 0.3s';
+            toast.innerHTML = '🗺 Dense line network detected — <b>Density</b> mode applied.<br><span style="color:var(--text-muted)">Change in Style → Lines → Size</span>';
+            document.body.appendChild(toast);
+            requestAnimationFrame(() => { toast.style.opacity = '1'; });
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 4000);
+        }, 800);
     }
 }
 
