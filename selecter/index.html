@@ -3079,6 +3079,11 @@ function toggleLegendMode(forceTo) {
     btn.title = legendMode ? 'Expand to explorer' : 'Collapse to legend';
     // Reposition button: sits just past the right edge of sidebar (12px left + width)
     btn.style.left = (12 + (legendMode ? 220 : 290)) + 'px';
+    // Hide style panel in legend mode
+    const styleToggle = document.getElementById('style-panel-toggle');
+    const styleBody   = document.getElementById('style-panel-body');
+    if (styleToggle) styleToggle.style.display = legendMode ? 'none' : '';
+    if (styleBody)   styleBody.style.display   = legendMode ? 'none' : '';
     if (legendMode) updateLegendCard();
     requestAnimationFrame(positionSidebar);
     pushHashState();
@@ -3391,21 +3396,29 @@ function copyShareUrl() {
     document.body.appendChild(overlay);
 
     const doShare = (asLegend) => {
-        overlay.remove();
         const wasLegend = legendMode;
         if (asLegend !== wasLegend) {
-            legendMode = asLegend; // temporarily set for pushHashState
+            legendMode = asLegend;
             pushHashState();
-            legendMode = wasLegend; // restore actual state
+            legendMode = wasLegend;
         } else {
             pushHashState();
         }
-        navigator.clipboard.writeText(location.href).then(() => {
-            const btn = document.getElementById('share-btn');
-            if (btn) { btn.textContent = '✓ Copied!'; setTimeout(() => { btn.innerHTML = '⎘ Share'; }, 2000); }
-        }).catch(() => { prompt('Copy this URL:', location.href); });
-        // Restore the hash to actual current state
+        const url = location.href;
         if (asLegend !== wasLegend) pushHashState();
+        navigator.clipboard.writeText(url).then(() => {
+            card.innerHTML = `<div style="text-align:center;padding:8px 4px">
+                <div style="font-size:22px;margin-bottom:8px">✓</div>
+                <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">URL copied!</div>
+                <div style="font-size:11px;color:var(--text-muted);word-break:break-all;max-width:280px;margin:0 auto 12px">${url.length > 60 ? url.slice(0,57) + '…' : url}</div>
+                <button id="share-done-btn" style="padding:5px 16px;background:var(--accent);border:none;border-radius:5px;cursor:pointer;font-size:12px;color:#0f0f11;font-family:var(--sans)">Done</button>
+            </div>`;
+            card.querySelector('#share-done-btn').addEventListener('click', () => overlay.remove());
+            setTimeout(() => overlay.remove(), 3000);
+        }).catch(() => {
+            overlay.remove();
+            prompt('Copy this URL:', url);
+        });
     };
 
     card.querySelector('#share-explorer-btn').addEventListener('click', () => doShare(false));
@@ -3451,15 +3464,6 @@ async function restoreFromHash() {
         switchBasemapTo(params.bm);
     }
 
-    // Restore numeric filter params
-    if (params.numfilter) {
-        const [lo, hi, hid, cl, ch] = params.numfilter.split(',');
-        if (lo !== '') paletteFilterLo = parseFloat(lo);
-        if (hi !== '') paletteFilterHi = parseFloat(hi);
-        paletteFilterHide = hid === '1';
-        if (cl !== '') paletteClampLow  = parseInt(cl);
-        if (ch !== '') paletteClampHigh = parseInt(ch);
-    }
     // Restore polygon style settings
     if (params.polystyle) {
         const [fill, outline, size, width] = params.polystyle.split(',');
@@ -3574,6 +3578,19 @@ async function restoreFromHash() {
                 applyPaletteToLayers();
                 renderSidebar();
             }
+        }
+        // Restore numeric filter AFTER ingestGeoJSON (which resets these) and AFTER palette
+        if (params.numfilter) {
+            const [lo, hi, hid, cl, ch] = params.numfilter.split(',');
+            if (lo !== '') paletteFilterLo = parseFloat(lo);
+            if (hi !== '') paletteFilterHi = parseFloat(hi);
+            paletteFilterHide = hid === '1';
+            if (cl !== '') paletteClampLow  = parseInt(cl);
+            if (ch !== '') paletteClampHigh = parseInt(ch);
+            paletteStops = null;
+            applyPaletteToLayers();
+            if (paletteFilterHide) updateSelectionBar();
+            renderSidebar();
         }
         document.getElementById('share-btn').classList.add('visible');
     } catch (err) {
@@ -3841,12 +3858,11 @@ function autoDetectLineDensity() {
         const t = f.geometry?.type;
         return t === 'LineString' || t === 'MultiLineString';
     });
-    if (lineFeatures.length < 100) return; // too few to matter
+    if (lineFeatures.length < 100) return;
 
     const lineFrac = lineFeatures.length / allFeatures.length;
-    if (lineFrac < 0.5) return; // dataset is not predominantly lines
+    if (lineFrac < 0.5) return;
 
-    // Compute total vertex count and bbox
     let totalCoords = 0;
     let minLng=Infinity, maxLng=-Infinity, minLat=Infinity, maxLat=-Infinity;
     lineFeatures.forEach(f => {
@@ -3864,21 +3880,19 @@ function autoDetectLineDensity() {
     const bboxArea = (maxLng - minLng) * (maxLat - minLat);
     if (bboxArea <= 0) return;
 
-    // Primary signal: vertices per square degree
-    // This captures true network density regardless of how segments are split.
-    // Short block-level streets have few vertices each but pack many into a small area.
-    // A sparse bike network has fewer total vertices even with high feature count.
     const vertexDensity = totalCoords / bboxArea;
 
-    // Reference values from known datasets:
-    // Seattle roads (28K feat, 187K vert): vertex density ~very high → density mode ✓
-    // SF roads (17K feat, 60K vert): high → density mode ✓
-    // NYC bike (28K feat, 107K vert): moderate — too thin in density mode ✗
-    // SF bike (5K feat, 23K vert): low → leave as zoom ✓
-    //
-    // Threshold at ~5M vertices/deg² separates road grids from bike/trail networks.
-    // Also require >500 features to avoid triggering on small dense local areas.
-    const isDense = lineFeatures.length > 500 && vertexDensity > 5_000_000;
+    // Signal 1: very high vertex density — contours, dense local geometry
+    // Threshold 1M catches SF contours (215M) without triggering road networks (3M) or bike (1.2M)
+    const isDenseLocal = vertexDensity > 1_000_000;
+
+    // Signal 2: large-area networks — national/regional grids, transmission lines, rail
+    // Low vertex density but many features spread over a wide area → visually cluttered at any zoom
+    const isLargeNetwork = lineFeatures.length > 30_000 || bboxArea > 50;
+
+    const isDense = isDenseLocal || isLargeNetwork;
+
+    console.log(`[density] features: ${lineFeatures.length}, verts/deg²: ${Math.round(vertexDensity).toLocaleString()}, bboxArea: ${bboxArea.toFixed(2)} deg² → isDenseLocal: ${isDenseLocal}, isLargeNetwork: ${isLargeNetwork}, density mode: ${isDense}`);
 
     if (isDense) {
         lineRadiusMode = 'density';
@@ -4590,7 +4604,6 @@ function applyLineStyle() {
         clearTimeout(_lineRadiusTimer);
         _lineRadiusTimer = setTimeout(() => {
             if (!map.getLayer('gv-line')) return;
-            // Count visible line features in viewport, excluding hidden (filtered-out) features
             let visibleCount = 0;
             try {
                 const rendered = map.queryRenderedFeatures({ layers: ['gv-line'] });
@@ -4602,20 +4615,33 @@ function applyLineStyle() {
                     if (!hiddenIds.has(id)) visibleCount++;
                 });
             } catch {
-                // Fallback: count all non-hidden line features in the file
                 visibleCount = allFeatures.filter(f => {
                     const t = f.geometry?.type;
                     return (t === 'LineString' || t === 'MultiLineString') && !hiddenIds.has(f.properties._gvid);
                 }).length;
             }
             const base = lineDensityWidth(visibleCount);
-            // Scale base by the user's width mode choice (thin/medium/thick)
             const scaledBase  = Math.max(0.2, base * (wThin  / 1.0));
             const scaledThick = Math.max(0.5, base * (wThick / 2.0));
-            const lineWidth   = ['interpolate', ['linear'], ['zoom'],
-                8,  scaledBase,
-                13, (scaledBase + scaledThick) / 2,
-                16, scaledThick];
+            const scaledMid   = (scaledBase + scaledThick) / 2;
+            // Hover/select/highlight widths — floor at 3px so they're always visible
+            const hoverW    = Math.max(scaledThick * 4, 3.0);
+            const selectedW = Math.max(scaledThick * 3, 2.5);
+            const highlightW = Math.max(scaledThick * 3.5, 2.8);
+            // Use interpolate-outer / case-inner to avoid nested interpolate in case (MapLibre limitation)
+            const lineWidth = ['interpolate', ['linear'], ['zoom'],
+                8,  ['case', ['boolean', ['feature-state', 'hovered'],      false], hoverW,
+                             ['boolean', ['feature-state', 'highlighted'],  false], highlightW,
+                             ['boolean', ['feature-state', 'selected'],     false], selectedW,
+                             scaledBase],
+                13, ['case', ['boolean', ['feature-state', 'hovered'],      false], hoverW * 1.3,
+                             ['boolean', ['feature-state', 'highlighted'],  false], highlightW * 1.3,
+                             ['boolean', ['feature-state', 'selected'],     false], selectedW * 1.3,
+                             scaledMid],
+                16, ['case', ['boolean', ['feature-state', 'hovered'],      false], hoverW * 1.6,
+                             ['boolean', ['feature-state', 'highlighted'],  false], highlightW * 1.6,
+                             ['boolean', ['feature-state', 'selected'],     false], selectedW * 1.6,
+                             scaledThick]];
             const casingWidth = ['interpolate', ['linear'], ['zoom'],
                 8,  scaledBase + 1.5,
                 16, scaledThick + 2];
@@ -4624,12 +4650,29 @@ function applyLineStyle() {
         }, 150);
     } else {
         clearTimeout(_lineRadiusTimer);
+        // Hover/select/highlight widths scale with the user's width setting
+        const hoverW     = Math.max(wThick * 3.0, 4.0);
+        const highlightW = Math.max(wThick * 2.5, 3.5);
+        const selectedW  = Math.max(wThick * 2.0, 3.0);
+        // Use interpolate-outer / case-inner (MapLibre forbids interpolate nested inside case)
         let lineWidth, casingWidth;
         if (lineRadiusMode === 'zoom') {
-            lineWidth   = ['interpolate', ['linear'], ['zoom'], 8, wThin, 16, wThick];
+            lineWidth = ['interpolate', ['linear'], ['zoom'],
+                8,  ['case', ['boolean', ['feature-state', 'hovered'],     false], hoverW,
+                             ['boolean', ['feature-state', 'highlighted'], false], highlightW,
+                             ['boolean', ['feature-state', 'selected'],    false], selectedW,
+                             wThin],
+                16, ['case', ['boolean', ['feature-state', 'hovered'],     false], hoverW * 1.5,
+                             ['boolean', ['feature-state', 'highlighted'], false], highlightW * 1.5,
+                             ['boolean', ['feature-state', 'selected'],    false], selectedW * 1.5,
+                             wThick]];
             casingWidth = ['interpolate', ['linear'], ['zoom'], 8, wThin + 2, 16, wThick + 2];
         } else { // fixed
-            lineWidth   = wThin;
+            lineWidth = ['case',
+                ['boolean', ['feature-state', 'hovered'],     false], hoverW,
+                ['boolean', ['feature-state', 'highlighted'], false], highlightW,
+                ['boolean', ['feature-state', 'selected'],    false], selectedW,
+                wThin];
             casingWidth = wThin + 2;
         }
         map.setPaintProperty('gv-line', 'line-width', lineWidth);
