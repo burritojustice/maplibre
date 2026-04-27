@@ -3289,9 +3289,28 @@ async function loadFromUrl() {
         currentSourceName = raw.split('/').pop().split('?')[0].replace(/\.(geojson|json|geojsonl)$/i, '') || 'data';
         closeWelcome();
         closeUrlModal();
+        geojson = truncateCoordPrecision(geojson);
+        let _truncToastMsgUrl = null;
+        if (geojson._truncatedCoordPairs) {
+            const geomBytes = geojson._truncatedCoordPairs * 2 * 10;
+            const propBytes = datasetBytes - geojson._truncatedCoordPairs * 2 * 16;
+            const savedMB = ((datasetBytes - Math.max(geomBytes + Math.max(0, propBytes), datasetBytes * 0.3)) / 1e6).toFixed(1);
+            datasetBytes = Math.max(geomBytes + Math.max(0, propBytes), datasetBytes * 0.3);
+            const origMB = (text.length / 1e6).toFixed(1);
+            const savedPct = Math.round(parseFloat(savedMB) / parseFloat(origMB) * 100);
+            _truncToastMsgUrl = `Coords truncated ${geojson._truncatedFromDecimals}dp→6dp · saved ${savedMB}MB (${savedPct}%)`;
+            updateProgress(73, `✓ ${_truncToastMsgUrl}`);
+            await new Promise(r => setTimeout(r, 80));
+        }
         ingestGeoJSON(geojson, raw.split('/').pop() || 'data.geojson');
         updateProgress(100, 'Done');
-        setTimeout(hideProgress, 400);
+        setTimeout(() => {
+            hideProgress();
+            const parts = [];
+            if (_pendingDensityToast) { parts.push(_pendingDensityToast); _pendingDensityToast = null; }
+            if (_truncToastMsgUrl) parts.push('✂ ' + _truncToastMsgUrl);
+            if (parts.length) showToast(parts.join('\n'), 6000);
+        }, 400);
         pushHashState();
     } catch (err) {
         hideProgress();
@@ -3518,6 +3537,7 @@ async function restoreFromHash() {
         currentDataUrl = params.url;
         currentSourceName = params.url.split('/').pop().split('?')[0].replace(/\.(geojson|json|geojsonl)$/i, '') || 'data';
         // skipFit=true since we already restored map position above
+        geojson = truncateCoordPrecision(geojson);
         ingestGeoJSON(geojson, params.url.split('/').pop() || 'data.geojson', !!params.map);
 
         // Restore labels
@@ -3616,6 +3636,11 @@ document.getElementById('file-input').addEventListener('change', e => { if (e.ta
 function setupGeoJsonLayers(fc) {
     map.addSource('geojson-data', { type: 'geojson', data: fc, promoteId: '_gvid' });
 
+    // Find the first basemap symbol layer (place/road labels) so we can insert
+    // our data layers BELOW it — basemap labels stay readable above our fills/lines.
+    // Our own gv-labels are added last (no beforeId) so they render above everything.
+    const firstBasemapLabelId = map.getStyle().layers.find(l => l.type === 'symbol')?.id;
+
     const colorExpr = ['case',
         ['boolean', ['feature-state', 'selected'],    false], '#e040fb',
         ['boolean', ['feature-state', 'filtered'],    false], '#fbbf24',
@@ -3624,7 +3649,9 @@ function setupGeoJsonLayers(fc) {
         '#3b82f6'];
     const visExpr = ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1];
 
-    map.addLayer({ id: 'gv-fill', type: 'fill', source: 'geojson-data',
+    const addBeforeLabel = (layerDef) => map.addLayer(layerDef, firstBasemapLabelId);
+
+    addBeforeLabel({ id: 'gv-fill', type: 'fill', source: 'geojson-data',
         filter: ['==', ['geometry-type'], 'Polygon'],
         paint: { 'fill-color': colorExpr,
             'fill-outline-color': 'transparent',
@@ -3637,22 +3664,22 @@ function setupGeoJsonLayers(fc) {
                 0.25] }
     });
     // gv-outline: static border for all polygons (grey/white/black/none)
-    map.addLayer({ id: 'gv-outline', type: 'line', source: 'geojson-data',
+    addBeforeLabel({ id: 'gv-outline', type: 'line', source: 'geojson-data',
         filter: ['==', ['geometry-type'], 'Polygon'],
         paint: { 'line-color': '#888888', 'line-opacity': visExpr, 'line-width': 1.2 }
     });
-    map.addLayer({ id: 'gv-line-casing', type: 'line', source: 'geojson-data',
+    addBeforeLabel({ id: 'gv-line-casing', type: 'line', source: 'geojson-data',
         filter: ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]],
         paint: { 'line-color': 'rgba(0,0,0,0.08)', 'line-width': 4, 'line-opacity': visExpr }
     });
-    map.addLayer({ id: 'gv-line', type: 'line', source: 'geojson-data',
+    addBeforeLabel({ id: 'gv-line', type: 'line', source: 'geojson-data',
         filter: ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]],
         paint: { 'line-color': colorExpr, 'line-opacity': visExpr,
             'line-width': ['case', ['boolean', ['feature-state', 'highlighted'], false], 3.5, 2] }
     });
     // gv-outline-interact added here — BELOW gv-point in the stack so point hit-testing wins
     // Still visually on top of polygon fill/outline because lines render over fills
-    map.addLayer({ id: 'gv-outline-interact', type: 'line', source: 'geojson-data',
+    addBeforeLabel({ id: 'gv-outline-interact', type: 'line', source: 'geojson-data',
         filter: ['==', ['geometry-type'], 'Polygon'],
         paint: {
             'line-color': ['case',
@@ -3676,13 +3703,32 @@ function setupGeoJsonLayers(fc) {
 
     addLabelLayer();
 
+    // Layer ordering: water sits above gv-fill but below gv-line/outline
+    // so polygon fills show through water, but outlines and lines draw on top
+    ['water', 'water_river'].forEach(id => {
+        if (map.getLayer(id)) map.moveLayer(id, 'gv-line');
+    });
+    // gv-outline above water — polygon borders visible over water
+    if (map.getLayer('gv-outline')) map.moveLayer('gv-outline', 'gv-line');
+
+    // Move road labels and shields below our data layers — place names stay above
+    const firstGv = map.getStyle().layers.find(l => l.id.startsWith('gv-'))?.id;
+    if (firstGv) {
+        map.getStyle().layers
+            .filter(l => l.type === 'symbol' && !l.id.startsWith('gv-') &&
+                (l.id.includes('road') || l.id.includes('shield') || l.id.includes('transit')))
+            .forEach(l => map.moveLayer(l.id, firstGv));
+    }
+    // roads_labels_major back up above fills and outlines — readable but below lines/points
+    if (map.getLayer('roads_labels_major')) map.moveLayer('roads_labels_major', 'gv-line-casing');
+
     allMidpoints = []; midpointsCacheValid = false;
     const emptyFC = { type: 'FeatureCollection', features: [] };
     if (map.getSource('geojson-midpoints')) {
         map.getSource('geojson-midpoints').setData(emptyFC);
     } else {
         map.addSource('geojson-midpoints', { type: 'geojson', data: emptyFC, promoteId: '_gvid' });
-        map.addLayer({ id: 'gv-dots', type: 'circle', source: 'geojson-midpoints',
+        addBeforeLabel({ id: 'gv-dots', type: 'circle', source: 'geojson-midpoints',
             layout: { 'visibility': 'none' },
             paint: { 'circle-color': 'rgba(255,255,255,0.15)',
                 'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 3, 14, 5],
@@ -3695,7 +3741,7 @@ function setupGeoJsonLayers(fc) {
     }
 
     // gv-point added last so it's topmost — ensures point clicks are never intercepted
-    map.addLayer({ id: 'gv-point', type: 'circle', source: 'geojson-data',
+    addBeforeLabel({ id: 'gv-point', type: 'circle', source: 'geojson-data',
         filter: ['==', ['geometry-type'], 'Point'],
         paint: { 'circle-color': 'rgba(255,255,255,0.10)', 'circle-radius': 5,
             'circle-stroke-color': colorExpr, 'circle-stroke-width': 2,
@@ -3732,25 +3778,25 @@ function setupTileOverlayLayers() {
     });
     const zoomWidth = (thin, thick) => ['interpolate', ['linear'], ['zoom'], 10, thin, 16, thick];
     if (!map.getLayer('tile-highlight-line')) {
-        map.addLayer({ id: 'tile-highlight-line', type: 'line', source: 'tile-highlight-overlay',
+        addBeforeLabel({ id: 'tile-highlight-line', type: 'line', source: 'tile-highlight-overlay',
             paint: { 'line-color': '#3b82f6', 'line-width': zoomWidth(1.5, 4), 'line-opacity': 0.85 } });
-        map.addLayer({ id: 'tile-labels-line', type: 'symbol', source: 'tile-highlight-overlay',
+        addBeforeLabel({ id: 'tile-labels-line', type: 'symbol', source: 'tile-highlight-overlay',
             layout: { 'text-field': '', 'text-size': 11, 'symbol-placement': 'line',
                 'text-font': ['Noto Sans Regular'], 'text-allow-overlap': false,
                 'text-ignore-placement': false, 'symbol-spacing': 200 },
             paint: { 'text-color': '#0f0f11', 'text-halo-color': 'rgba(255,255,255,0.9)', 'text-halo-width': 1.5 } });
         updateLabelColors();
-        map.addLayer({ id: 'tile-dots-line', type: 'circle', source: 'tile-dots-overlay',
+        addBeforeLabel({ id: 'tile-dots-line', type: 'circle', source: 'tile-dots-overlay',
             layout: { 'visibility': dotsMode === 'off' ? 'none' : 'visible' },
             paint: { 'circle-color': 'rgba(255,255,255,0.15)',
                 'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 3, 14, 5],
                 'circle-stroke-color': '#3b82f6', 'circle-stroke-width': 1.5,
                 'circle-opacity': 1, 'circle-stroke-opacity': 0.5 } });
-        map.addLayer({ id: 'tile-select-line', type: 'line', source: 'tile-select-overlay',
+        addBeforeLabel({ id: 'tile-select-line', type: 'line', source: 'tile-select-overlay',
             paint: { 'line-color': '#e040fb', 'line-width': zoomWidth(2, 4), 'line-opacity': 0.9 } });
-        map.addLayer({ id: 'tile-hover-casing', type: 'line', source: 'tile-hover-overlay',
+        addBeforeLabel({ id: 'tile-hover-casing', type: 'line', source: 'tile-hover-overlay',
             paint: { 'line-color': '#0f0f11', 'line-width': zoomWidth(7, 13), 'line-opacity': 0 } });
-        map.addLayer({ id: 'tile-hover-line', type: 'line', source: 'tile-hover-overlay',
+        addBeforeLabel({ id: 'tile-hover-line', type: 'line', source: 'tile-hover-overlay',
             paint: { 'line-color': '#2dd4bf', 'line-width': zoomWidth(2, 5), 'line-opacity': 0.85 } });
     }
 }
@@ -3782,6 +3828,15 @@ function applyBasemapCheckboxStates() {
 // ── FILE LOADING ──
 // ── PROGRESS OVERLAY ──
 let _progressOverlay = null;
+function showToast(msg, duration = 4000) {
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:400;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:11px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,0.5);max-width:360px;text-align:center;pointer-events:none;opacity:0;transition:opacity 0.3s;font-family:var(--mono)';
+    toast.innerHTML = msg.split('\n').map(l => `<div>${l}</div>`).join('');
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => { toast.style.opacity = '1'; });
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, duration);
+}
+
 function showProgress(msg) {
     if (!_progressOverlay) {
         _progressOverlay = document.createElement('div');
@@ -3789,19 +3844,32 @@ function showProgress(msg) {
         document.body.appendChild(_progressOverlay);
     }
     _progressOverlay.innerHTML = `
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 28px;min-width:280px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.6)">
-            <div style="font-size:13px;color:var(--text);margin-bottom:10px;font-weight:500">${msg}</div>
-            <div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 24px;min-width:320px;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.6)">
+            <div style="font-size:13px;color:var(--text);margin-bottom:10px;font-weight:500;text-align:center">${msg}</div>
+            <div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-bottom:10px">
                 <div id="progress-bar-fill" style="height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width 0.15s ease"></div>
             </div>
-            <div id="progress-bar-detail" style="font-size:10px;color:var(--text-muted);margin-top:8px;font-family:var(--mono)"></div>
+            <div id="progress-bar-log" style="font-size:10px;font-family:var(--mono);display:flex;flex-direction:column;gap:2px;max-height:120px;overflow:hidden"></div>
         </div>`;
 }
-function updateProgress(pct, detail) {
+function updateProgress(pct, step) {
     const fill = document.getElementById('progress-bar-fill');
-    const det  = document.getElementById('progress-bar-detail');
+    const log  = document.getElementById('progress-bar-log');
     if (fill) fill.style.width = Math.round(pct) + '%';
-    if (det && detail) det.textContent = detail;
+    if (log && step) {
+        // Fade all existing lines slightly
+        Array.from(log.children).forEach(el => {
+            const cur = parseFloat(el.style.opacity) || 1;
+            el.style.opacity = Math.max(0.45, cur - 0.2);
+            el.style.fontSize = '9px';
+        });
+        // Append new line at bottom — newest is always last/brightest
+        const line = document.createElement('div');
+        line.textContent = step;
+        line.style.cssText = 'color:var(--text);opacity:1;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+        log.appendChild(line);
+        log.scrollTop = log.scrollHeight;
+    }
 }
 function hideProgress() {
     if (_progressOverlay) { _progressOverlay.remove(); _progressOverlay = null; }
@@ -3843,9 +3911,31 @@ function loadFile(file) {
             requestAnimationFrame(() => setTimeout(() => {
                 updateProgress(75, `Building ${n.toLocaleString()} features…`);
                 requestAnimationFrame(() => setTimeout(() => {
+                    geojson = truncateCoordPrecision(geojson);
+                    let _truncToastMsg = null;
+                    if (geojson._truncatedCoordPairs) {
+                        const geomBytes = geojson._truncatedCoordPairs * 2 * 10;
+                        const propBytes = datasetBytes - geojson._truncatedCoordPairs * 2 * 16;
+                        const savedMB = ((datasetBytes - Math.max(geomBytes + Math.max(0, propBytes), datasetBytes * 0.3)) / 1e6).toFixed(1);
+                        datasetBytes = Math.max(geomBytes + Math.max(0, propBytes), datasetBytes * 0.3);
+                        const origMB = (text.length / 1e6).toFixed(1);
+                        const savedPct = Math.round(parseFloat(savedMB) / parseFloat(origMB) * 100);
+                        _truncToastMsg = `Coords truncated ${geojson._truncatedFromDecimals}dp→6dp · saved ${savedMB}MB (${savedPct}%)`;
+                        updateProgress(73, `✓ ${_truncToastMsg}`);
+                    }
+                    // Yield so browser renders the truncation line before blocking ingest
+                    setTimeout(() => {
                     ingestGeoJSON(geojson, file.name);
                     updateProgress(100, 'Done');
-                    setTimeout(hideProgress, 300);
+                    setTimeout(() => {
+                        hideProgress();
+                        // Combine density + truncation toasts into one
+                        const parts = [];
+                        if (_pendingDensityToast) { parts.push(_pendingDensityToast); _pendingDensityToast = null; }
+                        if (_truncToastMsg) parts.push('✂ ' + _truncToastMsg);
+                        if (parts.length) showToast(parts.join('\n'), 6000);
+                    }, 300);
+                    }, 80);
                 }, 0));
             }, 0));
         }, 0));
@@ -3892,20 +3982,69 @@ function autoDetectLineDensity() {
 
     const isDense = isDenseLocal || isLargeNetwork;
 
-    console.log(`[density] features: ${lineFeatures.length}, verts/deg²: ${Math.round(vertexDensity).toLocaleString()}, bboxArea: ${bboxArea.toFixed(2)} deg² → isDenseLocal: ${isDenseLocal}, isLargeNetwork: ${isLargeNetwork}, density mode: ${isDense}`);
+    // console.log(`[density] features: ${lineFeatures.length}, verts/deg²: ${Math.round(vertexDensity).toLocaleString()}, bboxArea: ${bboxArea.toFixed(2)} deg² → isDenseLocal: ${isDenseLocal}, isLargeNetwork: ${isLargeNetwork}, density mode: ${isDense}`);
 
     if (isDense) {
         lineRadiusMode = 'density';
         document.querySelectorAll('#line-radius-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'density'));
-        setTimeout(() => {
-            const toast = document.createElement('div');
-            toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:400;background:var(--surface);border:1px solid var(--accent);border-radius:8px;padding:8px 14px;font-size:11px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,0.5);max-width:280px;text-align:center;pointer-events:none;opacity:0;transition:opacity 0.3s';
-            toast.innerHTML = '🗺 Dense line network detected — <b>Density</b> mode applied.<br><span style="color:var(--text-muted)">Change in Style → Lines → Size</span>';
-            document.body.appendChild(toast);
-            requestAnimationFrame(() => { toast.style.opacity = '1'; });
-            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 4000);
-        }, 800);
+        // Apply immediately and also after tiles finish loading
+        applyLineStyle();
+        const onIdle = () => { if (map.getLayer('gv-line')) applyLineStyle(); map.off('idle', onIdle); };
+        map.once('idle', onIdle);
+        // Store density message for combining with truncation toast
+        _pendingDensityToast = '🗺 Dense line network — Density mode applied (Style → Lines → Size)';
     }
+}
+
+function truncateCoordPrecision(geojson) {
+    const t0 = performance.now();
+    // Sample first 50 features to detect max decimal places used
+    const sample = geojson.features.slice(0, 50);
+    let maxDecimals = 0;
+    let sampleCoordCount = 0;
+    const check = coords => {
+        for (const c of coords) {
+            if (Array.isArray(c)) { check(c); continue; }
+            sampleCoordCount++;
+            const s = c.toString();
+            const dot = s.indexOf('.');
+            if (dot !== -1) maxDecimals = Math.max(maxDecimals, s.length - dot - 1);
+        }
+    };
+    sample.forEach(f => { if (f.geometry?.coordinates) check([f.geometry.coordinates]); });
+    const t1 = performance.now();
+    console.log(`[coords] sample: ${sampleCoordCount} coords in ${sample.length} features, max decimals: ${maxDecimals} (${(t1-t0).toFixed(1)}ms)`);
+
+    if (maxDecimals <= 6) {
+        console.log('[coords] precision OK — no truncation needed');
+        return geojson;
+    }
+
+    // Truncate all coordinates in-place, counting as we go
+    let coordPairs = 0;
+    const R = 1e6;
+    const truncCoords = coords => {
+        if (typeof coords[0] === 'number') {
+            coords[0] = Math.round(coords[0] * R) / R;
+            coords[1] = Math.round(coords[1] * R) / R;
+            if (coords[2] !== undefined) coords[2] = Math.round(coords[2] * R) / R;
+            coordPairs++;
+        } else {
+            coords.forEach(truncCoords);
+        }
+    };
+    geojson.features.forEach(f => { if (f.geometry?.coordinates) truncCoords(f.geometry.coordinates); });
+    const t2 = performance.now();
+
+    // Estimate memory saved: each coord value shrunk from ~15 digits to ~8 digits = ~7 bytes × 2 values per pair
+    const bytesSaved = coordPairs * 2 * (maxDecimals - 6);
+    const bytesSavedPct = Math.round(bytesSaved / (coordPairs * 2 * maxDecimals) * 100);
+    console.log(`[coords] truncated ${coordPairs.toLocaleString()} coord pairs in ${(t2-t1).toFixed(1)}ms — est. ${(bytesSaved/1e6).toFixed(1)}MB saved (~${bytesSavedPct}%, ${maxDecimals}dp → 6dp)`);
+
+    // Store coord count for datasetBytes recalculation
+    geojson._truncatedCoordPairs = coordPairs;
+    geojson._truncatedFromDecimals = maxDecimals;
+    return geojson;
 }
 
 function ingestGeoJSON(geojson, filename, skipFit = false) {
@@ -5330,7 +5469,8 @@ let histoOrientation = 'vertical'; // 'horizontal' | 'vertical'
 let paletteFilterLo  = null; // user-set hard min (null = no filter)
 let paletteFilterHi  = null; // user-set hard max (null = no filter)
 let paletteFilterHide = false; // hide features outside filter range
-let filterHiddenIds = new Set(); // tracks features hidden by palette filter (separate from user hiddenIds)
+let filterHiddenIds = new Set();
+let _pendingDensityToast = null; // set by autoDetectLineDensity, consumed by load finish // tracks features hidden by palette filter (separate from user hiddenIds)
 
 function updateFilterHideCountDisplay() {
     if (!paletteProp) return;
