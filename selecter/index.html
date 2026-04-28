@@ -1629,6 +1629,7 @@ let hoverPopup = new maplibregl.Popup({
 let lastHoveredId = null;
 
 let frozenPopup = null;
+let propTooltip = null; // hovered property name tooltip — module-level so renderSidebar can clear it
 let frozenFeatureProps = null;
 let popupRowStates = {};
 
@@ -6441,7 +6442,12 @@ document.getElementById('bins-popout').addEventListener('input', function() {
     if (inlineLabel) inlineLabel.textContent = numericBinCount;
 });
 
+function clearPropTooltip() {
+    if (propTooltip) { propTooltip.remove(); propTooltip = null; }
+}
+
 function renderSidebar() {
+    clearPropTooltip(); // clear any lingering hover tooltip before rebuild
     updateLegendCard();
     const list = document.getElementById('props-list');
     const searchVal = document.getElementById('prop-search').value.trim();
@@ -6517,9 +6523,8 @@ function renderSidebar() {
         nameBtn.innerHTML = `<span class="prop-name">${escHtml(key)}</span>`;
 
         // Hover: show a small popup with the first 5 sample values
-        let propTooltip = null;
         nameBtn.addEventListener('mouseenter', e => {
-            if (propTooltip) return;
+            clearPropTooltip(); // clear any stale tooltip first
             const vals = Object.entries(propData[key]?.valueCounts || {})
                 .sort((a, b) => b[1] - a[1]).slice(0, 5);
             if (!vals.length) return;
@@ -6533,18 +6538,15 @@ function renderSidebar() {
                 propTooltip.innerHTML += `<div style="color:var(--text-muted);margin-top:3px;font-size:10px">+ ${(distinct-5).toLocaleString()} more</div>`;
             }
             document.body.appendChild(propTooltip);
+            // Position AFTER appending so offsetHeight is known
             const r = nameBtn.getBoundingClientRect();
-            const pt = propTooltip;
-            // Position to the right of the sidebar; clamp to viewport
             let tx = r.right + 8, ty = r.top;
             if (tx + 230 > window.innerWidth) tx = r.left - 230;
-            if (ty + pt.offsetHeight > window.innerHeight) ty = window.innerHeight - pt.offsetHeight - 4;
-            pt.style.left = tx + 'px';
-            pt.style.top  = ty + 'px';
+            if (ty + propTooltip.offsetHeight > window.innerHeight) ty = window.innerHeight - propTooltip.offsetHeight - 4;
+            propTooltip.style.left = tx + 'px';
+            propTooltip.style.top  = ty + 'px';
         });
-        nameBtn.addEventListener('mouseleave', () => {
-            if (propTooltip) { propTooltip.remove(); propTooltip = null; }
-        });
+        nameBtn.addEventListener('mouseleave', clearPropTooltip);
         nameBtn.addEventListener('click', () => {
             const opening = openPropKey !== key;
             openPropKey = (openPropKey === key) ? null : key;
@@ -7018,17 +7020,22 @@ function onMouseMove(e) {
             );
             if (!entries.length) { hoverPopup.remove(); return; }
             const hoverDividerIdx = lastActiveIndex(entries);
-            const rows = entries.map(([k, v], i) => {
+            // On hover: only show active props (palette/label/filter); hide the rest
+            const activeEntries = hoverDividerIdx >= 0 ? entries.slice(0, hoverDividerIdx + 1) : entries;
+            const hiddenCount   = hoverDividerIdx >= 0 ? entries.length - activeEntries.length : 0;
+            const rows = activeEntries.map(([k, v], i) => {
                 const priority = propActivityPriority(k);
                 const dot = priority === 0
                     ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${Object.values(paletteMap)[0]||'var(--accent)'};margin-right:4px;flex-shrink:0;vertical-align:middle"></span>`
                     : priority === 1
                     ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--text-muted);margin-right:4px;flex-shrink:0;vertical-align:middle;opacity:0.6"></span>`
                     : '';
-                const divider = (i === hoverDividerIdx && i < entries.length - 1) ? ' active-divider' : '';
-                return `<div class="popup-row no-click${divider}"><span class="popup-key">${dot}${escHtml(k)}</span><span class="popup-val">${escHtml(String(v))}</span></div>`;
+                return `<div class="popup-row no-click"><span class="popup-key">${dot}${escHtml(k)}</span><span class="popup-val">${escHtml(String(v))}</span></div>`;
             }).join('');
-            hoverPopup.setHTML(`<div class="popup-inner">${rows}</div><div class="popup-hint">Click to pin &amp; interact</div>`);
+            const moreHint = hiddenCount > 0
+                ? `<div class="popup-hint" style="border-top:1px solid var(--border);margin-top:2px;padding-top:4px">+${hiddenCount} more · click to pin</div>`
+                : `<div class="popup-hint">Click to pin &amp; interact</div>`;
+            hoverPopup.setHTML(`<div class="popup-inner">${rows}</div>${moreHint}`);
             hoverPopup.addTo(map);
         }
         hoverPopup.setLngLat(e.lngLat);
@@ -7280,6 +7287,8 @@ document.getElementById('props-list').addEventListener('mouseenter', () => {
         requestAnimationFrame(positionSidebar);
     }
 });
+// Safety net: clear tooltip if mouse leaves the sidebar entirely
+document.getElementById('sidebar').addEventListener('mouseleave', clearPropTooltip);
 
 // ── STYLE SUBSECTION TOGGLES ──
 document.querySelectorAll('.style-subsection-toggle').forEach(btn => {
