@@ -27,12 +27,21 @@
             --sans: 'DM Sans', sans-serif;
         }
 
-        body { margin: 0; padding: 0; background: var(--bg); font-family: var(--sans); color: var(--text); }
+        body { margin: 0; padding: 0; background: var(--bg); font-family: var(--sans); color: var(--text); overflow: hidden; }
         html, body, #map { height: 100%; }
+        html { overflow: hidden; }
 
-        /* ── SIDEBAR ── */
+        /* ── SIDEBAR ──
+           position:fixed so it's always viewport-relative (never relative to body).
+           This prevents the body-expansion feedback loop where position:absolute
+           elements with wrong bottom values stretch the document, causing barRect.top
+           to read incorrect values on subsequent positionSidebar() calls.
+           height is set by positionSidebar() via style.height='' (CSS computes from top+bottom).
+           flex-direction:column with file-panel flex:1 and style-panel flex-shrink:0
+           ensures the style panel is always pinned at the bottom.
+           overflow:hidden clips flex children and gives border-radius its visual effect. */
         #sidebar {
-            position: absolute;
+            position: fixed;  /* IMPORTANT: fixed, not absolute — see comment above */
             top: 12px; left: 12px;
             width: 290px;
             background: var(--surface);
@@ -48,7 +57,7 @@
 
         /* ── LEGEND MODE ── */
         #sidebar-collapse-btn {
-            position: absolute;
+            position: fixed;
             top: 50px; left: 302px; /* right edge of sidebar (12 + 290) */
             width: 20px; height: 32px; z-index: 20;
             background: var(--surface); border: 1px solid var(--border);
@@ -347,7 +356,7 @@
 
 
         /* Props list */
-        #props-list { overflow-y: auto; flex: 1; min-height: 80px; }
+        #props-list { overflow-y: auto; flex: 1; min-height: 0; }
         #props-list::-webkit-scrollbar { width: 4px; }
         #props-list::-webkit-scrollbar-track { background: transparent; }
         #props-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
@@ -559,14 +568,14 @@
         #filter-status-clear:hover { color: var(--red); }
 
         /* ── STYLE PANEL ── */
-        /* Sticky at bottom of sidebar so it's always accessible and doesn't bury props */
+        /* Style panel sits at bottom of sidebar flex column (flex-shrink:0).
+           Sidebar and selection-bar are position:fixed so they're always viewport-relative.
+           positionSidebar() sets sidebar bottom = bar's bottom+height+gap using offsetHeight. */
         #style-panel {
             flex-shrink: 0;
-            border-top: 2px solid rgba(45,212,191,0.35);
-            position: sticky;
-            bottom: 0;
+            border-top: 3px solid rgba(45,212,191,0.5);
             background: var(--surface);
-            z-index: 5; /* above scrolling props list */
+            z-index: 5;
             box-shadow: 0 -4px 12px rgba(0,0,0,0.25);
         }
         #style-panel-toggle {
@@ -574,7 +583,7 @@
             padding: 6px 14px; background: var(--surface2);
             border: none; cursor: pointer; font-family: var(--sans);
             font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
-            text-transform: uppercase; color: var(--text-muted);
+            text-transform: uppercase; color: var(--accent);
             transition: color 0.15s;
         }
         #style-panel-toggle:hover { color: var(--text); }
@@ -892,8 +901,11 @@
         }
 
         /* ── SELECTION BAR ── */
+        /* Selection bar is also position:fixed so offsetHeight is reliable
+           and positionSidebar() can compute sidebar bottom from:
+             sidebarBottom = barBottom(12) + barOffsetHeight + gap(10) */
         #selection-bar {
-            position: absolute;
+            position: fixed;  /* IMPORTANT: fixed, not absolute — see comment above */
             bottom: 12px; left: 12px;
             width: 290px;   /* match sidebar exactly */
             z-index: 10; background: var(--surface); border: 1px solid var(--border);
@@ -1169,8 +1181,9 @@
                 <div class="style-subsection-body" id="sub-points">
                     <div class="style-section">
                         <span class="style-section-label">Style</span>
-                        <div id="point-style-pill" class="style-pill">
-                            <button class="style-opt active" data-val="hollow" title="Hollow ring — palette color as stroke">○ Ring</button>
+                        <div id="point-style-pill" class="style-pill" style="flex-wrap:wrap">
+                            <button class="style-opt active" data-val="hollow" title="Hollow ring — palette color as stroke, no fill">○ Ring</button>
+                            <button class="style-opt" data-val="ghost" title="Near-transparent fill — shows density of overlapping points">◌ Ghost</button>
                             <button class="style-opt" data-val="filled" title="Solid fill — palette color as fill">● Fill</button>
                             <button class="style-opt" data-val="outlined" title="Filled with dark border">◉ Blk</button>
                             <button class="style-opt" data-val="outlined-white" title="Filled with white border">◎ Wht</button>
@@ -1192,6 +1205,13 @@
                     <span class="ss-arrow">▶</span> Lines
                 </button>
                 <div class="style-subsection-body" id="sub-lines">
+                    <div class="style-section">
+                        <span class="style-section-label">Style</span>
+                        <div id="line-style-pill" class="style-pill">
+                            <button class="style-opt active" data-val="solid" title="Solid opaque lines">Solid</button>
+                            <button class="style-opt" data-val="ghost" title="Very low opacity — reveals stacked/overlapping lines">Ghost</button>
+                        </div>
+                    </div>
                     <div class="style-section">
                         <span class="style-section-label">Width</span>
                         <div id="line-width-pill" class="style-pill">
@@ -1227,8 +1247,6 @@
                             <button class="style-opt"        data-val="dashdot"     title="Dash-dot"         style="padding:3px 5px;letter-spacing:1px">–·–</button>
                             <button class="style-opt"        data-val="dashdotdot"  title="Dash-dot-dot"     style="padding:3px 5px;letter-spacing:1px">–··–</button>
                         </div>
-                    </div>
-
                 </div>
             </div>
             <!-- Polygons subsection (closed by default) -->
@@ -1319,6 +1337,36 @@
                             <button class="style-opt" data-val="mercator" title="Standard flat map projection">Mercator</button>
                             <button class="style-opt active" data-val="globe" title="3D globe projection">Globe</button>
                         </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Labels subsection (closed by default) -->
+            <div class="style-subsection">
+                <button class="style-subsection-toggle" data-sub="labels">
+                    <span class="ss-arrow">▶</span> Labels
+                </button>
+                <div class="style-subsection-body" id="sub-labels">
+                    <div class="style-section">
+                        <label style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--text-muted);cursor:pointer">
+                            <input type="checkbox" id="label-fmt-decimals" checked>
+                            <span>Decimals</span>
+                        </label>
+                        <label style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--text-muted);cursor:pointer;margin-left:8px">
+                            <input type="checkbox" id="label-fmt-abbreviate" checked>
+                            <span>Abbreviate</span>
+                        </label>
+                        <label style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--text-muted);cursor:pointer;margin-left:8px">
+                            <input type="checkbox" id="label-fmt-years">
+                            <span>Years</span>
+                        </label>
+                        <label style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--text-muted);cursor:pointer;margin-left:8px">
+                            <input type="checkbox" id="label-overlap">
+                            <span>Overlap</span>
+                        </label>
+                        <label style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--text-muted);cursor:pointer;margin-left:8px">
+                            <input type="checkbox" id="label-var-placement" checked>
+                            <span>Variable</span>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -1647,6 +1695,11 @@ let pointRadiusMode = 'density'; // 'density' | 'zoom'
 let lineWidthMode = 'thin';   // 'thin' | 'medium' | 'thick'
 let lineRadiusMode = 'zoom';  // 'zoom' | 'fixed' | 'density'
 let lineOutlineMode = 'none'; // 'none' | 'light' | 'grey' | 'dark'
+let lineStyleMode   = 'solid'; // 'solid' | 'ghost'
+let lineOpacProp    = null;    // property driving data-driven opacity
+let lineOpacMin     = 0.15;    // opacity at min value
+let lineOpacMax     = 1.0;     // opacity at max value
+let lineOpacActive  = false;
 let lineDashMode   = 'solid';  // 'solid' | 'dash' | 'shortdash' | 'dot' | 'dashdot'
 let polyFillMode    = 'palette'; // 'palette' | 'grey' | 'none'
 let polyOutlineMode = 'grey';    // 'none' | 'white' | 'grey' | 'black' | 'palette'
@@ -3047,13 +3100,28 @@ function pinTilePopup(f, lngLat) {
     }, 50);
 }
 
+// positionSidebar: sets sidebar's CSS bottom so it clears the selection bar.
+// IMPORTANT: sidebar and bar are position:fixed (viewport-relative).
+// Uses bar.offsetHeight (not getBoundingClientRect) because offsetHeight is
+// unaffected by CSS transforms and document scroll position.
+// Formula: sidebar.bottom = barCSSBottom(12) + bar.offsetHeight + gap(10)
+// If the bar is not yet rendered (offsetHeight=0), uses a fallback of 22px.
+// Called after any event that changes bar height (file load, selection change, resize).
 function positionSidebar() {
     const bar = document.getElementById('selection-bar');
     const sidebar = document.getElementById('sidebar');
     const isMobile = window.innerWidth <= 600;
-    const barRect = bar.getBoundingClientRect();
     const viewH = window.innerHeight;
-    const barTopFromBottom = viewH - barRect.top;
+
+    // Both sidebar and bar are position:fixed — always relative to viewport
+    // bar is fixed; bottom:12px so its top = viewH - 12 - bar.offsetHeight
+    const barH = bar.offsetHeight; // offsetHeight unaffected by visibility/transform
+    const barBottom = 12; // matches CSS bottom:12px
+    const barTop = viewH - barBottom - barH;
+    const gap = 10;
+    const sidebarBottom = (barH > 0) ? (barBottom + barH + gap) : 22;
+
+    // console.log('[layout] positionSidebar viewH:', viewH, 'barH:', barH, 'barTop:', barTop, 'sidebarBottom:', sidebarBottom);
 
     if (isMobile && !sidebar.classList.contains('expanded') && !sidebar.classList.contains('map-expanded')) {
         sidebar.style.bottom = 'auto';
@@ -3062,9 +3130,22 @@ function positionSidebar() {
         sidebar.style.height = 'auto';
         sidebar.style.bottom = 'auto';
     } else {
-        sidebar.style.height = '';
-        sidebar.style.bottom = (barTopFromBottom + 10) + 'px';
+        sidebar.style.height = '';  // let top+bottom define height
+        sidebar.style.bottom = sidebarBottom + 'px';
     }
+
+    requestAnimationFrame(() => {
+        const r = sidebar.getBoundingClientRect();
+        const sp = document.getElementById('style-panel')?.getBoundingClientRect();
+        const pl = document.getElementById('props-list')?.getBoundingClientRect();
+        const fp = document.getElementById('file-panel')?.getBoundingClientRect();
+        const barR = bar.getBoundingClientRect();
+        // console.log('[layout] sidebar:', Math.round(r.top), '-', Math.round(r.bottom), 'h:', Math.round(r.height));
+        // console.log('[layout] file-panel h:', fp ? Math.round(fp.height) : 'n/a', 'props-list h:', pl ? Math.round(pl.height) : 'n/a', 'style-panel top:', sp ? Math.round(sp.top) : 'n/a');
+        // console.log('[layout] bar:', Math.round(barR.top), '-', Math.round(barR.bottom), 'h:', Math.round(barR.height), 'visible:', bar.classList.contains('visible'));
+        if (sp && r.bottom < sp.bottom - 2) console.warn('[layout] STYLE PANEL CLIPPED');
+        if (barR.height > 0 && r.bottom > barR.top + 2) console.warn('[layout] SIDEBAR OVERLAPS BAR');
+    });
 }
 
 let legendMode = false; // legend mode is explicit user choice, not mobile default
@@ -3829,6 +3910,7 @@ function applyBasemapCheckboxStates() {
 // ── FILE LOADING ──
 // ── PROGRESS OVERLAY ──
 let _progressOverlay = null;
+let _basemapToastEl   = null;
 function showToast(msg, duration = 4000) {
     const toast = document.createElement('div');
     toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:400;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:11px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,0.5);max-width:360px;text-align:center;pointer-events:none;opacity:0;transition:opacity 0.3s;font-family:var(--mono)';
@@ -3988,6 +4070,7 @@ function autoDetectLineDensity() {
     if (isDense) {
         lineRadiusMode = 'density';
         document.querySelectorAll('#line-radius-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'density'));
+        setTimeout(() => applyLabelLayout(), 200);
         // Apply immediately and also after tiles finish loading
         applyLineStyle();
         const onIdle = () => { if (map.getLayer('gv-line')) applyLineStyle(); map.off('idle', onIdle); };
@@ -4061,13 +4144,23 @@ function ingestGeoJSON(geojson, filename, skipFit = false) {
     paletteProp = null; paletteMap = {}; paletteScheme = 'Set1'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false; paletteReversed = false; numericRangeFilter = null; numericTypeOverrides = {};
     paletteFilterLo = null; paletteFilterHi = null; paletteFilterHide = false;
     paletteClampLow = 2; paletteClampHigh = 98; paletteStops = null;
+    pointSizeActive = false; pointSizeProp = null; pointSizeMin = 3; pointSizeMax = 12; pointSizeLog = false;
+    labelFmtDecimals = true; labelFmtAbbreviate = true; labelFmtYears = false; labelOverlap = false; labelVarPlacement = true;
+    const dChk = document.getElementById('label-fmt-decimals'); if (dChk) dChk.checked = true;
+    const aChk = document.getElementById('label-fmt-abbreviate'); if (aChk) aChk.checked = true;
+    const yChk = document.getElementById('label-fmt-years'); if (yChk) yChk.checked = false;
+    const ovChk = document.getElementById('label-overlap'); if (ovChk) ovChk.checked = false;
+    const vpChk = document.getElementById('label-var-placement'); if (vpChk) vpChk.checked = true;
+    lineOpacActive = false; lineOpacProp = null; lineOpacMin = 0.15; lineOpacMax = 1.0;
+    lineStyleMode = 'solid';
     polyFillMode = 'palette'; polyOutlineMode = 'grey'; polySizeMode = 'density'; polyWidthMode = 'thin';
-    lineWidthMode = 'thin'; lineRadiusMode = 'zoom'; lineOutlineMode = 'none'; lineDashMode = 'solid';
+    lineWidthMode = 'thin'; lineRadiusMode = 'zoom'; lineOutlineMode = 'none'; lineDashMode = 'solid'; lineStyleMode = 'solid';
     // Sync line pills to defaults
     document.querySelectorAll('#line-width-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'thin'));
     document.querySelectorAll('#line-radius-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'zoom'));
     document.querySelectorAll('#line-outline-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'none'));
     document.querySelectorAll('#line-dash-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'solid'));
+    document.querySelectorAll('#line-style-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'solid'));
     updateLabelHint();
     document.getElementById('save-visible-btn').style.visibility = 'hidden';
     if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
@@ -4166,23 +4259,30 @@ function ingestGeoJSON(geojson, filename, skipFit = false) {
 
 // FIX 3: two label layers — point placement for points/polygons, line placement for lines
 function addLabelLayer() {
-    // Point & polygon labels — placed at feature centroid
+    const hiddenOpacity = ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1];
+
+    // Point & polygon labels
+    // Default: above point with radial offset to clear circle radius
     map.addLayer({
         id: 'gv-labels', type: 'symbol', source: 'geojson-data',
         filter: ['in', ['geometry-type'], ['literal', ['Point', 'Polygon', 'MultiPolygon', 'MultiPoint']]],
         layout: {
             'text-field': '',
             'text-size': 11,
-            'text-offset': [0, 0],
-            'text-anchor': 'center',
             'text-font': ['Noto Sans Regular'],
-            'text-allow-overlap': false,
-            'text-ignore-placement': false
+            'text-allow-overlap': labelOverlap,
+            'text-ignore-placement': labelOverlap,
+            // Variable placement: try above first, then sides, below — avoids collisions
+            // text-variable-anchor and text-radial-offset work together
+            'text-variable-anchor': ['top', 'bottom', 'right', 'left', 'top-right', 'top-left'],
+            'text-radial-offset': 0.8,  // ~11px at text-size:11; updated by applyLabelLayout
+            'text-justify': 'auto'
         },
         paint: {
             'text-color': '#0f0f11',
             'text-halo-color': '#e8e8f0',
-            'text-halo-width': 1.5
+            'text-halo-width': 1.5,
+            'text-opacity': hiddenOpacity
         }
     });
 
@@ -4195,18 +4295,52 @@ function addLabelLayer() {
             'text-size': 11,
             'symbol-placement': 'line',
             'text-font': ['Noto Sans Regular'],
-            'text-allow-overlap': false,
-            'text-ignore-placement': false,
+            'text-allow-overlap': labelOverlap,
+            'text-ignore-placement': labelOverlap,
             'symbol-spacing': 250
         },
         paint: {
             'text-color': '#0f0f11',
             'text-halo-color': '#e8e8f0',
-            'text-halo-width': 1.5
+            'text-halo-width': 1.5,
+            'text-opacity': hiddenOpacity
         }
     });
-    // Apply correct colors for current basemap style
     updateLabelColors();
+    applyLabelLayout();
+}
+
+function applyLabelLayout() {
+    if (!map.getLayer('gv-labels')) return;
+
+    // Radial offset in ems — scales with text-size
+    // Estimate point radius in px from current mode, convert to ems (text-size=11)
+    // density/zoom modes vary; use a generous default that works across zoom levels
+    const baseRadiusPx = pointRadiusMode === 'density' ? 6 : 7;
+    const radiusEm = +(baseRadiusPx / 11).toFixed(2); // em = px / text-size
+
+    map.setLayoutProperty('gv-labels', 'text-allow-overlap', labelOverlap);
+    map.setLayoutProperty('gv-labels', 'text-ignore-placement', labelOverlap);
+    map.setLayoutProperty('gv-labels-line', 'text-allow-overlap', labelOverlap);
+    map.setLayoutProperty('gv-labels-line', 'text-ignore-placement', labelOverlap);
+
+    if (labelVarPlacement) {
+        // Variable anchor: MapLibre tries each in order, picks first non-colliding
+        map.setLayoutProperty('gv-labels', 'text-variable-anchor',
+            ['top', 'bottom', 'right', 'left', 'top-right', 'top-left', 'bottom-right', 'bottom-left']);
+        map.setLayoutProperty('gv-labels', 'text-radial-offset', radiusEm + 0.5);
+        map.setLayoutProperty('gv-labels', 'text-justify', 'auto');
+        // Remove fixed anchor/offset when using variable placement
+        try { map.setLayoutProperty('gv-labels', 'text-anchor', undefined); } catch {}
+        try { map.setLayoutProperty('gv-labels', 'text-offset', undefined); } catch {}
+    } else {
+        // Fixed: always above, offset by radius
+        map.setLayoutProperty('gv-labels', 'text-anchor', 'bottom');
+        map.setLayoutProperty('gv-labels', 'text-offset', [0, -(radiusEm + 0.3)]);
+        map.setLayoutProperty('gv-labels', 'text-justify', 'center');
+        try { map.setLayoutProperty('gv-labels', 'text-variable-anchor', undefined); } catch {}
+        try { map.setLayoutProperty('gv-labels', 'text-radial-offset', undefined); } catch {}
+    }
 }
 
 // Update label text/halo colors based on current basemap style
@@ -4701,6 +4835,13 @@ function applyPointStyle() {
         map.setPaintProperty('gv-point', 'circle-color', colorExpr);
         map.setPaintProperty('gv-point', 'circle-stroke-color', 'rgba(0,0,0,0.08)');
         map.setPaintProperty('gv-point', 'circle-stroke-width', 2);
+    } else if (pointStyle === 'ghost') {
+        // Very low opacity fill — overlap density visible; stroke carries color
+        map.setPaintProperty('gv-point', 'circle-color', colorExpr);
+        map.setPaintProperty('gv-point', 'circle-stroke-color', colorExpr);
+        map.setPaintProperty('gv-point', 'circle-stroke-width', 0.5);
+        map.setPaintProperty('gv-point', 'circle-opacity', ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 0.12]);
+        map.setPaintProperty('gv-point', 'circle-stroke-opacity', ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 0.5]);
     } else if (pointStyle === 'outlined') {
         map.setPaintProperty('gv-point', 'circle-color', colorExpr);
         map.setPaintProperty('gv-point', 'circle-stroke-color', 'rgba(30,30,30,0.85)');
@@ -4715,26 +4856,124 @@ function applyPointStyle() {
         map.setPaintProperty('gv-point', 'circle-stroke-color', 'rgba(30,30,30,0.85)');
         map.setPaintProperty('gv-point', 'circle-stroke-width', 1.5);
     } else {
-        // Hollow: stroke carries all color info
-        map.setPaintProperty('gv-point', 'circle-color', 'rgba(255,255,255,0.10)');
+        // Hollow ring: transparent fill, stroke carries all color info
+        map.setPaintProperty('gv-point', 'circle-color', 'rgba(0,0,0,0)');
         map.setPaintProperty('gv-point', 'circle-stroke-color', colorExpr);
         map.setPaintProperty('gv-point', 'circle-stroke-width', 2);
     }
-    map.setPaintProperty('gv-point', 'circle-opacity', visExpr);
-    map.setPaintProperty('gv-point', 'circle-stroke-opacity', visExpr);
+    if (pointStyle !== 'ghost') {
+        map.setPaintProperty('gv-point', 'circle-opacity', visExpr);
+        map.setPaintProperty('gv-point', 'circle-stroke-opacity', visExpr);
+    }
 }
 
 // Maps visible line count to a base width, analogous to densityRadius for points.
 function lineDensityWidth(n) {
-    if (n <=    50) return 1.8;
-    if (n <=   200) return 1.4;
-    if (n <=   800) return 1.0;
-    if (n <=  3000) return 0.7;
-    if (n <= 10000) return 0.45;
-    return 0.3;
+    if (n <=    50) return 2.2;
+    if (n <=   200) return 1.8;
+    if (n <=   800) return 1.3;
+    if (n <=  3000) return 0.95;
+    if (n <= 10000) return 0.65;
+    return 0.45;
 }
 
 let _lineRadiusTimer = null;
+function buildLineValueExpr(prop, minVal, maxVal, sorted) {
+    if (!prop || !propData[prop]?.isNumeric) return null;
+    const stats = propData[prop]?.numericStats;
+    if (!stats || stats.sorted.length < 2) return null;
+    const s = sorted || stats.sorted;
+    const n = s.length;
+    const dataMin = s[0], dataMax = s[n - 1];
+    if (dataMin === dataMax) return null; // all same value — no range to interpolate
+
+    // Build candidate stops at decile intervals, then deduplicate strictly ascending keys
+    const numStops = Math.min(10, n);
+    const seen = new Set();
+    const pairs = []; // [{key, radius}]
+    for (let i = 0; i < numStops; i++) {
+        const idx = Math.round((i / (numStops - 1)) * (n - 1));
+        const val = s[idx];
+        if (seen.has(val)) continue; // skip duplicates
+        seen.add(val);
+        const t = (val - dataMin) / (dataMax - dataMin);
+        pairs.push({ key: val, r: minVal + t * (maxVal - minVal) });
+    }
+    // Ensure at least two distinct stops
+    if (pairs.length < 2) return null;
+    // Guarantee first = dataMin, last = dataMax (may already be there)
+    if (pairs[0].key !== dataMin) pairs.unshift({ key: dataMin, r: minVal });
+    if (pairs[pairs.length - 1].key !== dataMax) pairs.push({ key: dataMax, r: maxVal });
+
+    const expr = ['interpolate', ['linear'], ['to-number', ['get', prop], dataMin]];
+    pairs.forEach(p => expr.push(p.key, p.r));
+    return expr;
+}
+
+function updateStylePanelBadges() {
+    // Opacity badge — show in line-style-pill area
+    let opacBadge = document.getElementById('line-opac-style-badge');
+    if (!opacBadge) {
+        const styleSection = document.querySelector('#line-style-pill')?.closest('.style-section');
+        if (styleSection) {
+            opacBadge = document.createElement('div');
+            opacBadge.id = 'line-opac-style-badge';
+            opacBadge.style.cssText = 'font-size:9px;color:var(--accent);margin-top:2px;padding-left:2px;cursor:pointer;text-decoration:underline dotted';
+            styleSection.appendChild(opacBadge);
+        }
+    }
+    if (opacBadge) {
+        if (lineOpacActive && lineOpacProp) {
+            opacBadge.textContent = `▶ Opacity by ${lineOpacProp} (${lineOpacMin}–${lineOpacMax})`;
+            opacBadge.onclick = () => jumpToProp(lineOpacProp);
+        } else {
+            opacBadge.textContent = '';
+            opacBadge.onclick = null;
+        }
+    }
+    // Size badge for points — show below point-radius-pill
+    let sizeBadge = document.getElementById('point-size-style-badge');
+    if (!sizeBadge) {
+        const sizeSection = document.querySelector('#point-radius-pill')?.closest('.style-section');
+        if (sizeSection) {
+            sizeBadge = document.createElement('div');
+            sizeBadge.id = 'point-size-style-badge';
+            sizeBadge.style.cssText = 'font-size:9px;color:var(--accent);margin-top:2px;padding-left:2px;cursor:pointer;text-decoration:underline dotted';
+            sizeSection.appendChild(sizeBadge);
+        }
+    }
+    if (sizeBadge) {
+        if (pointSizeActive && pointSizeProp) {
+            sizeBadge.textContent = `▶ Size by ${pointSizeProp} (${pointSizeMin}–${pointSizeMax}px${pointSizeLog ? ', log' : ''})`;
+            sizeBadge.onclick = () => jumpToProp(pointSizeProp);
+        } else {
+            sizeBadge.textContent = '';
+            sizeBadge.onclick = null;
+        }
+    }
+}
+
+function applyLineOpacity() {
+    if (!map.getLayer('gv-line')) return;
+    const hiddenCase = (expr) => ['case', ['boolean', ['feature-state', 'hidden'], false], 0, expr];
+    if (lineOpacActive && lineOpacProp && propData[lineOpacProp]?.isNumeric) {
+        const stats = propData[lineOpacProp].numericStats;
+        const opacExpr = buildLineValueExpr(lineOpacProp, lineOpacMin, lineOpacMax, stats?.sorted);
+        console.log('[applyLineOpacity] data-driven expr:', JSON.stringify(opacExpr)?.slice(0, 120));
+        if (opacExpr) {
+            map.setPaintProperty('gv-line', 'line-opacity', hiddenCase(opacExpr));
+            return;
+        }
+    }
+    const mode = lineStyleMode === 'ghost' ? 0.15 : 1;
+    console.log('[applyLineOpacity] default mode:', lineStyleMode, mode);
+    if (lineStyleMode === 'ghost') {
+        map.setPaintProperty('gv-line', 'line-opacity', hiddenCase(0.15));
+    } else {
+        map.setPaintProperty('gv-line', 'line-opacity', hiddenCase(1));
+    }
+}
+
 function applyLineStyle() {
     if (!map.getLayer('gv-line')) return;
     const widths = { thin: [1, 2], medium: [2, 4], thick: [3, 6] };
@@ -4764,23 +5003,22 @@ function applyLineStyle() {
             const scaledBase  = Math.max(0.2, base * (wThin  / 1.0));
             const scaledThick = Math.max(0.5, base * (wThick / 2.0));
             const scaledMid   = (scaledBase + scaledThick) / 2;
-            // Hover/select/highlight widths — floor at 3px so they're always visible
-            const hoverW    = Math.max(scaledThick * 4, 3.0);
-            const selectedW = Math.max(scaledThick * 3, 2.5);
-            const highlightW = Math.max(scaledThick * 3.5, 2.8);
-            // Use interpolate-outer / case-inner to avoid nested interpolate in case (MapLibre limitation)
+            // Proportional widths capped so hover doesn't dwarf thin lines in dense datasets
+            const hoverW     = Math.min(scaledBase * 2.5, 4.0);
+            const highlightW = Math.min(scaledBase * 3.5, 5.0);
+            const selectedW  = Math.min(scaledBase * 3.0, 4.5);
             const lineWidth = ['interpolate', ['linear'], ['zoom'],
-                8,  ['case', ['boolean', ['feature-state', 'hovered'],      false], hoverW,
-                             ['boolean', ['feature-state', 'highlighted'],  false], highlightW,
+                8,  ['case', ['boolean', ['feature-state', 'highlighted'],  false], highlightW,
                              ['boolean', ['feature-state', 'selected'],     false], selectedW,
+                             ['boolean', ['feature-state', 'hovered'],      false], hoverW,
                              scaledBase],
-                13, ['case', ['boolean', ['feature-state', 'hovered'],      false], hoverW * 1.3,
-                             ['boolean', ['feature-state', 'highlighted'],  false], highlightW * 1.3,
-                             ['boolean', ['feature-state', 'selected'],     false], selectedW * 1.3,
+                13, ['case', ['boolean', ['feature-state', 'highlighted'],  false], highlightW * 1.2,
+                             ['boolean', ['feature-state', 'selected'],     false], selectedW * 1.2,
+                             ['boolean', ['feature-state', 'hovered'],      false], hoverW * 1.2,
                              scaledMid],
-                16, ['case', ['boolean', ['feature-state', 'hovered'],      false], hoverW * 1.6,
-                             ['boolean', ['feature-state', 'highlighted'],  false], highlightW * 1.6,
-                             ['boolean', ['feature-state', 'selected'],     false], selectedW * 1.6,
+                16, ['case', ['boolean', ['feature-state', 'highlighted'],  false], highlightW * 1.4,
+                             ['boolean', ['feature-state', 'selected'],     false], selectedW * 1.4,
+                             ['boolean', ['feature-state', 'hovered'],      false], hoverW * 1.4,
                              scaledThick]];
             const casingWidth = ['interpolate', ['linear'], ['zoom'],
                 8,  scaledBase + 1.5,
@@ -4790,34 +5028,35 @@ function applyLineStyle() {
         }, 150);
     } else {
         clearTimeout(_lineRadiusTimer);
-        // Hover/select/highlight widths scale with the user's width setting
-        const hoverW     = Math.max(wThick * 3.0, 4.0);
-        const highlightW = Math.max(wThick * 2.5, 3.5);
-        const selectedW  = Math.max(wThick * 2.0, 3.0);
-        // Use interpolate-outer / case-inner (MapLibre forbids interpolate nested inside case)
+        // Proportional widths capped — hover is thinnest interactive state (mostly color signal)
+        const hoverW     = Math.min(wThick * 2.0, 4.0);
+        const highlightW = Math.min(wThick * 3.0, 5.0);
+        const selectedW  = Math.min(wThick * 2.5, 4.5);
         let lineWidth, casingWidth;
         if (lineRadiusMode === 'zoom') {
             lineWidth = ['interpolate', ['linear'], ['zoom'],
-                8,  ['case', ['boolean', ['feature-state', 'hovered'],     false], hoverW,
-                             ['boolean', ['feature-state', 'highlighted'], false], highlightW,
+                8,  ['case', ['boolean', ['feature-state', 'highlighted'], false], highlightW,
                              ['boolean', ['feature-state', 'selected'],    false], selectedW,
+                             ['boolean', ['feature-state', 'hovered'],     false], hoverW,
                              wThin],
-                16, ['case', ['boolean', ['feature-state', 'hovered'],     false], hoverW * 1.5,
-                             ['boolean', ['feature-state', 'highlighted'], false], highlightW * 1.5,
-                             ['boolean', ['feature-state', 'selected'],    false], selectedW * 1.5,
+                16, ['case', ['boolean', ['feature-state', 'highlighted'], false], highlightW * 1.3,
+                             ['boolean', ['feature-state', 'selected'],    false], selectedW * 1.3,
+                             ['boolean', ['feature-state', 'hovered'],     false], hoverW * 1.3,
                              wThick]];
             casingWidth = ['interpolate', ['linear'], ['zoom'], 8, wThin + 2, 16, wThick + 2];
         } else { // fixed
             lineWidth = ['case',
-                ['boolean', ['feature-state', 'hovered'],     false], hoverW,
                 ['boolean', ['feature-state', 'highlighted'], false], highlightW,
                 ['boolean', ['feature-state', 'selected'],    false], selectedW,
+                ['boolean', ['feature-state', 'hovered'],     false], hoverW,
                 wThin];
             casingWidth = wThin + 2;
         }
         map.setPaintProperty('gv-line', 'line-width', lineWidth);
         map.setPaintProperty('gv-line-casing', 'line-width', casingWidth);
     }
+    // Apply opacity (ghost / data-driven / default) and blur
+    applyLineOpacity();
     // Apply casing color based on outline mode
     if (map.getLayer('gv-line-casing')) {
         const casingColors = {
@@ -5016,10 +5255,76 @@ function densityRadius(n) {
 }
 
 let _pointRadiusTimer = null;
+function buildPointSizeExpr() {
+    if (!pointSizeActive || !pointSizeProp || !propData[pointSizeProp]?.isNumeric) return null;
+    const stats = propData[pointSizeProp]?.numericStats;
+    if (!stats || stats.sorted.length < 2) return null;
+    const sorted = stats.sorted;
+    const n = sorted.length;
+    const dataMin = sorted[0], dataMax = sorted[n - 1];
+    if (dataMin === dataMax) return null;
+
+    const numStops = Math.min(10, n);
+
+    if (pointSizeLog) {
+        const logMin = Math.log(Math.max(1, dataMin));
+        const logMax = Math.log(Math.max(1, dataMax));
+        const logRange = logMax - logMin || 1;
+        const seen = new Set();
+        const pairs = [];
+        for (let i = 0; i < numStops; i++) {
+            const idx = Math.round((i / (numStops - 1)) * (n - 1));
+            const val = Math.max(1, sorted[idx]);
+            const lv  = Math.log(val);
+            if (seen.has(lv)) continue;
+            seen.add(lv);
+            const t = (lv - logMin) / logRange;
+            pairs.push({ key: lv, r: pointSizeMin + t * (pointSizeMax - pointSizeMin) });
+        }
+        if (pairs.length < 2) return null;
+        const inputExpr = ['ln', ['max', 1, ['to-number', ['get', pointSizeProp], 1]]];
+        const expr = ['interpolate', ['linear'], inputExpr];
+        pairs.forEach(p => expr.push(p.key, p.r));
+        return expr;
+    } else {
+        const seen = new Set();
+        const pairs = [];
+        for (let i = 0; i < numStops; i++) {
+            const idx = Math.round((i / (numStops - 1)) * (n - 1));
+            const val = sorted[idx];
+            if (seen.has(val)) continue;
+            seen.add(val);
+            const t = (val - dataMin) / (dataMax - dataMin);
+            pairs.push({ key: val, r: pointSizeMin + t * (pointSizeMax - pointSizeMin) });
+        }
+        if (pairs.length < 2) return null;
+        if (pairs[0].key !== dataMin) pairs.unshift({ key: dataMin, r: pointSizeMin });
+        if (pairs[pairs.length - 1].key !== dataMax) pairs.push({ key: dataMax, r: pointSizeMax });
+        const expr = ['interpolate', ['linear'], ['to-number', ['get', pointSizeProp], dataMin]];
+        pairs.forEach(p => expr.push(p.key, p.r));
+        return expr;
+    }
+}
+
 function updatePointRadius() {
     if (!map.getLayer('gv-point')) return;
     clearTimeout(_pointRadiusTimer);
     _pointRadiusTimer = setTimeout(() => {
+        // Size-by-property mode: overrides zoom/density with a data-driven radius
+        if (pointSizeActive && pointSizeProp) {
+            const sizeExpr = buildPointSizeExpr();
+            if (sizeExpr) {
+                const hl = ['boolean', ['feature-state', 'highlighted'], false];
+                // Wrap in zoom interpolate so points still scale slightly with zoom
+                map.setPaintProperty('gv-point', 'circle-radius',
+                    ['interpolate', ['linear'], ['zoom'],
+                        4,  ['case', hl, ['+', sizeExpr, 2], sizeExpr],
+                        10, ['case', hl, ['+', sizeExpr, 2], sizeExpr],
+                        16, ['case', hl, ['+', sizeExpr, 3], sizeExpr]
+                    ]);
+                return;
+            }
+        }
         if (pointRadiusMode === 'zoom') {
             const hl = ['boolean', ['feature-state', 'highlighted'], false];
             map.setPaintProperty('gv-point', 'circle-radius',
@@ -5297,29 +5602,42 @@ function updateLayerFilters() {
     // Re-apply line style so casing opacity respects geomVisible.line
     if (map.getLayer('gv-line')) applyLineStyle();
 
-    // Labels: use ID-based filter to exclude hidden features from collision calculation
-    // Only feasible because label layers render a small subset of features
+    // Labels: exclude hidden features using feature-state (works for all hide sources:
+    // value filter, palette hide, geom type hide, histogram range filter)
+    // Note: feature-state is not directly available in setFilter — use ID exclusion for
+    // small hidden sets, and for large sets rely on label text-opacity expression instead.
     if (map.getLayer('gv-labels') || map.getLayer('gv-labels-line')) {
+        const notHiddenExpr = ['!', ['boolean', ['feature-state', 'hidden'], false]];
         if (hiddenIds.size === 0) {
-            // No hidden features — restore default geometry-type filters
             if (map.getLayer('gv-labels'))
                 map.setFilter('gv-labels', ['in', ['geometry-type'], ['literal', ['Point', 'Polygon', 'MultiPolygon', 'MultiPoint']]]);
             if (map.getLayer('gv-labels-line'))
                 map.setFilter('gv-labels-line', ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]]);
-        } else {
-            // Exclude hidden IDs from label layers using ['!', ['in', ['id'], ...]]
+        } else if (hiddenIds.size <= 5000) {
+            // For manageable sets: ID-based exclusion (precise)
             const hiddenArr = [...hiddenIds];
-            const notHiddenExpr = ['!', ['in', ['id'], ['literal', hiddenArr]]];
+            const notHiddenId = ['!', ['in', ['id'], ['literal', hiddenArr]]];
             if (map.getLayer('gv-labels'))
                 map.setFilter('gv-labels', ['all',
                     ['in', ['geometry-type'], ['literal', ['Point', 'Polygon', 'MultiPolygon', 'MultiPoint']]],
-                    notHiddenExpr
-                ]);
+                    notHiddenId]);
             if (map.getLayer('gv-labels-line'))
                 map.setFilter('gv-labels-line', ['all',
                     ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]],
-                    notHiddenExpr
-                ]);
+                    notHiddenId]);
+        } else {
+            // Large hidden sets: use feature-state expression on text-opacity instead
+            // (setFilter with large literal arrays is slow)
+            if (map.getLayer('gv-labels')) {
+                map.setFilter('gv-labels', ['in', ['geometry-type'], ['literal', ['Point', 'Polygon', 'MultiPolygon', 'MultiPoint']]]);
+                map.setPaintProperty('gv-labels', 'text-opacity',
+                    ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1]);
+            }
+            if (map.getLayer('gv-labels-line')) {
+                map.setFilter('gv-labels-line', ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]]);
+                map.setPaintProperty('gv-labels-line', 'text-opacity',
+                    ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1]);
+            }
         }
     }
 }
@@ -5391,13 +5709,86 @@ function updateLabelHint() {
     }
 }
 
+function fmtLabelNumber(val) {
+    // Used for testing/preview; actual map labels use MapLibre expressions
+    const abs = Math.abs(val);
+    if (labelFmtAbbreviate) {
+        if (abs >= 1e9) { const v = val/1e9; return (Math.abs(v) >= 100 ? Math.round(v) : +v.toFixed(1)) + 'B'; }
+        if (abs >= 1e6) { const v = val/1e6; return (Math.abs(v) >= 100 ? Math.round(v) : +v.toFixed(1)) + 'M'; }
+        if (abs >= 1e4) { const v = val/1e3; return (Math.abs(v) >= 100 ? Math.round(v) : +v.toFixed(1)) + 'K'; }
+    }
+    if (labelFmtDecimals) {
+        if (abs < 1)   return +val.toFixed(2) + '';
+        if (abs < 100) return +val.toFixed(1) + '';
+    }
+    // 100–9999: no decimals, no commas (preserves 4-digit years like 2024)
+    if (abs < 10000) return Math.round(val) + '';
+    return Math.round(val).toLocaleString();
+}
+
+function buildLabelValueExpr(key) {
+    const isNumeric = propData[key]?.isNumeric;
+    if (!isNumeric || (!labelFmtDecimals && !labelFmtAbbreviate)) {
+        return ['coalesce', ['to-string', ['get', key]], ''];
+    }
+    const n   = ['to-number', ['get', key], null];
+    const abs = ['abs', n];
+    const isNum = ['==', ['typeof', ['get', key]], 'number'];
+    const raw   = ['coalesce', ['to-string', ['get', key]], ''];
+
+    // nf1dp: round to 1dp using number-format
+    const nf1 = val => ['number-format', val, {'max-fraction-digits': 1, 'min-fraction-digits': 0}];
+    // nf2dp: round to 2dp
+    const nf2 = val => ['number-format', val, {'max-fraction-digits': 2, 'min-fraction-digits': 0}];
+    // For 0dp: use ['round'] then ['to-string'] — avoids number-format rounding bug
+    // ['round'] is a native MapLibre math expression, reliable for integer rounding
+    const nf0 = val => ['to-string', ['round', val]];
+
+    // Decimal tiers for non-abbreviated values
+    const decExpr = labelFmtDecimals
+        ? ['case',
+            ['<', abs, 1],   nf2(n),
+            ['<', abs, 100], nf1(n),
+                             nf0(n)]
+        : nf0(n);
+
+    if (!labelFmtAbbreviate) {
+        return ['case', isNum, decExpr, raw];
+    }
+
+    // makeAbbrev: divide by unit, round correctly, append suffix
+    // Use ['round'] for 0dp (reliable), nf1 for 1dp
+    // Threshold: unit value >= 100 → 0dp (e.g. 301.1K → 301K), else 1dp (e.g. 28.4K)
+    const makeAbbrev = (divisor, suffix) => {
+        const unit    = ['/', n, divisor];
+        const unitAbs = ['/', abs, divisor];
+        const fmt = ['case',
+            ['>=', unitAbs, 100], ['concat', nf0(unit), suffix],
+                                  ['concat', nf1(unit), suffix]];
+        console.log('[label abbrev] divisor:', divisor, 'suffix:', suffix, 'expr:', JSON.stringify(fmt).slice(0, 120));
+        return fmt;
+    };
+
+    // Years mode: treat 1000–9999 as years, show as plain integer without K
+    const kThreshold = (labelFmtYears && labelFmtAbbreviate) ? 1e4 : 1e3;
+
+    return ['case', isNum,
+        ['case',
+            ['>=', abs, 1e12], makeAbbrev(1e12, 'T'),
+            ['>=', abs, 1e9],  makeAbbrev(1e9,  'B'),
+            ['>=', abs, 1e6],  makeAbbrev(1e6,  'M'),
+            ['>=', abs, kThreshold], makeAbbrev(1e3, 'K'),
+            decExpr],
+        raw];
+}
+
 function updateLabels() {
     const layers = ['gv-labels', 'gv-labels-line'];
     if (labelProps.size === 0) {
         layers.forEach(l => { if (map.getLayer(l)) map.setLayoutProperty(l, 'text-field', ''); });
         updateLabelHint(); return;
     }
-    const parts = [...labelProps].map(key => ['coalesce', ['to-string', ['get', key]], '']);
+    const parts = [...labelProps].map(key => buildLabelValueExpr(key));
     let expr;
     if (parts.length === 1) {
         expr = parts[0];
@@ -5405,7 +5796,7 @@ function updateLabels() {
         const pieces = [];
         parts.forEach((p, i) => {
             if (i === 0) { pieces.push(p); }
-            else { pieces.push(['case', ['!=', p, ''], ['concat', '\n', p], '']); }
+            else { pieces.push(['case', ['!=', ['to-string', p], ''], ['concat', '\n', p], '']); }
         });
         expr = ['concat', ...pieces];
     }
@@ -5471,7 +5862,12 @@ let paletteFilterLo  = null; // user-set hard min (null = no filter)
 let paletteFilterHi  = null; // user-set hard max (null = no filter)
 let paletteFilterHide = false; // hide features outside filter range
 let filterHiddenIds = new Set();
-let _pendingDensityToast = null; // set by autoDetectLineDensity, consumed by load finish // tracks features hidden by palette filter (separate from user hiddenIds)
+let _pendingDensityToast = null;
+let pointSizeProp   = null;  // property driving point size scaling
+let pointSizeMin    = 3;     // min circle radius in px
+let pointSizeMax    = 12;    // max circle radius in px
+let pointSizeActive = false; // whether size-by-property is on
+let pointSizeLog    = false;  // use log scale for point size // set by autoDetectLineDensity, consumed by load finish // tracks features hidden by palette filter (separate from user hiddenIds)
 
 function updateFilterHideCountDisplay() {
     if (!paletteProp) return;
@@ -5706,6 +6102,111 @@ function renderNumericPanel(key, container) {
         if (histoDiv) renderHistogram(key, histoDiv);
         syncPopoutHistogram(key);
     });
+
+    // ── Size by property (points only) ──
+    const hasPoints = allFeatures.some(f => f.geometry?.type === 'Point' || f.geometry?.type === 'MultiPoint');
+    if (hasPoints) {
+        const pointsHeader = document.createElement('div');
+        pointsHeader.style.cssText = 'font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);padding:2px 0 1px;border-top:1px solid var(--border);margin-top:2px';
+        pointsHeader.textContent = 'Points';
+        panel.appendChild(pointsHeader);
+
+        const sizeRow = document.createElement('div');
+        sizeRow.className = 'numeric-clamp-row';
+        const sizeActive = pointSizeActive && pointSizeProp === key;
+        sizeRow.innerHTML = `<label style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--text-muted);cursor:pointer;white-space:nowrap">
+            <input type="checkbox" id="point-size-chk-${key}" style="cursor:pointer" ${sizeActive ? 'checked' : ''}>
+            <span>Size</span>
+        </label>
+        <span style="color:var(--text-muted);font-size:10px">min</span>
+        <input type="number" id="point-size-min-${key}" value="${sizeActive ? pointSizeMin : 3}" min="1" max="20" step="0.5"
+            style="width:40px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono);${sizeActive ? '' : 'opacity:0.45'}">
+        <span style="color:var(--text-muted);font-size:10px">–</span>
+        <span style="color:var(--text-muted);font-size:10px">max</span>
+        <input type="number" id="point-size-max-${key}" value="${sizeActive ? pointSizeMax : 12}" min="1" max="60" step="0.5"
+            style="width:40px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono);${sizeActive ? '' : 'opacity:0.45'}">
+        <span style="color:var(--text-muted);font-size:10px">px</span>
+        <button id="point-size-log-${key}" style="font-size:9px;padding:1px 5px;background:transparent;border:1px solid var(--border);border-radius:3px;cursor:pointer;color:var(--text-muted);${(sizeActive && pointSizeLog) ? 'background:var(--surface2);border-color:var(--accent);color:var(--accent)' : ''}" title="Logarithmic size scale — better for skewed distributions">Log</button>`;
+        panel.appendChild(sizeRow);
+
+        const sizeChk  = sizeRow.querySelector(`#point-size-chk-${key}`);
+        const sizeMinEl = sizeRow.querySelector(`#point-size-min-${key}`);
+        const sizeMaxEl = sizeRow.querySelector(`#point-size-max-${key}`);
+        const applyPointSize = () => {
+            pointSizeMin = parseFloat(document.getElementById(`point-size-min-${key}`)?.value) || 3;
+            pointSizeMax = parseFloat(document.getElementById(`point-size-max-${key}`)?.value) || 12;
+            console.log('[applyPointSize] active:', pointSizeActive, 'prop:', pointSizeProp, 'min:', pointSizeMin, 'max:', pointSizeMax);
+            updatePointRadius();
+            updateStylePanelBadges();
+        };
+        const setSizeEnabled = (enabled) => {
+            pointSizeActive = enabled;
+            pointSizeProp   = enabled ? key : null;
+            const opacity   = enabled ? '1' : '0.45';
+            sizeMinEl.style.opacity = opacity;
+            sizeMaxEl.style.opacity = opacity;
+            applyPointSize();
+        };
+        const sizeLogBtn = sizeRow.querySelector(`#point-size-log-${key}`);
+        sizeChk.addEventListener('change', () => setSizeEnabled(sizeChk.checked));
+        sizeMinEl.addEventListener('change', applyPointSize);
+        sizeMaxEl.addEventListener('change', applyPointSize);
+        if (sizeLogBtn) {
+            sizeLogBtn.addEventListener('click', () => {
+                pointSizeLog = !pointSizeLog;
+                sizeLogBtn.style.background     = pointSizeLog ? 'var(--surface2)' : 'transparent';
+                sizeLogBtn.style.borderColor    = pointSizeLog ? 'var(--accent)' : 'var(--border)';
+                sizeLogBtn.style.color          = pointSizeLog ? 'var(--accent)' : 'var(--text-muted)';
+                applyPointSize();
+            });
+        }
+    }
+
+    // ── Line data-driven effects (lines only) ──
+    const hasLines = allFeatures.some(f => f.geometry?.type === 'LineString' || f.geometry?.type === 'MultiLineString');
+    if (hasLines) {
+        const effectsHeader = document.createElement('div');
+        effectsHeader.style.cssText = 'font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);padding:2px 0 1px;border-top:1px solid var(--border);margin-top:2px';
+        effectsHeader.textContent = 'Lines';
+        panel.appendChild(effectsHeader);
+
+        // Blur row
+        // Opacity row
+        const opacRow = document.createElement('div');
+        opacRow.className = 'numeric-clamp-row';
+        const opacActive = lineOpacActive && lineOpacProp === key;
+        opacRow.innerHTML = `<label style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--text-muted);cursor:pointer;white-space:nowrap">
+            <input type="checkbox" id="line-opac-chk-${key}" style="cursor:pointer" ${opacActive ? 'checked' : ''}>
+            <span>Opacity</span>
+        </label>
+        <span style="color:var(--text-muted);font-size:10px">min</span>
+        <input type="number" id="line-opac-min-${key}" value="${opacActive ? lineOpacMin : 0.15}" min="0" max="1" step="0.05"
+            style="width:40px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono);${opacActive ? '' : 'opacity:0.45'}">
+        <span style="color:var(--text-muted);font-size:10px">–</span>
+        <span style="color:var(--text-muted);font-size:10px">max</span>
+        <input type="number" id="line-opac-max-${key}" value="${opacActive ? lineOpacMax : 1}" min="0" max="1" step="0.05"
+            style="width:40px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono);${opacActive ? '' : 'opacity:0.45'}">`;
+        panel.appendChild(opacRow);
+        const opacChk  = opacRow.querySelector(`#line-opac-chk-${key}`);
+        const opacMinEl = opacRow.querySelector(`#line-opac-min-${key}`);
+        const opacMaxEl = opacRow.querySelector(`#line-opac-max-${key}`);
+        const doOpac = () => {
+            lineOpacMin = parseFloat(document.getElementById(`line-opac-min-${key}`)?.value) ?? 0.15;
+            lineOpacMax = parseFloat(document.getElementById(`line-opac-max-${key}`)?.value) ?? 1;
+            console.log('[opac] active:', lineOpacActive, 'prop:', lineOpacProp, 'min:', lineOpacMin, 'max:', lineOpacMax);
+            applyLineOpacity();
+            updateStylePanelBadges();
+        };
+        opacChk.addEventListener('change', () => {
+            lineOpacActive = opacChk.checked;
+            lineOpacProp   = opacChk.checked ? key : null;
+            opacMinEl.style.opacity = opacChk.checked ? '1' : '0.45';
+            opacMaxEl.style.opacity = opacChk.checked ? '1' : '0.45';
+            doOpac();
+        });
+        opacMinEl.addEventListener('change', doOpac);
+        opacMaxEl.addEventListener('change', doOpac);
+    }
 
     // ── Clamp percentile sliders ──
     const clampRow = document.createElement('div');
@@ -6501,6 +7002,7 @@ function renderSidebar() {
             (hasHighlight ? ' has-highlight' : '') +
             (hasFilter    ? ' has-filter'    : '') +
             (hasExclude   ? ' has-exclude'   : '');
+        propEl.dataset.propKey = key;
 
         const cbWrap = document.createElement('span');
         cbWrap.className = 'label-cb';
@@ -7291,6 +7793,17 @@ document.getElementById('props-list').addEventListener('mouseenter', () => {
 document.getElementById('sidebar').addEventListener('mouseleave', clearPropTooltip);
 
 // ── STYLE SUBSECTION TOGGLES ──
+const _labelFmtDec = document.getElementById('label-fmt-decimals');
+const _labelFmtAbb = document.getElementById('label-fmt-abbreviate');
+const _labelFmtYrs = document.getElementById('label-fmt-years');
+if (_labelFmtDec) _labelFmtDec.addEventListener('change', e => { labelFmtDecimals   = e.target.checked; updateLabels(); });
+if (_labelFmtAbb) _labelFmtAbb.addEventListener('change', e => { labelFmtAbbreviate  = e.target.checked; updateLabels(); });
+if (_labelFmtYrs) _labelFmtYrs.addEventListener('change', e => { labelFmtYears       = e.target.checked; updateLabels(); });
+const _labelOverlap = document.getElementById('label-overlap');
+const _labelVarPlacement = document.getElementById('label-var-placement');
+if (_labelOverlap) _labelOverlap.addEventListener('change', e => { labelOverlap = e.target.checked; applyLabelLayout(); });
+if (_labelVarPlacement) _labelVarPlacement.addEventListener('change', e => { labelVarPlacement = e.target.checked; applyLabelLayout(); });
+
 document.querySelectorAll('.style-subsection-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
         const subId = 'sub-' + btn.dataset.sub;
@@ -7337,6 +7850,14 @@ document.getElementById('line-radius-pill').addEventListener('click', e => {
     document.querySelectorAll('#line-radius-pill .style-opt').forEach(o => o.classList.remove('active'));
     opt.classList.add('active');
     lineRadiusMode = opt.dataset.val;
+    applyLineStyle();
+});
+document.getElementById('line-style-pill').addEventListener('click', e => {
+    const opt = e.target.closest('.style-opt');
+    if (!opt) return;
+    document.querySelectorAll('#line-style-pill .style-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    lineStyleMode = opt.dataset.val;
     applyLineStyle();
 });
 document.getElementById('line-outline-pill').addEventListener('click', e => {
@@ -7474,7 +7995,6 @@ function switchBasemapTo(val) {
     map.setStyle(`https://api.protomaps.com/styles/v5/${val}/en.json?key=${PROTOMAPS_KEY}`);
 }
 
-let _basemapToastEl = null;
 function showBasemapSuggestion() {
     if (_basemapToastEl) { _basemapToastEl.remove(); _basemapToastEl = null; }
     const toast = document.createElement('div');
@@ -7675,11 +8195,12 @@ function resetAll() {
     pointStyle = 'hollow'; pointRadiusMode = 'density';
     document.querySelectorAll('#point-style-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'hollow'));
     document.querySelectorAll('#point-radius-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'density'));
-    lineWidthMode = 'thin'; lineRadiusMode = 'zoom'; lineOutlineMode = 'none'; lineDashMode = 'solid';
+    lineWidthMode = 'thin'; lineRadiusMode = 'zoom'; lineOutlineMode = 'none'; lineDashMode = 'solid'; lineStyleMode = 'solid';
     document.querySelectorAll('#line-width-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'thin'));
     document.querySelectorAll('#line-radius-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'zoom'));
     document.querySelectorAll('#line-outline-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'none'));
     document.querySelectorAll('#line-dash-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'solid'));
+    document.querySelectorAll('#line-style-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'solid'));
     polyFillMode = 'palette'; polyOutlineMode = 'grey'; polySizeMode = 'density'; polyWidthMode = 'thin';
     document.querySelectorAll('#poly-fill-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'palette'));
     document.querySelectorAll('#poly-outline-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'grey'));
