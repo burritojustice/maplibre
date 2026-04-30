@@ -699,6 +699,23 @@
         #welcome-box::-webkit-scrollbar { width: 4px; }
         #welcome-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
+        /* Mobile landscape: hide verbose content, prioritise action buttons */
+        @media (max-height: 500px) {
+            #welcome-modes { display: none !important; }
+            #welcome-drop-zone { display: none !important; }
+            #welcome-header p { display: none; }
+            #welcome-header { padding: 14px 16px 0; }
+            #welcome-header h1 { font-size: 16px; margin-bottom: 0; }
+            #welcome-actions { padding: 12px 16px 16px; gap: 8px; }
+            .welcome-btn { padding: 10px 12px; font-size: 12px; }
+            #welcome-geojson-menu { bottom: auto; top: calc(100% + 4px); max-height: 180px; }
+        }
+        /* Mobile portrait: single column actions */
+        @media (max-width: 400px) {
+            #welcome-actions { grid-template-columns: 1fr; }
+            #welcome-modes { grid-template-columns: 1fr; }
+        }
+
         #welcome-header {
             padding: 28px 28px 0;
         }
@@ -755,6 +772,10 @@
         #welcome-actions {
             display: grid; grid-template-columns: 1fr 1fr;
             gap: 10px; padding: 16px 28px 24px;
+            position: sticky; bottom: 0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            margin-top: auto;
         }
         .welcome-btn {
             font-family: var(--sans); font-size: 13px; font-weight: 500;
@@ -786,7 +807,11 @@
             display: none; position: absolute; bottom: calc(100% + 6px); left: 0; right: 0;
             background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 10;
-            max-height: 200px; overflow-y: auto; text-align: left;
+            max-height: 240px; overflow-y: auto; text-align: left;
+        }
+        /* On short screens (landscape mobile) open menu downward */
+        @media (max-height: 500px) {
+            #welcome-geojson-menu { bottom: auto; top: calc(100% + 4px); max-height: 160px; }
         }
         #welcome-geojson-menu.open { display: block; }
         #welcome-geojson-menu::-webkit-scrollbar { width: 4px; }
@@ -3458,13 +3483,16 @@ function pushHashState() {
         const ch  = paletteClampHigh !== 98  ? paletteClampHigh : '';
         parts.push(`numfilter=${encodeURIComponent(`${lo},${hi},${hid},${cl},${ch}`)}`);
     }
-    // Palette: prop::scheme, optionally ::r<offset> or ::p<i,j,k,...>
+    // Palette: prop::scheme, optionally ::r<offset> or ::p<i,j,k,...>, ::qRAMP for quantitative ramp
     if (paletteProp) {
         let variant = '';
         if (palettePerm && palettePerm.length) variant = `::p${palettePerm.join(',')}`;
         else if (paletteRotateOffset) variant = `::r${paletteRotateOffset}`;
         const spreadFlag = paletteSpread ? '::s' : '';
-        parts.push(`palette=${encodeURIComponent(`${paletteProp}::${paletteScheme}${variant}${spreadFlag}`)}`);
+        // Save quantitative ramp name when using quantitative schemes
+        const quantFlag = (paletteQuantScheme && ['linear','quantile','jenks'].includes(paletteScheme))
+            ? `::q${paletteQuantScheme}` : '';
+        parts.push(`palette=${encodeURIComponent(`${paletteProp}::${paletteScheme}${variant}${spreadFlag}${quantFlag}`)}`);
     }
     const c = map.getCenter();
     const z = map.getZoom();
@@ -3670,11 +3698,12 @@ async function restoreFromHash() {
                 paletteRotateOffset = 0;
                 palettePerm = null;
                 paletteSpread = false;
-                // Parse remaining segments — can be r/p variant and/or 's' spread flag
+                // Parse remaining segments — can be r/p variant, 's' spread flag, 'q' quant ramp
                 palParts.slice(2).forEach(segment => {
                     if (segment === 's') paletteSpread = true;
                     else if (segment.startsWith('r')) paletteRotateOffset = parseInt(segment.slice(1), 10) || 0;
                     else if (segment.startsWith('p')) palettePerm = segment.slice(1).split(',').map(Number);
+                    else if (segment.startsWith('q')) paletteQuantScheme = segment.slice(1);
                 });
                 paletteMap = buildPaletteMap(paletteProp, paletteScheme, paletteRotateOffset, palettePerm);
                 applyPaletteToLayers();
