@@ -972,7 +972,7 @@
             flex: 1; text-align: center; width: auto;
         }
         .action-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(110,231,183,0.06); }
-        #screenshot-btn { flex: 0 0 auto; padding: 4px 7px; }
+        #screenshot-btn, #svg-export-btn { flex: 0 0 auto; padding: 4px 7px; }
         #share-btn { display: none; }
         #share-btn.visible { display: block; }
 
@@ -1575,6 +1575,7 @@
         <button class="action-btn" id="bar-samples-btn" title="Browse sample datasets">↑ 📂</button>
         <button class="action-btn" id="reset-btn" onclick="resetAll()" title="Reset view and clear all selections"><span style="font-size:14px;vertical-align:middle;line-height:1">↻</span> Reset</button>
         <button class="action-btn" id="screenshot-btn" onclick="takeScreenshot()" title="Save map as PNG image">📷</button>
+        <button class="action-btn" id="svg-export-btn" onclick="exportSVG()" title="Export selected/filtered features as SVG vector">SVG</button>
         <button class="action-btn" id="share-btn" onclick="copyShareUrl()" title="Copy shareable URL to clipboard">⎘ Share</button>
     </div>
 </div>
@@ -2146,10 +2147,23 @@ function setupTileInteraction() {
 
             console.log(`[tile click] layer=${layerId} id=${f.id} geomType=${f.geometry.type}`, f.properties);
 
-            // Stable key: layer + featureId + rounded coords
-            // Use a separator unlikely to appear in layerId
+            // Stable key using geometry endpoints — tile-boundary-proof since OSM geometry
+            // coordinates are deterministic. Click position varies per tile instance.
             const fid = f.id != null ? String(f.id) : 'noid';
-            const geoKey = `${layerId}||${fid}||${e.lngLat.lng.toFixed(5)}||${e.lngLat.lat.toFixed(5)}`;
+            const _gc = f.geometry?.coordinates;
+            const _geoFingerprint = (() => {
+                if (!_gc) return `${e.lngLat.lng.toFixed(5)},${e.lngLat.lat.toFixed(5)}`;
+                if (f.geometry.type === 'LineString') {
+                    return `${_gc[0].join(',')}::${_gc[_gc.length - 1].join(',')}`;
+                }
+                if (f.geometry.type === 'MultiLineString') {
+                    const first = _gc[0], last = _gc[_gc.length - 1];
+                    return `${first[0].join(',')}::${last[last.length - 1].join(',')}`;
+                }
+                return `${e.lngLat.lng.toFixed(5)},${e.lngLat.lat.toFixed(5)}`;
+            })();
+            const geoKey = `${layerId}||${fid}||${_geoFingerprint}`;
+            console.log(`[tile click] geoKey=${geoKey}`);
 
             // Deselect: exact match on geometry-fingerprint key.
             // geoKey is derived from actual geometry endpoints (not click position),
@@ -2416,6 +2430,7 @@ function updateTileSelectionRow() {
 
     // Show bar when tile features selected OR a tile filter is active
     const tileBarActive = n > 0 || !!tileActiveFilter;
+
     if (tileBarActive && activeTab === 'map') {
         // Update visible/selected/hidden counts for tile mode context
         const totalVP = tileViewportFeatures.length;
@@ -8730,6 +8745,186 @@ function buildScreenshotFilename() {
         parts.push('screenshot');
         return parts.join('-') + '.png';
     }
+}
+
+function exportSVG() {
+    const canvas = map.getCanvas();
+    const W = canvas.width, H = canvas.height;
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+    function proj(coord) {
+        const pt = map.project({ lng: coord[0], lat: coord[1] });
+        return { x: +pt.x.toFixed(2), y: +pt.y.toFixed(2) };
+    }
+    function coordsToD(coords) {
+        return coords.map((c, i) => {
+            const { x, y } = proj(c);
+            return `${i === 0 ? 'M' : 'L'}${x},${y}`;
+        }).join(' ');
+    }
+    // Arc length in screen pixels — used to pick which ring to label
+    function arcLength(coords) {
+        let len = 0;
+        for (let i = 1; i < coords.length; i++) {
+            const a = proj(coords[i - 1]), b = proj(coords[i]);
+            len += Math.hypot(b.x - a.x, b.y - a.y);
+        }
+        return len;
+    }
+    function escXml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── collect features ──────────────────────────────────────────────────────
+    // FILE MODE: allFeatures exist → export visible (or selected if any)
+    // TILE MODE: tileSelected / tileActiveFilter / viewport fallback
+    let rawFeatures = []; // [{geometry, properties, id}]
+    let labelPropsList = [];
+    let isTileMode = false;
+
+    if (allFeatures && allFeatures.length > 0) {
+        // File mode
+        const hasSelection = selectedIds && selectedIds.size > 0;
+        rawFeatures = allFeatures.filter(f => {
+            if (!f.geometry) return false;
+            const id = f.properties?._gvid ?? f.id;
+            if (hasSelection) return selectedIds.has(id);
+            return !hiddenIds?.has(id);  // export all non-hidden
+        });
+        labelPropsList = [...(labelProps || [])];
+    } else {
+        // Tile mode
+        isTileMode = true;
+        labelPropsList = typeof tileLabelProps !== 'undefined' ? [...tileLabelProps] : [];
+        const seen = new Set();
+        const addF = f => {
+            if (!f?.geometry) return;
+            const key = `${f.layer?.['source-layer']}::${f.id}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            rawFeatures.push(f);
+        };
+        if (tileSelected.size > 0) {
+            tileSelected.forEach(({ feature }) => addF(feature));
+        } else if (tileActiveFilter) {
+            const { prop, value, mode } = tileActiveFilter;
+            tileViewportFeatures.forEach(f => {
+                const fval = String((f.properties || {})[prop] ?? '');
+                const match = fval === String(value);
+                if (mode === 'filter' ? match : mode === 'exclude' ? !match : true) addF(f);
+            });
+        } else {
+            tileViewportFeatures.forEach(f => { if (!isTileFeatureHidden(f)) addF(f); });
+        }
+    }
+
+    if (rawFeatures.length === 0) { alert('No features to export.'); return; }
+
+    // ── color resolution ──────────────────────────────────────────────────────
+    function featureColor(props) {
+        if (isTileMode && tilePaletteProp && tilePaletteMap) {
+            const c = tilePaletteMap[String(props[tilePaletteProp] ?? '')];
+            if (c) return c;
+        }
+        if (!isTileMode && paletteProp) {
+            // Quantitative: look up from paletteStops interpolation
+            if (paletteStops && paletteStops.length && props[paletteProp] != null) {
+                const val = parseFloat(props[paletteProp]);
+                if (!isNaN(val)) {
+                    const stops = paletteStops;
+                    if (val <= stops[0][0]) return stops[0][1];
+                    if (val >= stops[stops.length-1][0]) return stops[stops.length-1][1];
+                    for (let i = 1; i < stops.length; i++) {
+                        if (val <= stops[i][0]) return stops[i][1];
+                    }
+                }
+            }
+            // Categorical
+            if (paletteMap && props[paletteProp] != null) {
+                const c = paletteMap[String(props[paletteProp])];
+                if (c) return c;
+            }
+        }
+        return '#3b82f6';
+    }
+
+    // ── build SVG elements ────────────────────────────────────────────────────
+    const defs = [];    // <path> inside <defs> for textPath references
+    const paths = [];   // visible <path> strokes
+    const labels = [];  // <text> with <textPath> children
+    let pathId = 0;
+
+    rawFeatures.forEach(f => {
+        const geom = f.geometry;
+        const props = f.properties || {};
+        const color = featureColor(props);
+
+        const titleText = Object.entries(props)
+            .filter(([k]) => !k.startsWith('_'))
+            .map(([k, v]) => `${escXml(k)}: ${escXml(v)}`).join('&#10;');
+
+        const rings = geom.type === 'LineString'      ? [geom.coordinates]
+                    : geom.type === 'MultiLineString'  ? geom.coordinates
+                    : geom.type === 'Polygon'          ? [geom.coordinates[0]]
+                    : geom.type === 'MultiPolygon'     ? geom.coordinates.map(r => r[0])
+                    : [];
+        if (!rings.length) return;
+
+        const labelText = labelPropsList
+            .map(k => { const v = props[k]; return (v != null && v !== '') ? escXml(String(v)) : ''; })
+            .filter(Boolean).join(' · ');
+
+        // For labeling, pick the longest ring in screen-pixel arc length
+        let longestRing = rings[0], longestLen = 0;
+        rings.forEach(r => { const l = arcLength(r); if (l > longestLen) { longestLen = l; longestRing = r; } });
+
+        rings.forEach((coords, ri) => {
+            const d = coordsToD(coords);
+            const pid = `p${pathId++}`;
+
+            // Hidden path in <defs> so textPath can reference it
+            if (ri === 0 && labelText) defs.push(`  <path id="${pid}" d="${d}"/>`);
+
+            paths.push(
+                `  <path d="${d}" stroke="${color}" stroke-width="2" fill="none" ` +
+                `stroke-linecap="round" stroke-linejoin="round"><title>${titleText}</title></path>`
+            );
+
+            // Path-following label on the longest ring only
+            if (labelText && coords === longestRing) {
+                // Only label if the ring is long enough to be readable (> 60px)
+                if (longestLen > 60) {
+                    // startOffset 50% centers the label on the path
+                    labels.push(
+                        `  <text font-family="sans-serif" font-size="10" fill="${color}" ` +
+                        `paint-order="stroke" stroke="white" stroke-width="2.5" stroke-linejoin="round">` +
+                        `<textPath href="#${pid}" startOffset="50%" text-anchor="middle">${labelText}</textPath></text>`
+                    );
+                }
+            }
+        });
+    });
+
+    const svg = [
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`,
+        `  <defs>`,
+        ...defs,
+        `  </defs>`,
+        `  <rect width="${W}" height="${H}" fill="white"/>`,
+        ...paths,
+        ...labels,
+        `</svg>`
+    ].join('\n');
+
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const name = (typeof currentSourceName !== 'undefined' && currentSourceName)
+        ? currentSourceName.replace(/[^a-z0-9_-]/gi, '_')
+        : 'map-export';
+    a.download = `${name}.svg`;
+    a.click();
+    URL.revokeObjectURL(a.href);
 }
 
 function takeScreenshot() {
