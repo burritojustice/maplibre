@@ -635,10 +635,16 @@
             background: var(--surface); color: var(--text); font-weight: 500;
             box-shadow: inset 0 0 0 1px var(--border);
         }
-        /* Kind/kind_detail filter pills: yellow hover to signal "click to hide" */
-        #map-kind-filters .style-opt:hover,
-        #map-kind-detail-filters .style-opt:hover {
-            color: var(--yellow); background: rgba(251,191,36,0.08); opacity: 1 !important;
+        /* Kind/kind_detail filter pills */
+        /* Active pill (visible): red hover = "clicking will hide this" */
+        #map-kind-filters .kind-filter-pill.active:hover,
+        #map-kind-detail-filters .kind-filter-pill.active:hover {
+            color: var(--red) !important; background: rgba(255,77,109,0.08); opacity: 1 !important;
+        }
+        /* Hidden pill (inactive): yellow hover = "clicking will show this" */
+        #map-kind-filters .kind-filter-pill.kind-hidden:hover,
+        #map-kind-detail-filters .kind-filter-pill.kind-hidden:hover {
+            color: var(--yellow) !important; background: rgba(251,191,36,0.08); opacity: 1 !important;
         }
         .basemap-check {
             display: flex; align-items: center; gap: 4px;
@@ -2896,6 +2902,14 @@ let tilePinnedPopup = null;      // pinned popup for tile features (like frozenP
 let tilePinnedFeature = null;
 
 function isTileFeatureHidden(feature) {
+    // Check kind/kind_detail filter pills
+    if (tileKindFilter?.hiddenValues?.size > 0) {
+        const p = feature.properties || {};
+        const kindVal   = p.kind;
+        const detailVal = p.kind_detail;
+        if ((kindVal   && tileKindFilter.hiddenValues.has(kindVal)) ||
+            (detailVal && tileKindFilter.hiddenValues.has(detailVal))) return true;
+    }
     if (!tileActiveFilter) return false;
     const { prop, value, mode } = tileActiveFilter;
     const fval = String((feature.properties || {})[prop] ?? '');
@@ -3062,20 +3076,26 @@ function _buildKindPills(containerId, prop, counts) {
     entries.forEach(([val, count]) => {
         const btn = document.createElement('button');
         const isHidden = hidden.has(val);
-        btn.className = 'style-opt' + (isHidden ? '' : ' active');
+        btn.className = 'style-opt kind-filter-pill' + (isHidden ? ' kind-hidden' : ' active');
         btn.style.cssText = `font-size:9px;padding:1px 5px;opacity:${isHidden ? 0.35 : 1}`;
         btn.textContent = val;
-        btn.title = `${count.toLocaleString()} · click to hide`;
+        btn.title = isHidden
+            ? `${count.toLocaleString()} · click to show`
+            : `${count.toLocaleString()} · click to hide`;
         btn.addEventListener('click', () => {
             if (!tileKindFilter) tileKindFilter = { hiddenValues: new Set() };
             if (tileKindFilter.hiddenValues.has(val)) {
                 tileKindFilter.hiddenValues.delete(val);
                 btn.classList.add('active');
+                btn.classList.remove('kind-hidden');
                 btn.style.opacity = '1';
+                btn.title = `${count.toLocaleString()} · click to hide`;
             } else {
                 tileKindFilter.hiddenValues.add(val);
                 btn.classList.remove('active');
+                btn.classList.add('kind-hidden');
                 btn.style.opacity = '0.35';
+                btn.title = `${count.toLocaleString()} · click to show`;
             }
             if (tileKindFilter.hiddenValues.size === 0) tileKindFilter = null;
             updateHighlightOverlay();
