@@ -3828,7 +3828,10 @@ function pushHashState() {
         // Save quantitative ramp name when using quantitative schemes
         const quantFlag = (paletteQuantScheme && ['linear','quantile','jenks'].includes(paletteScheme))
             ? `::q${paletteQuantScheme}` : '';
-        parts.push(`palette=${encodeURIComponent(`${paletteProp}::${paletteScheme}${variant}${spreadFlag}${quantFlag}`)}`);
+        const revFlag   = paletteReversed ? '::rev' : '';
+        const logFlag   = paletteLogScale ? '::log' : '';
+        const stopsFlag = (paletteNumStops && paletteNumStops !== 7) ? `::n${paletteNumStops}` : '';
+        parts.push(`palette=${encodeURIComponent(`${paletteProp}::${paletteScheme}${variant}${spreadFlag}${quantFlag}${revFlag}${logFlag}${stopsFlag}`)}`);
     }
     const c = map.getCenter();
     const z = map.getZoom();
@@ -4037,6 +4040,9 @@ async function restoreFromHash() {
                 // Parse remaining segments — can be r/p variant, 's' spread flag, 'q' quant ramp
                 palParts.slice(2).forEach(segment => {
                     if (segment === 's') paletteSpread = true;
+                    else if (segment === 'rev') paletteReversed = true;
+                    else if (segment === 'log') paletteLogScale = true;
+                    else if (segment.startsWith('n')) paletteNumStops = parseInt(segment.slice(1), 10) || 7;
                     else if (segment.startsWith('r')) paletteRotateOffset = parseInt(segment.slice(1), 10) || 0;
                     else if (segment.startsWith('p')) palettePerm = segment.slice(1).split(',').map(Number);
                     else if (segment.startsWith('q')) paletteQuantScheme = segment.slice(1);
@@ -4506,7 +4512,7 @@ function ingestGeoJSON(geojson, filename, skipFit = false) {
     activeFilter = null; popupRowStates = {}; openPropKey = null; labelProps.clear();
     lastHoveredId = null; hoveredMapId = null;
     closeHistoPopout();
-    paletteProp = null; paletteMap = {}; paletteScheme = 'Set1'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false; paletteReversed = false; numericRangeFilter = null; numericTypeOverrides = {};
+    paletteProp = null; paletteMap = {}; paletteScheme = 'Set1'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false; paletteReversed = false; paletteLogScale = false; paletteNumStops = 7; paletteQuantScheme = 'YlOrRd'; numericRangeFilter = null; numericTypeOverrides = {};
     paletteFilterLo = null; paletteFilterHi = null; paletteFilterHide = false;
     paletteClampLow = 2; paletteClampHigh = 98; paletteStops = null;
     pointSizeActive = false; pointSizeProp = null; pointSizeMin = 3; pointSizeMax = 12; pointSizeLog = false;
@@ -8519,7 +8525,7 @@ function resetAll() {
     allFeatures = [];
     allMidpoints = [];
     midpointsCacheValid = false;
-    paletteProp = null; paletteMap = {}; paletteScheme = 'Set1'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false; paletteReversed = false; numericRangeFilter = null; numericTypeOverrides = {};
+    paletteProp = null; paletteMap = {}; paletteScheme = 'Set1'; paletteRotateOffset = 0; palettePerm = null; paletteSpread = false; paletteReversed = false; paletteLogScale = false; paletteNumStops = 7; paletteQuantScheme = 'YlOrRd'; numericRangeFilter = null; numericTypeOverrides = {};
     // Reset dots pill to Off
     dotsMode = 'off';
     document.querySelectorAll('.dots-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'off'));
