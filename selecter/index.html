@@ -635,6 +635,11 @@
             background: var(--surface); color: var(--text); font-weight: 500;
             box-shadow: inset 0 0 0 1px var(--border);
         }
+        /* Kind/kind_detail filter pills: yellow hover to signal "click to hide" */
+        #map-kind-filters .style-opt:hover,
+        #map-kind-detail-filters .style-opt:hover {
+            color: var(--yellow); background: rgba(251,191,36,0.08); opacity: 1 !important;
+        }
         .basemap-check {
             display: flex; align-items: center; gap: 4px;
             font-size: 12px; color: var(--text-muted); cursor: pointer;
@@ -1142,10 +1147,26 @@
                     <button class="sort-btn" id="map-sort-keys-btn">Count</button>
                     <button class="sort-btn active" id="map-sort-vals-btn">Values</button>
                     <button class="sort-btn" id="map-sort-alpha-btn">A–Z</button>
+                    <label style="display:inline-flex;align-items:center;gap:3px;font-size:9px;color:var(--text-muted);cursor:pointer;margin-left:4px;white-space:nowrap">
+                        <input type="checkbox" id="show-tile-boundaries" style="width:10px;height:10px"> grid
+                    </label>
+
                 </div>
             </div>
             <p id="map-panel-subtitle">Pan to a road network to see features</p>
-            <!-- Layer toggles -->
+            <!-- Kind filter pills: kind row -->
+            <div id="map-kind-filter-wrap" style="display:none;margin-bottom:2px">
+                <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
+                    <span style="font-size:9px;color:var(--text-muted);white-space:nowrap;text-transform:uppercase;letter-spacing:.05em">kind</span>
+                    <div id="map-kind-filters" style="display:flex;flex-wrap:wrap;gap:3px;flex:1"></div>
+                    <button id="map-kind-toggle-all" style="font-size:9px;color:var(--text-muted);background:none;border:none;cursor:pointer;white-space:nowrap;padding:0 2px" title="Show/hide all">all</button>
+                </div>
+                <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px">
+                    <span style="font-size:9px;color:var(--text-muted);white-space:nowrap;text-transform:uppercase;letter-spacing:.05em">detail</span>
+                    <div id="map-kind-detail-filters" style="display:flex;flex-wrap:wrap;gap:3px;flex:1"></div>
+                    <button id="map-kind-detail-toggle-all" style="font-size:9px;color:var(--text-muted);background:none;border:none;cursor:pointer;white-space:nowrap;padding:0 2px" title="Show/hide all">all</button>
+                </div>
+            </div>
             <div id="map-layer-toggles"></div>
             <!-- Mobile toggle -->
             <button id="map-panel-toggle" onclick="toggleMapPanel()">▼ Show Properties</button>
@@ -1754,7 +1775,19 @@ let tileInteractionEnabled = false; // only active when Map tab is selected
 
 map.once('style.load', () => {}); // placeholder — tile setup runs on 'load'
 
+// Track click/mousedown handlers so we can remove them before re-registering
+// on style reload (setStyle wipes layers but JS handlers persist on the map object)
+const _tileHandlers = []; // [{layerId, event, handler}]
+
+function removeTileHandlers() {
+    _tileHandlers.forEach(({ layerId, event, handler }) => {
+        try { map.off(event, layerId, handler); } catch {}
+    });
+    _tileHandlers.length = 0;
+}
+
 function setupTileInteraction() {
+    removeTileHandlers(); // remove stale handlers from previous style load
     const allLayers = map.getStyle().layers;
     const roadish = allLayers.filter(l =>
         ['roads','road','path','transit','bicycle','foot','walk','rail','ferry','route','physical'].some(x =>
@@ -1885,7 +1918,12 @@ function setupTileInteraction() {
     });
 
     function makeSegKey(layerId, coords) {
-        return `shift::${layerId}::${coords[0][0].toFixed(6)},${coords[0][1].toFixed(6)}::${coords[1][0].toFixed(6)},${coords[1][1].toFixed(6)}`;
+        // Use full unrounded coordinates as unique ID — avoids false matches from
+        // rounding, and handles MultiLineString features where many sub-segments share the same feature ID.
+        // coords[0] and coords[1] are the start/end of a 2-point sub-segment from extractNearestSegment.
+        const c0 = coords[0].join(',');
+        const c1 = coords[1].join(',');
+        return `shift::${layerId}::${c0}::${c1}`;
     }
 
     function updateHoverForEvent(e, decompose) {
@@ -1917,8 +1955,10 @@ function setupTileInteraction() {
         const layerId = layer.id;
         const sourceId = layer.source;
         const sourceLayer = layer['source-layer'];
+        const isCasing = layerId.includes('casing');
+        console.log(`[tile] registering handlers for layer=${layerId} sourceLayer=${sourceLayer} isCasing=${isCasing}`);
 
-        map.on('mousemove', layerId, (e) => {
+        const _mmHandler = (e) => {
             if (!tileInteractionEnabled) return;
             if (!enabledSourceLayers.has(sourceLayer)) return;
             const f = e.features && e.features[0];
@@ -1977,7 +2017,7 @@ function setupTileInteraction() {
                 `<div class="popup-inner">${rows}</div>` +
                 `<div class="popup-hint">${isSel ? 'Click to deselect' : shiftHeld ? '⇧ Shift+click to select sub-segment' : 'Click to select · ⇧ Shift for sub-segment'}</div>`
             ).setLngLat(e.lngLat).addTo(map);
-        });
+        };
 
         map.on('mouseleave', layerId, () => {
             if (!tileInteractionEnabled) return;
@@ -1990,10 +2030,14 @@ function setupTileInteraction() {
             map.getCanvas().style.cursor = '';
             hoverPopup.remove();
         });
+        map.on('mousemove', layerId, _mmHandler);
+        _tileHandlers.push({ layerId, event: 'mousemove', handler: _mmHandler });
 
-        map.on('mousedown', layerId, (e) => {
+        const _mdHandler = (e) => {
+            if (isCasing) return;
             if (!tileInteractionEnabled) return;
             if (!enabledSourceLayers.has(sourceLayer)) return;
+            if (_disabledLayers && _disabledLayers.has(layerId)) return;
             if (!e.originalEvent.shiftKey) return;
             e.preventDefault();
             const f = e.features && e.features[0];
@@ -2035,17 +2079,19 @@ function setupTileInteraction() {
             }
 
             // Case 2: check if this sub-segment is contained within an existing full/split selection
-            // Use coordinate-exact matching — the sub-segment coords came from getAllSegments()
-            // on the same tile geometry, so they will be bit-for-bit identical to the parent coords.
-            const fid = f.id != null ? String(f.id) : 'noid';
+            const fid2 = f.id != null ? String(f.id) : 'noid';
             let parentKey = null;
             for (const [k, v] of tileSelected) {
                 if (k.startsWith('shift::')) continue;
-                // Must be same feature id
-                if (String(v.tileId) !== fid) continue;
-                // Check coordinate-exact containment
+                // Require same layer to avoid false positives from overlapping casing/base layers
+                const kLayerId = k.split('||')[0];
+                const kFid = k.split('||')[1];
+                console.log(`[shift case2] checking k=${k} kLayerId=${kLayerId} layerId=${layerId} kFid=${kFid} fid2=${fid2}`);
+                if (kLayerId !== layerId) continue; // same layer only
                 if (segCoordsExistInGeometry(c, v.feature.geometry)) {
-                    parentKey = k; break;
+                    parentKey = k;
+                    console.log(`[shift case2] matched parent: ${k}`);
+                    break;
                 }
             }
 
@@ -2077,15 +2123,20 @@ function setupTileInteraction() {
             updateSelectOverlay();
             updateTileSelectionRow();
             hoverPopup.remove();
-        });
+        };
+        map.on('mousedown', layerId, _mdHandler);
+        _tileHandlers.push({ layerId, event: 'mousedown', handler: _mdHandler });
 
-        map.on('click', layerId, (e) => {
-            if (!tileInteractionEnabled) return;
-            if (!enabledSourceLayers.has(sourceLayer)) return;
+        const _clkHandler = (e) => {
+            if (isCasing) return; // casing layers handled by base layer
+            if (!tileInteractionEnabled) { console.log('[tile] click ignored: tileInteractionEnabled=false'); return; }
+            if (!enabledSourceLayers.has(sourceLayer)) { console.log('[tile] click ignored: sourceLayer not enabled:', sourceLayer, [...enabledSourceLayers]); return; }
+            if (_disabledLayers && _disabledLayers.has(layerId)) return;
+            if (tileKindFilter?.hiddenValues?.has(e.features?.[0]?.properties?.kind)) return; // kind filtered out
             if (e.originalEvent.shiftKey) return; // handled by mousedown above
             e.preventDefault();
             const f = e.features && e.features[0];
-            if (!f || !f.geometry) return;
+            if (!f || !f.geometry) { console.log('[tile] click: no feature'); return; }
 
             console.log(`[tile click] layer=${layerId} id=${f.id} geomType=${f.geometry.type}`, f.properties);
 
@@ -2094,14 +2145,19 @@ function setupTileInteraction() {
             const fid = f.id != null ? String(f.id) : 'noid';
             const geoKey = `${layerId}||${fid}||${e.lngLat.lng.toFixed(5)}||${e.lngLat.lat.toFixed(5)}`;
 
-            // Deselect: match any full-selection entry (|| key) for this layer + featureId.
-            // No proximity threshold — featureId is stable, don't need click coords to match.
+            // Deselect: match by layer + featureId + coordinate proximity.
+            // Pure fid match is wrong for long roads (same OSM ID, multiple tile segments)
+            // clicking segment B would deselect segment A. Use 0.0005° (~50m) proximity.
             let existingKey = null;
+            const clickLng = e.lngLat.lng, clickLat = e.lngLat.lat;
             for (const [k] of tileSelected) {
                 if (k.startsWith('shift::')) continue;
                 const parts = k.split('||');
                 if (parts.length !== 4) continue;
-                if (parts[0] === layerId && parts[1] === fid) { existingKey = k; break; }
+                if (parts[0] !== layerId || parts[1] !== fid) continue;
+                const dLng = Math.abs(parseFloat(parts[2]) - clickLng);
+                const dLat = Math.abs(parseFloat(parts[3]) - clickLat);
+                if (dLng < 0.005 && dLat < 0.005) { existingKey = k; break; }
             }
 
             if (existingKey) {
@@ -2120,7 +2176,9 @@ function setupTileInteraction() {
             updateSelectOverlay();
             updateTileSelectionRow();
             hoverPopup.remove();
-        });
+        };
+        map.on('click', layerId, _clkHandler);
+        _tileHandlers.push({ layerId, event: 'click', handler: _clkHandler });
     });
 }
 
@@ -2218,9 +2276,15 @@ function updateHighlightOverlay() {
 
     // Build feature list respecting current filter
     let visibleFeatures;
+    // Apply kind filter: exclude hidden kinds from highlight
+    const _kindHidden = tileKindFilter?.hiddenValues;
+    const _kindProp = 'kind';
+
     if (!tileActiveFilter) {
-        try { map.setPaintProperty('tile-highlight-line', 'line-color', '#3b82f6'); } catch {}
-        visibleFeatures = tileViewportFeatures;
+        applyTilePalette();
+        visibleFeatures = _kindHidden && _kindHidden.size > 0
+            ? tileViewportFeatures.filter(f => !_kindHidden.has(f.properties?.[_kindProp]))
+            : tileViewportFeatures;
         const feats = visibleFeatures.map(f => ({ type: 'Feature', geometry: f.geometry, properties: f.properties || {} }));
         if (feats.length > 0) {
             const sample = feats[0].properties;
@@ -2233,6 +2297,7 @@ function updateHighlightOverlay() {
         const noMatchColor = '#3b82f6';
 
         const features = tileViewportFeatures
+            .filter(f => !(_kindHidden && _kindHidden.size > 0 && _kindHidden.has(f.properties?.[_kindProp])))
             .filter(f => {
                 const fval = String((f.properties || {})[prop] ?? '');
                 const matches = fval === String(value);
@@ -2336,8 +2401,22 @@ function pointToSegmentDistSq(p, a, b) {
 
 function updateTileSelectionRow() {
     const n = tileSelected.size;
-    document.getElementById('tile-num').textContent = n.toLocaleString();
-    document.getElementById('tile-row').style.display = n > 0 ? 'grid' : 'none';
+    const tileRowN = n > 0 ? n : (tileActiveFilter ? (() => {
+        // Count unique visible features under the current filter for the button label
+        const seen = new Set();
+        tileViewportFeatures.forEach(f => {
+            const val = String((f.properties || {})[tileActiveFilter.prop] ?? '');
+            const match = val === String(tileActiveFilter.value);
+            if ((tileActiveFilter.mode === 'filter' && match) ||
+                (tileActiveFilter.mode === 'highlight' && true) ||
+                (tileActiveFilter.mode === 'exclude' && !match)) {
+                seen.add(`${f.layer?.['source-layer']}::${f.id}`);
+            }
+        });
+        return seen.size;
+    })() : 0);
+    document.getElementById('tile-num').textContent = tileRowN.toLocaleString();
+    document.getElementById('tile-row').style.display = (n > 0 || !!tileActiveFilter) ? 'grid' : 'none';
 
     // Show bar when tile features selected OR a tile filter is active
     const tileBarActive = n > 0 || !!tileActiveFilter;
@@ -2386,6 +2465,53 @@ function updateTileSelectionRow() {
 }
 
 function addTileSelectionToLayer() {
+    // If no manually selected features, fall back to filter-mode visible features
+    if (tileSelected.size === 0 && tileActiveFilter) {
+        const { prop, value, mode } = tileActiveFilter;
+        const seen = new Set();
+        const filtered = tileViewportFeatures.filter(f => {
+            const key = `${f.layer?.['source-layer']}::${f.id}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            const fval = String((f.properties || {})[prop] ?? '');
+            const match = fval === String(value);
+            return mode === 'filter' ? match : mode === 'exclude' ? !match : true;
+        });
+        if (filtered.length === 0) { alert('No features match the current filter.'); return; }
+        // Bootstrap empty layer if needed
+        if (!map.getSource('geojson-data')) {
+            ingestGeoJSON({ type: 'FeatureCollection', features: [] }, 'map-selection', true);
+        }
+        let added = 0;
+        filtered.forEach(f => {
+            const layerId = f.layer?.id || '';
+            const geomStr = JSON.stringify(f.geometry?.coordinates);
+            const alreadyAdded = allFeatures.some(existing =>
+                existing.properties._source_layer === layerId &&
+                JSON.stringify(existing.geometry.coordinates) === geomStr
+            );
+            if (alreadyAdded || !f.geometry) return;
+            const newId = allFeatures.length;
+            allFeatures.push({
+                type: 'Feature', id: newId,
+                geometry: f.geometry,
+                properties: { ...f.properties, _gvid: newId, _tile_id: String(f.id), _source_layer: layerId }
+            });
+            added++;
+        });
+        if (added === 0) { alert('All filtered features are already in the layer.'); return; }
+        map.getSource('geojson-data').setData({ type: 'FeatureCollection', features: allFeatures });
+        allFeatures.slice(-added).forEach(f => {
+            const id = f.properties._gvid;
+            selectedIds.add(id);
+            map.setFeatureState({ source: 'geojson-data', id }, { selected: true });
+        });
+        tileActiveFilter = null; tileValueStates = {};
+        buildPropData(); renderSidebar(); updateSelectionBar(); updateTileSelectionRow();
+        if (!currentSourceName) currentSourceName = 'map-selection';
+        return;
+    }
+
     if (tileSelected.size === 0) return;
 
     // Bootstrap empty layer if nothing loaded yet
@@ -2726,6 +2852,11 @@ function switchTab(tab) {
 let mapSortMode = 'vals'; // 'keys' | 'vals' | 'alpha'
 let mapSortDir  = -1;     // -1 = desc, 1 = asc
 let enabledSourceLayers = new Set();
+let _disabledLayers = null;      // Set of layerIds disabled via category pill
+let tilePaletteProp = null;      // property driving tile highlight coloring
+let tilePaletteScheme = 'Set1'; // colorbrewer scheme for tile palette
+let tilePaletteMap = {};         // value → color for active tile property
+let tileKindFilter = null;       // {prop, hiddenValues: Set} for kind-based visibility
 let allRoadLayers = [];
 let tileActiveFilter = null;
 let tileValueStates = {};
@@ -2821,8 +2952,49 @@ function buildTilePropData(features) {
     return pd;
 }
 
+function setTileBoundaries(show) {
+    const sourceId = 'tile-boundary-debug';
+    const layerId  = 'tile-boundary-debug-layer';
+    if (show) {
+        if (!map.getSource(sourceId)) {
+            map.addSource(sourceId, {
+                type: 'raster',
+                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],  // placeholder — use debug source
+                tileSize: 256
+            });
+        }
+        // Actually use MapLibre's built-in debug tiles via a custom layer approach
+        // Simpler: add a fill layer on tile grid using a well-known tiles endpoint
+        // Best approach: use map.showTileBoundaries
+        map.showTileBoundaries = show;
+        // maplibre-gl exposes this as a map option but not a method — use the painter directly
+        if (map.painter) map.painter.options = map.painter.options || {};
+        if (show) {
+            map._showTileBoundaries = true;
+            map.getCanvas().setAttribute('data-tile-boundaries', '1');
+        } else {
+            map._showTileBoundaries = false;
+            map.getCanvas().removeAttribute('data-tile-boundaries');
+        }
+        // The cleanest way: set the map option directly
+        if (map.getStyle) {
+            map._setTransitionState && map._setTransitionState('tile-boundaries', show);
+        }
+    }
+    // MapLibre GL supports this via map.showTileBoundaries property
+    try { map.showTileBoundaries = show; } catch {}
+}
+
+document.addEventListener('change', e => {
+    if (e.target.id === 'show-tile-boundaries') {
+        try { map.showTileBoundaries = e.target.checked; } catch(err) { console.log('[tile-bounds]', err); }
+    }
+
+});
+
 function populateMapLayerList(roadLayers) {
     allRoadLayers = roadLayers || [];
+    enabledSourceLayers.clear(); // reset before re-populating
     const el = document.getElementById('map-layer-toggles');
     if (!allRoadLayers.length) {
         el.innerHTML = '<span style="color:var(--text-muted);font-size:11px">No layers found.</span>';
@@ -2843,6 +3015,10 @@ function populateMapLayerList(roadLayers) {
         </label>`
     ).join('');
 
+    console.log('[tile] enabledSourceLayers after populate:', [...enabledSourceLayers]);
+
+
+
     // Wire up checkboxes
     el.querySelectorAll('input[type=checkbox]').forEach(cb => {
         cb.addEventListener('change', () => {
@@ -2857,6 +3033,105 @@ function populateMapLayerList(roadLayers) {
             }
         });
     });
+}
+
+function buildTilePaletteExpr(prop) {
+    // Build a MapLibre match expression coloring tile features by prop value
+    if (!prop || !tilePaletteMap || Object.keys(tilePaletteMap).length === 0) return '#3b82f6';
+    const expr = ['match', ['to-string', ['get', prop]]];
+    Object.entries(tilePaletteMap).forEach(([val, color]) => {
+        expr.push(String(val), color);
+    });
+    expr.push('#888888'); // fallback for unrecognized values
+    return expr;
+}
+
+function applyTilePalette() {
+    if (!map.getSource('tile-highlight-overlay')) return;
+    if (tilePaletteProp) {
+        const expr = buildTilePaletteExpr(tilePaletteProp);
+        try { map.setPaintProperty('tile-highlight-line', 'line-color', expr); } catch {}
+    } else {
+        // Reset to active filter color or default blue
+        const col = !tileActiveFilter ? '#3b82f6'
+            : tileActiveFilter.mode === 'highlight' ? '#6ee7b7'
+            : tileActiveFilter.mode === 'filter'    ? '#fbbf24'
+            : '#ff4d6d';
+        try { map.setPaintProperty('tile-highlight-line', 'line-color', col); } catch {}
+    }
+}
+
+// tileKindFilter: { hiddenValues: Set } — values from kind OR kind_detail that are hidden
+function _buildKindPills(containerId, prop, counts) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    if (entries.length === 0) { el.innerHTML = ''; return; }
+    const hidden = tileKindFilter?.hiddenValues || new Set();
+    el.innerHTML = '';
+    entries.forEach(([val, count]) => {
+        const btn = document.createElement('button');
+        const isHidden = hidden.has(val);
+        btn.className = 'style-opt' + (isHidden ? '' : ' active');
+        btn.style.cssText = `font-size:9px;padding:1px 5px;opacity:${isHidden ? 0.35 : 1}`;
+        btn.textContent = val;
+        btn.title = `${count.toLocaleString()} · click to hide`;
+        btn.addEventListener('click', () => {
+            if (!tileKindFilter) tileKindFilter = { hiddenValues: new Set() };
+            if (tileKindFilter.hiddenValues.has(val)) {
+                tileKindFilter.hiddenValues.delete(val);
+                btn.classList.add('active');
+                btn.style.opacity = '1';
+            } else {
+                tileKindFilter.hiddenValues.add(val);
+                btn.classList.remove('active');
+                btn.style.opacity = '0.35';
+            }
+            if (tileKindFilter.hiddenValues.size === 0) tileKindFilter = null;
+            updateHighlightOverlay();
+            updateTileSelectionRow();
+        });
+        el.appendChild(btn);
+    });
+}
+
+function _wireToggleAll(btnId, containerId, counts) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.onclick = () => {
+        const vals = Object.keys(counts);
+        const hidden = tileKindFilter?.hiddenValues || new Set();
+        const allHidden = vals.every(v => hidden.has(v));
+        if (allHidden) {
+            // show all: remove from hidden
+            if (tileKindFilter) vals.forEach(v => tileKindFilter.hiddenValues.delete(v));
+            if (tileKindFilter?.hiddenValues.size === 0) tileKindFilter = null;
+        } else {
+            // hide all
+            if (!tileKindFilter) tileKindFilter = { hiddenValues: new Set() };
+            vals.forEach(v => tileKindFilter.hiddenValues.add(v));
+        }
+        updateHighlightOverlay();
+        updateTileSelectionRow();
+        renderTileKindFilters();
+    };
+}
+
+function renderTileKindFilters() {
+    const wrap = document.getElementById('map-kind-filter-wrap');
+    // Build counts per prop
+    const kindCounts = {}, detailCounts = {};
+    tileViewportFeatures.forEach(f => {
+        const p = f.properties || {};
+        if (p.kind) kindCounts[p.kind] = (kindCounts[p.kind] || 0) + 1;
+        if (p.kind_detail) detailCounts[p.kind_detail] = (detailCounts[p.kind_detail] || 0) + 1;
+    });
+    const hasAny = Object.keys(kindCounts).length > 0 || Object.keys(detailCounts).length > 0;
+    if (wrap) wrap.style.display = hasAny ? '' : 'none';
+    _buildKindPills('map-kind-filters', 'kind', kindCounts);
+    _buildKindPills('map-kind-detail-filters', 'kind_detail', detailCounts);
+    _wireToggleAll('map-kind-toggle-all', 'map-kind-filters', kindCounts);
+    _wireToggleAll('map-kind-detail-toggle-all', 'map-kind-detail-filters', detailCounts);
 }
 
 function renderMapPanel() {
@@ -2883,6 +3158,7 @@ function renderMapPanel() {
 
     const nViewport = tileViewportFeatures.length;
     const nSelected = tileSelected.size;
+    renderTileKindFilters();
 
     if (nViewport === 0) {
         subtitleEl.textContent = 'No features in viewport';
@@ -2945,8 +3221,12 @@ function renderMapPanel() {
             const stateKey = `${k}::${v}`;
             const st = tileValueStates[stateKey] || 0;
             const cls = st > 0 ? valClass[['', 'highlight', 'filter', 'exclude'][st]] : '';
+            const palColor = (tilePaletteProp === k) ? tilePaletteMap[String(v)] : null;
+            const dot = palColor
+                ? `<span style="width:7px;height:7px;border-radius:50%;background:${palColor};flex-shrink:0;display:inline-block;margin-right:5px"></span>`
+                : '';
             return `<div class="map-val-item ${cls}" data-prop="${escHtml(k)}" data-val="${escHtml(v)}">
-                <span class="map-prop-key">${escHtml(v)}</span>
+                ${dot}<span class="map-prop-key">${escHtml(v)}</span>
                 <span class="map-prop-count">${c.toLocaleString()}</span>
             </div>`;
         }).join('');
@@ -2964,12 +3244,21 @@ function renderMapPanel() {
         }
 
         const isLabeled = tileLabelProps.has(k);
+        // Palette swatch for this property
+        const isPalActive = tilePaletteProp === k;
+        const palColors = isPalActive ? Object.values(tilePaletteMap).slice(0, 5) : [];
+        const palSwatch = isPalActive
+            ? palColors.map(c => `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${c};margin-right:1px"></span>`).join('')
+            : '';
+        const palBtn = `<button class="mpg-palette-btn${isPalActive ? ' active' : ''}" data-pal-key="${escHtml(k)}" title="${isPalActive ? 'Clear palette' : 'Color by ' + escHtml(displayKey)}" style="background:transparent;border:none;cursor:pointer;font-size:9px;padding:0 3px;color:${isPalActive ? 'var(--accent)' : 'var(--text-muted)'}">${isPalActive ? palSwatch + '✕' : '◉'}</button>`;
+
         const groupHtml = `<div class="map-prop-group ${activeOnKey}${isCollapsed ? ' collapsed' : ''}" data-group-key="${escHtml(k)}">
             <span class="mpg-left">
                 <input type="checkbox" class="mpg-cb" data-label-key="${escHtml(k)}" ${isLabeled ? 'checked' : ''} title="Label features by ${escHtml(displayKey)}">
                 <span>${escHtml(displayKey)}</span>
             </span>
             <span class="mpg-right">
+                ${palBtn}
                 <span class="mpg-count" title="${badgeTip}">${badgeVal.toLocaleString()}${tilePctHtml}</span>
                 <span class="mpg-arrow">▾</span>
             </span>
@@ -2986,6 +3275,24 @@ function renderMapPanel() {
             updateSelectOverlay(); updateTileSelectionRow();
         };
     }
+}
+
+// ── TILE PALETTE HELPERS ──
+function activateTilePalette(prop) {
+    const pd = tileViewportPropData[prop];
+    if (!pd) { tilePaletteProp = null; tilePaletteMap = {}; applyTilePalette(); renderMapPanel(); return; }
+    // Always treat as categorical: sort by frequency, assign colors to top-N distinct values
+    const entries = Object.entries(pd.valueCounts).sort((a, b) => b[1] - a[1]);
+    const n = Math.min(entries.length, 12);
+    const colors = getPaletteColors(tilePaletteScheme).slice(0, n);
+    tilePaletteMap = {};
+    entries.slice(0, n).forEach(([val], i) => {
+        // Key as string to match MapLibre's ['get', prop] behavior for both strings and numbers
+        tilePaletteMap[String(val)] = colors[i % colors.length];
+    });
+    tilePaletteProp = prop;
+    applyTilePalette();
+    renderMapPanel();
 }
 
 // ── MAP PANEL EVENT DELEGATION ──
@@ -3011,6 +3318,19 @@ document.getElementById('map-props-list').addEventListener('change', e => {
 
 // Click delegation — collapse groups and cycle value filters
 document.getElementById('map-props-list').addEventListener('click', e => {
+    // Palette button
+    const palBtn = e.target.closest('.mpg-palette-btn');
+    if (palBtn) {
+        e.stopPropagation();
+        const key = palBtn.dataset.palKey;
+        if (tilePaletteProp === key) {
+            tilePaletteProp = null; tilePaletteMap = {};
+            applyTilePalette(); renderMapPanel();
+        } else {
+            activateTilePalette(key);
+        }
+        return;
+    }
     // If click is inside the mpg-right span (count badge, checkbox, arrow), only handle the arrow
     if (e.target.closest('.mpg-cb')) return; // checkbox handled by change event above
 
@@ -3018,8 +3338,14 @@ document.getElementById('map-props-list').addEventListener('click', e => {
     const group = e.target.closest('.map-prop-group');
     if (group && group.dataset.groupKey) {
         const k = group.dataset.groupKey;
-        if (openPropGroups.has(k)) openPropGroups.delete(k);
-        else openPropGroups.add(k);
+        if (openPropGroups.has(k)) {
+            openPropGroups.delete(k);
+            // Don't auto-clear palette when collapsing
+        } else {
+            openPropGroups.add(k);
+            // Auto-activate palette when opening a prop group
+            if (k !== tilePaletteProp) activateTilePalette(k);
+        }
         renderMapPanel();
         return;
     }
