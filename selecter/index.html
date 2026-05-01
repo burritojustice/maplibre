@@ -1554,7 +1554,7 @@
     <div class="bar-row">
         <span class="stat-num green" id="vis-num">0</span>
         <span class="stat-label">visible</span>
-        <button class="bar-btn" id="save-visible-btn" title="Save visible (non-hidden) features as GeoJSON">⬇ Save Visible</button>
+        <button class="bar-btn" id="save-visible-btn" title="Save all visible features as GeoJSON">⬇ Export</button>
     </div>
     <!-- row 3: hidden · clear -->
     <div class="bar-row">
@@ -2145,20 +2145,10 @@ function setupTileInteraction() {
             const fid = f.id != null ? String(f.id) : 'noid';
             const geoKey = `${layerId}||${fid}||${e.lngLat.lng.toFixed(5)}||${e.lngLat.lat.toFixed(5)}`;
 
-            // Deselect: match by layer + featureId + coordinate proximity.
-            // Pure fid match is wrong for long roads (same OSM ID, multiple tile segments)
-            // clicking segment B would deselect segment A. Use 0.0005° (~50m) proximity.
-            let existingKey = null;
-            const clickLng = e.lngLat.lng, clickLat = e.lngLat.lat;
-            for (const [k] of tileSelected) {
-                if (k.startsWith('shift::')) continue;
-                const parts = k.split('||');
-                if (parts.length !== 4) continue;
-                if (parts[0] !== layerId || parts[1] !== fid) continue;
-                const dLng = Math.abs(parseFloat(parts[2]) - clickLng);
-                const dLat = Math.abs(parseFloat(parts[3]) - clickLat);
-                if (dLng < 0.005 && dLat < 0.005) { existingKey = k; break; }
-            }
+            // Deselect: exact match on geometry-fingerprint key.
+            // geoKey is derived from actual geometry endpoints (not click position),
+            // so the same OSM way appearing in adjacent tiles produces identical keys.
+            const existingKey = tileSelected.has(geoKey) ? geoKey : null;
 
             if (existingKey) {
                 console.log(`[tile click] deselecting ${existingKey}`);
@@ -2455,7 +2445,7 @@ function updateTileSelectionRow() {
         document.getElementById('sel-num').textContent = n.toLocaleString();
         document.getElementById('vis-num').textContent = visCount.toLocaleString();
         document.getElementById('hid-num').textContent = hidCount.toLocaleString();
-        document.getElementById('save-visible-btn').style.visibility = hidCount > 0 ? 'visible' : 'hidden';
+        document.getElementById('save-visible-btn').style.visibility = (hidCount > 0 || allFeatures.length > 0) ? 'visible' : 'hidden';
     }
 
     const barVisible = tileBarActive || allFeatures.length > 0;
@@ -4517,7 +4507,7 @@ function ingestGeoJSON(geojson, filename, skipFit = false) {
     document.querySelectorAll('#line-dash-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'solid'));
     document.querySelectorAll('#line-style-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'solid'));
     updateLabelHint();
-    document.getElementById('save-visible-btn').style.visibility = 'hidden';
+    document.getElementById('save-visible-btn').style.visibility = 'hidden'; // no features after reset
     if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
     hoverPopup.remove();
     updateSelectionBar();
@@ -8406,7 +8396,7 @@ function updateSelectionBar() {
     requestAnimationFrame(positionSidebar);
 
     // Save Visible only useful when something is hidden
-    document.getElementById('save-visible-btn').style.visibility = numHidden > 0 ? 'visible' : 'hidden';
+    document.getElementById('save-visible-btn').style.visibility = (numHidden > 0 || allFeatures.length > 0) ? 'visible' : 'hidden';
 
     // Filter status row — shows mode hint or clickable active filter tag
     const statusHint = document.getElementById('filter-status-hint');
