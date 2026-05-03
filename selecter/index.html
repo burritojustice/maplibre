@@ -305,6 +305,15 @@
             white-space: nowrap;
         }
         .sort-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(110,231,183,0.08); }
+        /* Data-driven line width categorical list */
+        .lwdp-cat-row { display:flex;align-items:center;gap:5px;padding:2px 4px;border-radius:3px;cursor:grab;user-select:none;background:var(--surface);border:1px solid transparent }
+        .lwdp-cat-row:hover { border-color:var(--border) }
+        .lwdp-cat-row.dragging { opacity:0.4 }
+        .lwdp-cat-row.drag-over { border-color:var(--accent) }
+        .lwdp-cat-handle { font-size:10px;color:var(--text-muted);opacity:.5;cursor:grab }
+        .lwdp-cat-label { font-size:10px;color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
+        .lwdp-cat-bar { height:3px;border-radius:2px;background:var(--accent);min-width:2px;max-width:60px }
+        .lwdp-cat-px { width:36px;font-size:9px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text-muted);padding:1px 2px;text-align:center }
         /* Background layer list — styled like style-panel */
         #bg-layer-list { flex-shrink:0; }
         #bg-panel-toggle { width:100%;display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--surface2);border:none;border-top:1px solid var(--border);cursor:pointer;font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);transition:color .15s }
@@ -1337,6 +1346,36 @@
                             <button class="style-opt active" data-val="thin" title="Thin lines (1–2px)">Thin</button>
                             <button class="style-opt" data-val="medium" title="Medium lines (2–4px)">Mid</button>
                             <button class="style-opt" data-val="thick" title="Thick lines (3–6px)">Thick</button>
+                            <button class="style-opt" data-val="by-prop" title="Width driven by a numeric property">123</button>
+                            <button class="style-opt" data-val="by-value" title="Width driven by a categorical property">ABC</button>
+                        </div>
+                        <div id="line-width-data-panel" style="display:none;padding:6px 0 2px;display:none">
+                            <div id="lwdp-quant" style="display:none">
+                                <div style="display:flex;align-items:center;gap:6px;padding:2px 0 4px">
+                                    <span class="style-section-label" style="flex:0 0 auto">Prop</span>
+                                    <select id="lwdp-prop-select" style="flex:1;font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text-muted);padding:1px 3px"></select>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:6px;padding:2px 0">
+                                    <span class="style-section-label" style="flex:0 0 auto">Min px</span>
+                                    <input type="number" id="lwdp-min" value="0.5" min="0.1" max="10" step="0.5" style="width:44px;font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text-muted);padding:1px 3px">
+                                    <span class="style-section-label" style="flex:0 0 auto">Max px</span>
+                                    <input type="number" id="lwdp-max" value="3" min="0.5" max="20" step="0.5" style="width:44px;font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text-muted);padding:1px 3px">
+                                    <button id="lwdp-log" class="style-opt" style="font-size:9px;padding:1px 5px" title="Log scale">Log</button>
+                                </div>
+                            </div>
+                            <div id="lwdp-cat" style="display:none">
+                                <div style="display:flex;align-items:center;gap:6px;padding:2px 0 4px">
+                                    <span class="style-section-label" style="flex:0 0 auto">Prop</span>
+                                    <select id="lwdp-cat-prop-select" style="flex:1;font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text-muted);padding:1px 3px"></select>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:6px;padding:2px 0 4px">
+                                    <span class="style-section-label" style="flex:0 0 auto">Range</span>
+                                    <input type="number" id="lwdp-cat-min" value="0.5" min="0.1" max="10" step="0.5" style="width:40px;font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text-muted);padding:1px 3px" title="Min width px">
+                                    <span style="font-size:9px;color:var(--text-muted)">–</span>
+                                    <input type="number" id="lwdp-cat-max" value="3" min="0.5" max="20" step="0.5" style="width:40px;font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text-muted);padding:1px 3px" title="Max width px">
+                                </div>
+                                <div id="lwdp-cat-list" style="display:flex;flex-direction:column;gap:2px;max-height:180px;overflow-y:auto;padding:2px 0"></div>
+                            </div>
                         </div>
                     </div>
                     <div class="style-section">
@@ -1820,7 +1859,14 @@ let allMidpoints = []; // cached midpoint features, computed lazily when dots fi
 let midpointsCacheValid = false; // invalidated on new file load or filter changes
 let pointStyle = 'hollow'; // 'hollow' | 'filled' | 'outlined' | 'outline'
 let pointRadiusMode = 'density'; // 'density' | 'zoom'
-let lineWidthMode = 'thin';   // 'thin' | 'medium' | 'thick'
+let lineWidthMode = 'thin';
+let lineWidthProp = null;       // property used for data-driven width
+let lineWidthMin = 0.5;         // min px for quantitative range
+let lineWidthMax = 3;           // max px for quantitative range
+let lineWidthLog = false;       // log scale for quantitative
+let lineWidthCatOrder = [];     // [{value, width}] for categorical, user-ordered
+let lineWidthCatMin = 0.5;      // min px for categorical spread
+let lineWidthCatMax = 3;        // max px for categorical spread   // 'thin' | 'medium' | 'thick'
 let lineRadiusMode = 'zoom';  // 'zoom' | 'fixed' | 'density'
 let lineOutlineMode = 'none'; // 'none' | 'light' | 'grey' | 'dark'
 let lineStyleMode   = 'solid'; // 'solid' | 'ghost'
@@ -2581,7 +2627,7 @@ function addTileSelectionToLayer() {
             allFeatures.push({
                 type: 'Feature', id: newId,
                 geometry: f.geometry,
-                properties: { ...f.properties, _gvid: newId, _tile_id: String(f.id), _source_layer: layerId }
+                properties: { ...f.properties, _gvid: newId, _tile_id: String(f.id), _source_layer: layerId, _selecter_source: 'tiles' }
             });
             added++;
         });
@@ -2620,7 +2666,7 @@ function addTileSelectionToLayer() {
         allFeatures.push({
             type: 'Feature', id: newId,
             geometry: feature.geometry,
-            properties: { ...feature.properties, _gvid: newId, _tile_id: String(feature.id), _source_layer: layerId }
+            properties: { ...feature.properties, _gvid: newId, _tile_id: String(feature.id), _source_layer: layerId, _selecter_source: 'tiles' }
         });
         added++;
     });
@@ -4605,8 +4651,16 @@ function restoreBgLayers() {
 const dropOverlay = document.getElementById('drop-overlay');
 let dragDepth = 0;
 
-document.addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; if (dragDepth === 1) dropOverlay.classList.add('dragging'); });
-document.addEventListener('dragleave', e => { dragDepth--; if (dragDepth <= 0) { dragDepth = 0; dropOverlay.classList.remove('dragging'); } });
+document.addEventListener('dragenter', e => {
+    e.preventDefault();
+    // Don't show the file drop overlay when the user is reordering the categorical width list
+    if (e.target?.closest?.('#lwdp-cat-list')) return;
+    dragDepth++; if (dragDepth === 1) dropOverlay.classList.add('dragging');
+});
+document.addEventListener('dragleave', e => {
+    if (e.target?.closest?.('#lwdp-cat-list')) return;
+    dragDepth--; if (dragDepth <= 0) { dragDepth = 0; dropOverlay.classList.remove('dragging'); }
+});
 document.addEventListener('dragover', e => { e.preventDefault(); });
 document.addEventListener('drop', e => {
     e.preventDefault(); dragDepth = 0; dropOverlay.classList.remove('dragging');
@@ -5997,6 +6051,64 @@ function applyLineOpacity() {
 function applyLineStyle() {
     if (!map.getLayer('gv-line')) return;
     const widths = { thin: [1, 2], medium: [2, 4], thick: [3, 6] };
+
+    // ── DATA-DRIVEN WIDTH MODES ───────────────────────────────────────────
+    if (lineWidthMode === 'by-prop' && lineWidthProp && propData[lineWidthProp]?.isNumeric) {
+        const stats = propData[lineWidthProp].numericStats;
+        if (stats) {
+            const lo = stats.min, hi = stats.max;
+            const wMin = lineWidthMin, wMax = lineWidthMax;
+            const getVal = lineWidthLog
+                ? ['case', ['>', ['to-number', ['get', lineWidthProp], 0], 0],
+                    ['/', ['ln', ['to-number', ['get', lineWidthProp], 1]],
+                          Math.log(Math.max(hi, 1))],
+                    0]
+                : ['/', ['-', ['to-number', ['get', lineWidthProp], lo], lo],
+                        Math.max(hi - lo, 1)];
+            // Normalized 0→1 value mapped to wMin→wMax
+            const baseExpr = ['+', wMin, ['*', ['max', 0, ['min', 1, getVal]], wMax - wMin]];
+            const hoverW = wMax * 1.5, highlightW = wMax * 2, selectedW = wMax * 1.8;
+            const lineWidth = ['interpolate', ['linear'], ['zoom'],
+                8,  ['case', ['boolean', ['feature-state', 'highlighted'], false], highlightW,
+                             ['boolean', ['feature-state', 'selected'],    false], selectedW,
+                             ['boolean', ['feature-state', 'hovered'],     false], hoverW,
+                             baseExpr],
+                16, ['case', ['boolean', ['feature-state', 'highlighted'], false], highlightW * 1.3,
+                             ['boolean', ['feature-state', 'selected'],    false], selectedW * 1.3,
+                             ['boolean', ['feature-state', 'hovered'],     false], hoverW * 1.3,
+                             ['+', baseExpr, wMax * 0.5]]];
+            map.setPaintProperty('gv-line', 'line-width', lineWidth);
+            map.setPaintProperty('gv-line-casing', 'line-width',
+                ['interpolate', ['linear'], ['zoom'], 8, ['+', baseExpr, 1.5], 16, ['+', baseExpr, 2]]);
+            applyLineOpacity();
+            applyLineCasing();
+            return;
+        }
+    }
+
+    if (lineWidthMode === 'by-value' && lineWidthProp && lineWidthCatOrder.length) {
+        const expr = ['match', ['to-string', ['get', lineWidthProp]]];
+        lineWidthCatOrder.forEach(({ value, width }) => { expr.push(value, width); });
+        expr.push(lineWidthCatMin); // fallback for unmatched values
+        const hoverW = lineWidthCatMax * 1.5, highlightW = lineWidthCatMax * 2, selectedW = lineWidthCatMax * 1.8;
+        const lineWidth = ['interpolate', ['linear'], ['zoom'],
+            8,  ['case', ['boolean', ['feature-state', 'highlighted'], false], highlightW,
+                         ['boolean', ['feature-state', 'selected'],    false], selectedW,
+                         ['boolean', ['feature-state', 'hovered'],     false], hoverW,
+                         expr],
+            16, ['case', ['boolean', ['feature-state', 'highlighted'], false], highlightW * 1.3,
+                         ['boolean', ['feature-state', 'selected'],    false], selectedW * 1.3,
+                         ['boolean', ['feature-state', 'hovered'],     false], hoverW * 1.3,
+                         ['+', expr, lineWidthCatMax * 0.3]]];
+        map.setPaintProperty('gv-line', 'line-width', lineWidth);
+        map.setPaintProperty('gv-line-casing', 'line-width',
+            ['interpolate', ['linear'], ['zoom'], 8, ['+', expr, 1.5], 16, ['+', expr, 2]]);
+        applyLineOpacity();
+        applyLineCasing();
+        return;
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     const [wThin, wThick] = widths[lineWidthMode] || [1, 2];
 
     if (lineRadiusMode === 'density') {
@@ -6078,23 +6190,7 @@ function applyLineStyle() {
     // Apply opacity (ghost / data-driven / default) and blur
     applyLineOpacity();
     // Apply casing color based on outline mode
-    if (map.getLayer('gv-line-casing')) {
-        const casingColors = {
-            none:  'rgba(0,0,0,0)',
-            light: 'rgba(255,255,255,0.25)',
-            grey:  'rgba(128,128,128,0.5)',
-            dark:  'rgba(0,0,0,0.45)'
-        };
-        map.setPaintProperty('gv-line-casing', 'line-color', casingColors[lineOutlineMode] || 'rgba(0,0,0,0)');
-        if (lineOutlineMode === 'none' || !geomVisible.line) {
-            // Hide entirely: scalar 0 is cheaper than an expression
-            map.setPaintProperty('gv-line-casing', 'line-opacity', 0);
-        } else {
-            // Use per-feature hidden state so filtered/hidden individual features hide their casing
-            map.setPaintProperty('gv-line-casing', 'line-opacity',
-                ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1]);
-        }
-    }
+    applyLineCasing();
     // Apply dash pattern — line-cap must be 'round' for dot patterns
     // For solid: remove dasharray entirely (setting [1,0] causes MapLibre expression evaluate errors)
     if (map.getLayer('gv-line')) {
@@ -6110,10 +6206,26 @@ function applyLineStyle() {
             map.setLayoutProperty('gv-line', 'line-cap', pat.cap);
             map.setPaintProperty('gv-line', 'line-dasharray', pat.dash);
         } else {
-            // solid: remove dasharray and reset cap
             map.setLayoutProperty('gv-line', 'line-cap', 'butt');
             try { map.setPaintProperty('gv-line', 'line-dasharray', null); } catch {}
         }
+    }
+}
+
+function applyLineCasing() {
+    if (!map.getLayer('gv-line-casing')) return;
+    const casingColors = {
+        none:  'rgba(0,0,0,0)',
+        light: 'rgba(255,255,255,0.25)',
+        grey:  'rgba(128,128,128,0.5)',
+        dark:  'rgba(0,0,0,0.45)'
+    };
+    map.setPaintProperty('gv-line-casing', 'line-color', casingColors[lineOutlineMode] || 'rgba(0,0,0,0)');
+    if (lineOutlineMode === 'none' || !geomVisible.line) {
+        map.setPaintProperty('gv-line-casing', 'line-opacity', 0);
+    } else {
+        map.setPaintProperty('gv-line-casing', 'line-opacity',
+            ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1]);
     }
 }
 
@@ -8857,13 +8969,168 @@ document.getElementById('point-radius-pill').addEventListener('click', e => {
     updatePointRadius();
 });
 
-// ── LINES STYLE ──
+// ── LINE WIDTH DATA PANEL ─────────────────────────────────────────────────
+function showLineWidthDataPanel(mode) {
+    const panel = document.getElementById('line-width-data-panel');
+    const quant = document.getElementById('lwdp-quant');
+    const cat   = document.getElementById('lwdp-cat');
+    if (!panel) return;
+    if (mode === 'by-prop' || mode === 'by-value') {
+        panel.style.display = '';
+        quant.style.display = mode === 'by-prop' ? '' : 'none';
+        cat.style.display   = mode === 'by-value' ? '' : 'none';
+        // Populate prop selectors with numeric/categorical props respectively
+        if (mode === 'by-prop') populateLwdpPropSelect();
+        else populateLwdpCatPropSelect();
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+function populateLwdpPropSelect() {
+    const sel = document.getElementById('lwdp-prop-select');
+    if (!sel) return;
+    const numericProps = Object.entries(propData)
+        .filter(([k, pd]) => pd.isNumeric && !INTERNAL_PROPS.has(k))
+        .sort((a, b) => b[1].totalWithValue - a[1].totalWithValue)
+        .map(([k]) => k);
+    sel.innerHTML = ['', ...numericProps]
+        .map(k => `<option value="${k}" ${k === (lineWidthProp||'')?'selected':''}>${k||'— choose prop —'}</option>`)
+        .join('');
+    sel.onchange = () => {
+        lineWidthProp = sel.value || null;
+        applyLineStyle();
+    };
+}
+
+function populateLwdpCatPropSelect() {
+    const sel = document.getElementById('lwdp-cat-prop-select');
+    if (!sel) return;
+    const catProps = Object.entries(propData)
+        .filter(([k, pd]) => !pd.isNumeric && !INTERNAL_PROPS.has(k))
+        .sort((a, b) => b[1].totalWithValue - a[1].totalWithValue)
+        .map(([k]) => k);
+    sel.innerHTML = ['', ...catProps]
+        .map(k => `<option value="${k}" ${k === (lineWidthProp||'')?'selected':''}>${k||'— choose prop —'}</option>`)
+        .join('');
+    sel.onchange = () => {
+        lineWidthProp = sel.value || null;
+        if (lineWidthProp) buildCatWidthOrder(lineWidthProp);
+        renderCatWidthList();
+        applyLineStyle();
+    };
+    // If prop already set, render immediately
+    if (lineWidthProp && catProps.includes(lineWidthProp)) {
+        if (!lineWidthCatOrder.length) buildCatWidthOrder(lineWidthProp);
+        renderCatWidthList();
+    }
+}
+
+function buildCatWidthOrder(prop) {
+    // Default order: by frequency descending (user can drag to reorder)
+    const counts = propData[prop]?.valueCounts || {};
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const n = entries.length;
+    lineWidthCatOrder = entries.map(([value], i) => ({
+        value,
+        // Spread widths evenly from max (most frequent = top = widest) to min
+        width: n === 1 ? lineWidthCatMax
+             : +(lineWidthCatMax - (lineWidthCatMax - lineWidthCatMin) * i / (n - 1)).toFixed(2)
+    }));
+}
+
+function recomputeCatWidths() {
+    // Recompute evenly-spaced widths based on current order, respecting manual overrides
+    const n = lineWidthCatOrder.length;
+    if (n === 0) return;
+    lineWidthCatOrder.forEach((row, i) => {
+        if (!row._manual) {
+            row.width = n === 1 ? lineWidthCatMax
+                : +(lineWidthCatMax - (lineWidthCatMax - lineWidthCatMin) * i / (n - 1)).toFixed(2);
+        }
+    });
+}
+
+function renderCatWidthList() {
+    const list = document.getElementById('lwdp-cat-list');
+    if (!list) return;
+    list.innerHTML = '';
+    list.ondragover = e => { e.preventDefault(); e.stopPropagation(); };
+    list.ondrop = e => { e.preventDefault(); e.stopPropagation(); };
+    const maxW = Math.max(...lineWidthCatOrder.map(r => r.width), 0.1);
+    lineWidthCatOrder.forEach((row, i) => {
+        const div = document.createElement('div');
+        div.className = 'lwdp-cat-row';
+        div.draggable = true;
+        div.dataset.idx = i;
+        div.innerHTML = `
+            <span class="lwdp-cat-handle">⠿</span>
+            <span class="lwdp-cat-label" title="${row.value}">${row.value}</span>
+            <div class="lwdp-cat-bar" style="width:${Math.round(row.width / maxW * 60)}px"></div>
+            <input class="lwdp-cat-px" type="number" value="${row.width}" min="0.1" max="20" step="0.5" title="Width in px">
+        `;
+        // Manual px override
+        div.querySelector('.lwdp-cat-px').oninput = e => {
+            const v = parseFloat(e.target.value);
+            if (!isNaN(v) && v > 0) {
+                lineWidthCatOrder[i].width = v;
+                lineWidthCatOrder[i]._manual = true;
+                // Update bar without full re-render
+                const newMax = Math.max(...lineWidthCatOrder.map(r => r.width), 0.1);
+                div.querySelector('.lwdp-cat-bar').style.width = Math.round(v / newMax * 60) + 'px';
+                applyLineStyle();
+            }
+        };
+        // Drag-to-reorder
+        div.addEventListener('dragstart', e => {
+            e.dataTransfer.setData('text/plain', i);
+            div.classList.add('dragging');
+            e.stopPropagation();
+        });
+        div.addEventListener('dragend', e => { div.classList.remove('dragging'); e.stopPropagation(); });
+        div.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); div.classList.add('drag-over'); });
+        div.addEventListener('dragleave', e => { div.classList.remove('drag-over'); e.stopPropagation(); });
+        div.addEventListener('drop', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            div.classList.remove('drag-over');
+            const from = parseInt(e.dataTransfer.getData('text/plain'));
+            const to   = parseInt(div.dataset.idx);
+            if (from === to) return;
+            const [moved] = lineWidthCatOrder.splice(from, 1);
+            lineWidthCatOrder.splice(to, 0, moved);
+            // Clear manual flags and recompute so dropped order = new width order
+            lineWidthCatOrder.forEach(r => delete r._manual);
+            recomputeCatWidths();
+            renderCatWidthList();
+            applyLineStyle();
+        });
+        list.appendChild(div);
+    });
+}
+
+// Wire quant controls
+document.addEventListener('DOMContentLoaded', () => {
+    const minI = document.getElementById('lwdp-min');
+    const maxI = document.getElementById('lwdp-max');
+    const logB = document.getElementById('lwdp-log');
+    const catMinI = document.getElementById('lwdp-cat-min');
+    const catMaxI = document.getElementById('lwdp-cat-max');
+    if (minI) minI.oninput = () => { lineWidthMin = parseFloat(minI.value) || 0.5; applyLineStyle(); };
+    if (maxI) maxI.oninput = () => { lineWidthMax = parseFloat(maxI.value) || 6; applyLineStyle(); };
+    if (logB) logB.onclick = () => { lineWidthLog = !lineWidthLog; logB.classList.toggle('active', lineWidthLog); applyLineStyle(); };
+    if (catMinI) catMinI.oninput = () => { lineWidthCatMin = parseFloat(catMinI.value) || 0.5; recomputeCatWidths(); renderCatWidthList(); applyLineStyle(); };
+    if (catMaxI) catMaxI.oninput = () => { lineWidthCatMax = parseFloat(catMaxI.value) || 6; recomputeCatWidths(); renderCatWidthList(); applyLineStyle(); };
+});
+
+// ── LINE WIDTH PILL ───────────────────────────────────────────────────────
 document.getElementById('line-width-pill').addEventListener('click', e => {
     const opt = e.target.closest('.style-opt');
     if (!opt) return;
     document.querySelectorAll('#line-width-pill .style-opt').forEach(o => o.classList.remove('active'));
     opt.classList.add('active');
     lineWidthMode = opt.dataset.val;
+    showLineWidthDataPanel(lineWidthMode);
     applyLineStyle();
 });
 document.getElementById('line-radius-pill').addEventListener('click', e => {
@@ -9249,8 +9516,10 @@ function resetAll() {
     pointStyle = 'hollow'; pointRadiusMode = 'density';
     document.querySelectorAll('#point-style-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'hollow'));
     document.querySelectorAll('#point-radius-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'density'));
-    lineWidthMode = 'thin'; lineRadiusMode = 'zoom'; lineOutlineMode = 'none'; lineDashMode = 'solid'; lineStyleMode = 'solid';
+    lineWidthMode = 'thin'; lineWidthProp = null; lineWidthCatOrder = []; lineWidthLog = false; lineWidthMin = 0.5; lineWidthMax = 6; lineWidthCatMin = 0.5; lineWidthCatMax = 6;
+    lineRadiusMode = 'zoom'; lineOutlineMode = 'none'; lineDashMode = 'solid'; lineStyleMode = 'solid';
     document.querySelectorAll('#line-width-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'thin'));
+    showLineWidthDataPanel('thin');
     document.querySelectorAll('#line-radius-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'zoom'));
     document.querySelectorAll('#line-outline-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'none'));
     document.querySelectorAll('#line-dash-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'solid'));
