@@ -7,6 +7,7 @@
     <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.css' />
     <script src='https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.js'></script>
     <script src='https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js'></script>
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -74,7 +75,8 @@
         #sidebar.legend-mode #sidebar-tabs,
         #sidebar.legend-mode #file-panel > *:not(#legend-card),
         #sidebar.legend-mode #map-panel,
-        #sidebar.legend-mode #filter-status-row { display: none !important; }
+        #sidebar.legend-mode #filter-status-row,
+        #sidebar.legend-mode #bg-layer-list { display: none !important; }
         #sidebar.legend-mode #legend-card { display: flex; }
         #selection-bar.legend-mode { display: none !important; }
 
@@ -305,7 +307,7 @@
         .sort-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(110,231,183,0.08); }
         /* Background layer list — styled like style-panel */
         #bg-layer-list { flex-shrink:0; }
-        #bg-panel-toggle { width:100%;display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--surface2);border:none;border-top:1px solid var(--border);cursor:pointer;font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);transition:color .15s }
+        #bg-panel-toggle { width:100%;display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--surface2);border:none;border-top:1px solid var(--border);cursor:pointer;font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);transition:color .15s }
         #bg-panel-toggle:hover { color:var(--text) }
         #bg-panel-toggle .bg-arrow { font-size:9px;transition:transform .2s }
         #bg-panel-toggle.open .bg-arrow { transform:rotate(90deg) }
@@ -3854,13 +3856,17 @@ async function loadFromUrl() {
         if (!geojson) { hideProgress(); throw new Error('Could not parse response as GeoJSON'); }
         datasetBytes = text.length;
         if (geojson.type === 'Feature') geojson = { type: 'FeatureCollection', features: [geojson] };
-        updateProgress(75, `${geojson.features.length.toLocaleString()} features`);
+        const _detectedCRSUrl = detectGeoJSONCRS(geojson);
+        const _needsReprojectUrl = _detectedCRSUrl && _detectedCRSUrl !== 'EPSG:4326';
+        if (_needsReprojectUrl) updateProgress(70, `Reprojecting ${_detectedCRSUrl} → EPSG:4326…`);
+        updateProgress(75, `${geojson.features.length.toLocaleString()} features${_needsReprojectUrl ? ` · reprojected from ${_detectedCRSUrl}` : ''}`);
         currentDataUrl = raw;
         currentSourceName = raw.split('/').pop().split('?')[0].replace(/\.(geojson|json|geojsonl)$/i, '') || 'data';
         closeWelcome();
         closeUrlModal();
         geojson = truncateCoordPrecision(geojson);
         let _truncToastMsgUrl = null;
+        let _reprojectToastMsgUrl = _needsReprojectUrl ? `Reprojected ${_detectedCRSUrl} → 4326` : null;
         if (geojson._truncatedCoordPairs) {
             const geomBytes = geojson._truncatedCoordPairs * 2 * 10;
             const propBytes = datasetBytes - geojson._truncatedCoordPairs * 2 * 16;
@@ -3878,6 +3884,7 @@ async function loadFromUrl() {
             hideProgress();
             const parts = [];
             if (_pendingDensityToast) { parts.push(_pendingDensityToast); _pendingDensityToast = null; }
+            if (_reprojectToastMsgUrl) parts.push('🔄 ' + _reprojectToastMsgUrl);
             if (_truncToastMsgUrl) parts.push('✂ ' + _truncToastMsgUrl);
             if (parts.length) showToast(parts.join('\n'), 6000);
         }, 400);
@@ -4378,7 +4385,7 @@ function removeBgLayer(id) {
 
 function bgPropOptions(layer, selected) {
     const counts = {};
-    layer.features.forEach(f => Object.keys(f.properties||{}).forEach(k => { if (!k.startsWith('_')) counts[k]=(counts[k]||0)+1; }));
+    layer.features.forEach(f => Object.keys(f.properties||{}).forEach(k => { if (!INTERNAL_PROPS.has(k)) counts[k]=(counts[k]||0)+1; }));
     const opts = Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([k])=>k);
     return ['', ...opts].map(k => `<option value="${k}" ${k===selected?'selected':''}>${k||'— none —'}</option>`).join('');
 }
@@ -4910,9 +4917,10 @@ function loadFile(file) {
                     updateProgress(100, 'Done');
                     setTimeout(() => {
                         hideProgress();
-                        // Combine density + truncation toasts into one
+                        // Combine density + reprojection + truncation toasts into one
                         const parts = [];
                         if (_pendingDensityToast) { parts.push(_pendingDensityToast); _pendingDensityToast = null; }
+                        if (_reprojectToastMsg) parts.push('🔄 ' + _reprojectToastMsg);
                         if (_truncToastMsg) parts.push('✂ ' + _truncToastMsg);
                         if (parts.length) showToast(parts.join('\n'), 6000);
                     }, 300);
@@ -5029,10 +5037,124 @@ function truncateCoordPrecision(geojson) {
     return geojson;
 }
 
-function ingestGeoJSON(geojson, filename, skipFit = false) {
+// ── CRS REPROJECTION ──────────────────────────────────────────────────────
+// Detects non-4326 GeoJSON and reprojects coordinates to WGS84 on the fly.
+// Fetches proj4 strings from epsg.io on demand so any EPSG code works without
+// pre-registration. EPSG:3310 (CA Albers) is cached after first use.
+// The original file is never modified; only in-memory coords are converted.
+const _proj4Cache = {}; // EPSG:XXXX → proj4 string, cached after first fetch
+
+function detectGeoJSONCRS(geojson) {
+    const crs = geojson.crs;
+    if (!crs) return null;
+    if (crs.type === 'name') {
+        const name = crs.properties?.name || '';
+        const match = name.match(/EPSG[::]+(\d+)/i);
+        if (match) return `EPSG:${match[1]}`;
+    }
+    if (crs.type === 'EPSG') return `EPSG:${crs.properties?.code}`;
+    return null;
+}
+
+async function ensureProj4Def(epsgKey) {
+    // Already registered with proj4?
+    if (proj4.defs(epsgKey)) return true;
+    // Already fetched but not yet registered?
+    if (_proj4Cache[epsgKey]) { proj4.defs(epsgKey, _proj4Cache[epsgKey]); return true; }
+    // Fetch from epsg.io
+    const code = epsgKey.replace(/^EPSG:/i, '');
+    try {
+        const res = await fetch(`https://epsg.io/${code}.proj4`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const proj4str = (await res.text()).trim();
+        if (!proj4str || proj4str.includes('<')) throw new Error('invalid response');
+        _proj4Cache[epsgKey] = proj4str;
+        proj4.defs(epsgKey, proj4str);
+        console.log(`[reproject] fetched ${epsgKey}: ${proj4str}`);
+        return true;
+    } catch (err) {
+        console.warn(`[reproject] could not fetch proj4 for ${epsgKey}:`, err.message);
+        return false;
+    }
+}
+
+function reprojectCoords(coords, fromCRS) {
+    if (!Array.isArray(coords)) return coords;
+    if (typeof coords[0] === 'number') {
+        const [lng, lat] = proj4(fromCRS, 'EPSG:4326', [coords[0], coords[1]]);
+        return coords.length > 2 ? [lng, lat, coords[2]] : [lng, lat];
+    }
+    return coords.map(c => reprojectCoords(c, fromCRS));
+}
+
+function reprojectGeoJSON(geojson, fromCRS) {
+    console.log(`[reproject] reprojecting from ${fromCRS} → EPSG:4326`);
+    return {
+        ...geojson,
+        crs: undefined, // strip CRS member — result is now 4326
+        features: geojson.features.map(f => ({
+            ...f,
+            geometry: f.geometry ? {
+                ...f.geometry,
+                coordinates: reprojectCoords(f.geometry.coordinates, fromCRS)
+            } : f.geometry
+        }))
+    };
+}
+
+async function ingestGeoJSON(geojson, filename, skipFit = false) {
+    // Auto-detect and reproject non-4326 CRS before any other processing.
+    // Fetches proj4 string from epsg.io if the CRS hasn't been seen before.
+    const detectedCRS = detectGeoJSONCRS(geojson);
+    if (detectedCRS && detectedCRS !== 'EPSG:4326') {
+        const ok = await ensureProj4Def(detectedCRS);
+        if (ok) geojson = reprojectGeoJSON(geojson, detectedCRS);
+        else console.warn(`[reproject] skipping — could not load proj4 for ${detectedCRS}`);
+    }
+
+    // Strip any existing _selecter_* props so re-importing a processed file 
+    // gets a fresh stamp rather than inheriting the old source name
+    const _importTs = new Date().toISOString();
+    const _sourceName = filename.replace(/\.(geojson|json|geojsonl)$/i, '');
+
+    // ── APPEND MODE: merge into existing layer instead of replacing ──
+    if (allFeatures.length > 0 && filename !== 'map-selection') {
+        const startId = allFeatures.length;
+        const newFeatures = geojson.features.map((f, i) => ({
+            ...f, id: startId + i,
+            properties: {
+                ...f.properties,
+                _gvid: startId + i,
+                _selecter_source: _sourceName,
+                _selecter_imported: _importTs
+            }
+        }));
+        allFeatures = [...allFeatures, ...newFeatures];
+        console.log(`[ingest] appended ${newFeatures.length} features from "${_sourceName}", total: ${allFeatures.length}`);
+        // Update the map source and rebuild prop data — don't reset style/filter state
+        if (map.getSource('geojson-data')) {
+            map.getSource('geojson-data').setData({ type: 'FeatureCollection', features: allFeatures });
+        } else {
+            setupGeoJsonLayers({ type: 'FeatureCollection', features: allFeatures });
+        }
+        buildPropData();
+        renderSidebar();
+        updateSelectionBar();
+        if (!skipFit) {
+            const bounds = turf.bbox({ type: 'FeatureCollection', features: newFeatures });
+            if (isFinite(bounds[0])) map.fitBounds([[bounds[0],bounds[1]],[bounds[2],bounds[3]]], { padding: 60, maxZoom: 16 });
+        }
+        return;
+    }
+
     allFeatures = geojson.features.map((f, i) => ({
         ...f, id: i,
-        properties: { ...f.properties, _gvid: i }
+        properties: {
+            ...f.properties,
+            _gvid: i,
+            _selecter_source: _sourceName,
+            _selecter_imported: _importTs
+        }
     }));
 
     selectedIds.clear(); highlightedIds.clear(); hiddenIds.clear(); filterHiddenIds.clear();
@@ -6338,11 +6460,13 @@ function collectCoords(geom, out) {
 }
 
 // ── PROP DATA ──
+// Props that are purely internal to the viewer and should never appear in UI or exports
+const INTERNAL_PROPS = new Set(['_gvid', '_tile_id', '_source_layer']);
 function buildPropData() {
     propData = {};
     allFeatures.forEach(f => {
         Object.entries(f.properties || {}).forEach(([k, v]) => {
-            if (k === '_gvid') return;
+            if (INTERNAL_PROPS.has(k)) return;
             if (!propData[k]) propData[k] = { valueCounts: {}, totalWithValue: 0, isColorProp: false, isNumeric: false, numericStats: null };
             if (v !== null && v !== undefined && v !== '') {
                 const vs = String(v);
@@ -9400,7 +9524,7 @@ function exportSVG() {
         const color = featureColor(props);
 
         const titleText = Object.entries(props)
-            .filter(([k]) => !k.startsWith('_'))
+            .filter(([k]) => !INTERNAL_PROPS.has(k))
             .map(([k, v]) => `${escXml(k)}: ${escXml(v)}`).join('&#10;');
 
         const rings = geom.type === 'LineString'      ? [geom.coordinates]
