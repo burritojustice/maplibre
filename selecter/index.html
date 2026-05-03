@@ -303,6 +303,51 @@
             white-space: nowrap;
         }
         .sort-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(110,231,183,0.08); }
+        /* Background layer list — styled like style-panel */
+        #bg-layer-list { flex-shrink:0; }
+        #bg-panel-toggle { width:100%;display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--surface2);border:none;border-top:1px solid var(--border);cursor:pointer;font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);transition:color .15s }
+        #bg-panel-toggle:hover { color:var(--text) }
+        #bg-panel-toggle .bg-arrow { font-size:9px;transition:transform .2s }
+        #bg-panel-toggle.open .bg-arrow { transform:rotate(90deg) }
+        #bg-panel-body { display:none }
+        #bg-panel-body.open { display:block }
+        /* Add layer row */
+        #bg-add-row { display:flex;gap:4px;padding:6px 16px 4px;border-bottom:1px solid var(--border) }
+        .bg-add-btn { flex:1;font-size:10px;padding:3px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text-muted);cursor:pointer;text-align:center }
+        .bg-add-btn:hover { color:var(--accent);border-color:var(--accent) }
+        /* URL input row */
+        #bg-url-row { display:none;gap:4px;padding:4px 16px;align-items:center }
+        #bg-url-row.open { display:flex }
+        #bg-url-input { flex:1;font-size:10px;padding:3px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--mono);outline:none }
+        #bg-url-go { font-size:10px;padding:3px 6px;background:none;border:1px solid var(--border);border-radius:4px;color:var(--text-muted);cursor:pointer }
+        #bg-url-go:hover { color:var(--accent);border-color:var(--accent) }
+        /* Sample menu */
+        #bg-sample-menu { display:none;position:relative;margin:0 16px 4px;background:var(--surface);border:1px solid var(--border);border-radius:6px;max-height:160px;overflow-y:auto;z-index:10 }
+        #bg-sample-menu.open { display:block }
+        /* Layer rows */
+        #bg-layer-rows { padding:0 0 4px }
+        .bg-layer-row { padding:2px 12px 1px 16px;transition:background .1s }
+        .bg-layer-row:hover { background:var(--surface2) }
+        .bg-row-main { display:flex;align-items:center;gap:4px;width:100%;padding-top:2px }
+        .bg-layer-swatch { width:10px;height:10px;border-radius:2px;border:1px solid rgba(255,255,255,.2);cursor:pointer;flex-shrink:0 }
+        .bg-layer-name { font-size:11px;color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0 }
+        .bg-layer-opacity { width:32px;height:3px;cursor:pointer;flex-shrink:0;accent-color:var(--text-muted) }
+        .bg-layer-eye,.bg-layer-del,.bg-layer-zorder { font-size:10px;background:none;border:none;cursor:pointer;padding:0 1px;color:var(--text-muted);line-height:1;flex-shrink:0 }
+        .bg-layer-del:hover { color:var(--red) }
+        .bg-layer-zorder:hover { color:var(--accent) }
+        .bg-layer-zorder.above { color:var(--accent) }
+        .bg-row-controls { display:flex;align-items:center;gap:3px;padding:2px 0 3px }
+        .bg-ctrl-label { font-size:9px;color:var(--text-muted);white-space:nowrap;opacity:.7 }
+        .bg-ctrl-select { font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text-muted);padding:1px 2px;flex:1;min-width:0;cursor:pointer;max-width:90px }
+        /* Color popover */
+        .bg-color-popover { position:absolute;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,0.4);display:flex;flex-direction:column;gap:6px;min-width:160px }
+        .bg-color-swatches { display:flex;flex-wrap:wrap;gap:4px }
+        .bg-color-preset { width:16px;height:16px;border-radius:3px;cursor:pointer;border:1px solid rgba(255,255,255,.15);flex-shrink:0 }
+        .bg-color-preset:hover { transform:scale(1.2) }
+        .bg-color-hex-row { display:flex;gap:4px;align-items:center }
+        .bg-color-hex { flex:1;font-size:10px;padding:2px 5px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);font-family:var(--mono) }
+        .bg-color-custom { font-size:9px;padding:2px 5px;background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-muted);cursor:pointer;white-space:nowrap }
+        .bg-color-custom:hover { border-color:var(--accent);color:var(--accent) }
         .sort-btn:hover:not(.active) { color: var(--text); border-color: var(--text-muted); }
 
         /* Search */
@@ -1219,6 +1264,26 @@
         </span>
     </div>
 
+    <!-- Background layers — above Styles -->
+    <div id="bg-layer-list">
+        <button id="bg-panel-toggle" onclick="toggleBgPanel()">
+            <span class="bg-arrow">▶</span> Background Layers
+        </button>
+        <div id="bg-panel-body">
+            <div id="bg-add-row">
+                <button class="bg-add-btn" onclick="document.getElementById('bg-file-input').click()">📁 File</button>
+                <button class="bg-add-btn" id="bg-sample-btn" onclick="toggleBgSampleMenu()">📂 Sample</button>
+                <button class="bg-add-btn" id="bg-url-btn" onclick="toggleBgUrlRow()">🔗 URL</button>
+            </div>
+            <div id="bg-url-row">
+                <input type="text" id="bg-url-input" placeholder="https://…/data.geojson">
+                <button id="bg-url-go" onclick="submitBgUrl()">Go</button>
+            </div>
+            <div id="bg-sample-menu"></div>
+            <div id="bg-layer-rows"></div>
+        </div>
+    </div>
+
     <!-- Style panel: visibility + point style + basemap -->
     <div id="style-panel">
         <button id="style-panel-toggle" class="">
@@ -1474,6 +1539,7 @@
 </div>
 
 <input type="file" id="file-input" accept=".geojson,.json,.geojsonl" style="display:none">
+    <input type="file" id="bg-file-input" accept=".geojson,.json,.geojsonl" style="display:none">
 
 <!-- Welcome dialog -->
 <div id="welcome-modal">
@@ -1652,6 +1718,13 @@ map.once('load', () => {
     discoverBasemapGroups();
     console.log('[basemap] roads:', basemapGroups.roads.length, 'places:', basemapGroups.places.length, 'streets:', basemapGroups.streets.length, 'buildings:', basemapGroups.buildings.length);
     updateLabelColors(); // apply dark-mode label colors for default dark basemap
+
+    // Apply creek filter on initial load (also applied after every setStyle)
+    try {
+        if (map.getLayer('water_stream')) map.setLayoutProperty('water_stream', 'visibility', 'none');
+        if (map.getLayer('water_river')) map.setFilter('water_river', ['all', ['!', ['in', 'Creek', ['get', 'name']]], ['!', ['in', 'Arroyo', ['get', 'name']]]]);
+        if (map.getLayer('water_waterway_label')) map.setFilter('water_waterway_label', ['all', ['!=', ['get', 'kind'], 'stream'], ['!', ['in', 'Creek', ['get', 'name']]], ['!', ['in', 'Arroyo', ['get', 'name']]]]);
+    } catch(e) { console.warn('[creek filter]', e); }
 
     // ── BASEMAP STYLE PILL ──
     document.getElementById('basemap-style-pill').addEventListener('click', e => {
@@ -2479,15 +2552,15 @@ function addTileSelectionToLayer() {
     // If no manually selected features, fall back to filter-mode visible features
     if (tileSelected.size === 0 && tileActiveFilter) {
         const { prop, value, mode } = tileActiveFilter;
-        const seen = new Set();
-        const filtered = tileViewportFeatures.filter(f => {
-            const key = `${f.layer?.['source-layer']}::${f.id}`;
-            if (seen.has(key)) return false;
-            seen.add(key);
+        // Collect all fragments first, then merge across tile boundaries
+        const allMatching = tileViewportFeatures.filter(f => {
+            if (!f?.geometry) return false;
             const fval = String((f.properties || {})[prop] ?? '');
             const match = fval === String(value);
             return mode === 'filter' ? match : mode === 'exclude' ? !match : true;
         });
+        // Merge tile-clipped fragments of the same OSM way
+        const filtered = mergeTileFeatures(allMatching);
         if (filtered.length === 0) { alert('No features match the current filter.'); return; }
         // Bootstrap empty layer if needed
         if (!map.getSource('geojson-data')) {
@@ -2915,6 +2988,45 @@ let tileViewportFeatures = [];   // deduplicated features from queryRenderedFeat
 let tileViewportPropData = {};   // prop → { valueCounts: {val → count}, total }
 let tilePinnedPopup = null;      // pinned popup for tile features (like frozenPopup for file)
 let tilePinnedFeature = null;
+
+// Merge tile-clipped fragments of the same OSM feature into one MultiLineString.
+// Tile boundaries split a single way into multiple fragments, each with the same f.id
+// but different clipped geometries. We collect all coordinate rings and combine them.
+function mergeTileFeatures(features) {
+    const byKey = new Map(); // `layerId::osmId` → {feature, rings[]}
+    features.forEach(f => {
+        if (!f.geometry) return;
+        const key = `${f.layer?.id || ''}::${f.id}`;
+        if (!byKey.has(key)) {
+            byKey.set(key, { feature: f, rings: [] });
+        }
+        const geom = f.geometry;
+        if (geom.type === 'LineString') {
+            byKey.get(key).rings.push(geom.coordinates);
+        } else if (geom.type === 'MultiLineString') {
+            byKey.get(key).rings.push(...geom.coordinates);
+        } else if (geom.type === 'Polygon') {
+            byKey.get(key).rings.push(geom.coordinates[0]);
+        } else if (geom.type === 'MultiPolygon') {
+            geom.coordinates.forEach(poly => byKey.get(key).rings.push(poly[0]));
+        } else if (geom.type === 'Point') {
+            byKey.get(key).rings.push([geom.coordinates]); // treat as degenerate ring
+        }
+    });
+    return [...byKey.values()].map(({ feature: f, rings }) => {
+        if (rings.length === 0) return null;
+        const isPoint = f.geometry?.type === 'Point' || f.geometry?.type === 'MultiPoint';
+        const merged = {
+            ...f,
+            geometry: isPoint
+                ? f.geometry  // keep points as-is
+                : rings.length === 1
+                    ? { type: 'LineString', coordinates: rings[0] }
+                    : { type: 'MultiLineString', coordinates: rings }
+        };
+        return merged;
+    }).filter(Boolean);
+}
 
 function isTileFeatureHidden(feature) {
     // Check kind/kind_detail filter pills
@@ -3787,7 +3899,17 @@ function getHashParams() {
     hash.split('&').forEach(part => {
         const i = part.indexOf('=');
         if (i < 0) return;
-        try { out[decodeURIComponent(part.slice(0, i))] = decodeURIComponent(part.slice(i + 1)); } catch {}
+        try {
+            const k = decodeURIComponent(part.slice(0, i));
+            const v = decodeURIComponent(part.slice(i + 1));
+            if (k === 'bg') {
+                // bg can appear multiple times for multiple background layers
+                if (!out.bg) out.bg = [];
+                out.bg.push(v);
+            } else {
+                out[k] = v;
+            }
+        } catch {}
     });
     return out;
 }
@@ -4084,6 +4206,392 @@ async function restoreFromHash() {
     } catch (err) {
         console.warn('Could not restore from URL hash:', err);
     }
+
+    // Load background layers (independent of whether a main file loaded)
+    if (params.bg) {
+        const bgUrls = Array.isArray(params.bg) ? params.bg : [params.bg];
+        for (const url of bgUrls) { await loadBgUrl(url); }
+    }
+}
+
+// ── BACKGROUND LAYERS ─────────────────────────────────────────────────────
+const bgLayers = [];
+let bgLayerCounter = 0;
+const BG_DEFAULT_COLORS = ['#94a3b8','#f59e0b','#a78bfa','#34d399','#f87171','#60a5fa'];
+
+function toggleBgPanel() {
+    const btn = document.getElementById('bg-panel-toggle');
+    const body = document.getElementById('bg-panel-body');
+    const isOpen = btn.classList.toggle('open');
+    body.classList.toggle('open', isOpen);
+}
+
+function toggleBgSampleMenu() {
+    const menu = document.getElementById('bg-sample-menu');
+    const isOpen = menu.classList.toggle('open');
+    if (isOpen && !menu.dataset.populated) {
+        menu.dataset.populated = '1';
+        populateSamplesMenu(menu, url => {
+            menu.classList.remove('open');
+            loadBgUrl(url);
+        });
+    }
+    // close url row
+    document.getElementById('bg-url-row').classList.remove('open');
+}
+
+function toggleBgUrlRow() {
+    const row = document.getElementById('bg-url-row');
+    row.classList.toggle('open');
+    if (row.classList.contains('open')) {
+        document.getElementById('bg-url-input').focus();
+        document.getElementById('bg-sample-menu').classList.remove('open');
+    }
+}
+
+function submitBgUrl() {
+    const inp = document.getElementById('bg-url-input');
+    const url = inp.value.trim();
+    if (!url) return;
+    inp.value = '';
+    document.getElementById('bg-url-row').classList.remove('open');
+    loadBgUrl(url);
+}
+document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && document.activeElement?.id === 'bg-url-input') submitBgUrl();
+});
+
+// Color popover preset colors
+const BG_PRESETS = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db','#9b59b6',
+    '#e91e63','#00bcd4','#8bc34a','#ff5722','#607d8b','#ffffff','#888888','#222222',
+    '#ff00ff','#00ffff','#FF69B4'];
+
+function showBgColorPopover(layer, anchorEl) {
+    // Remove any existing popover
+    document.querySelectorAll('.bg-color-popover').forEach(p => p.remove());
+    const popover = document.createElement('div');
+    popover.className = 'bg-color-popover';
+    // Swatches
+    const swatchRow = document.createElement('div');
+    swatchRow.className = 'bg-color-swatches';
+    BG_PRESETS.forEach(c => {
+        const s = document.createElement('span');
+        s.className = 'bg-color-preset';
+        s.style.background = c;
+        s.title = c;
+        s.onclick = () => { applyBgColor(layer, c); popover.remove(); renderBgLayerList(); };
+        swatchRow.appendChild(s);
+    });
+    popover.appendChild(swatchRow);
+    // Hex input row
+    const hexRow = document.createElement('div');
+    hexRow.className = 'bg-color-hex-row';
+    const hexInp = document.createElement('input');
+    hexInp.className = 'bg-color-hex';
+    hexInp.value = layer.color;
+    hexInp.maxLength = 7;
+    hexInp.oninput = () => {
+        if (/^#[0-9a-f]{6}$/i.test(hexInp.value)) applyBgColor(layer, hexInp.value);
+    };
+    hexRow.appendChild(hexInp);
+    popover.appendChild(hexRow);
+    // Position near anchor
+    document.body.appendChild(popover);
+    const r = anchorEl.getBoundingClientRect();
+    popover.style.left = Math.min(r.left, window.innerWidth - 180) + 'px';
+    popover.style.top = (r.bottom + 4) + 'px';
+    // Close on outside click
+    setTimeout(() => {
+        document.addEventListener('click', function close(e) {
+            if (!popover.contains(e.target)) { popover.remove(); document.removeEventListener('click', close); }
+        });
+    }, 10);
+}
+
+function applyBgColor(layer, color) {
+    layer.color = color;
+    // Reset palette so solid color applies
+    layer.paletteProp = null; layer.paletteMap = {};
+    updateBgLayerColor(layer);
+    applyBgPalette(layer);
+    applyBgLabels(layer);
+}
+
+function bgSourceId(id) { return `bg-data-${id}`; }
+function bgLineId(id)   { return `bg-line-${id}`; }
+function bgFillId(id)   { return `bg-fill-${id}`; }
+
+function addBgLayerToMap(layer) {
+    console.log('[bg] addBgLayerToMap', layer.id, layer.name, layer.features.length, 'features');
+    const src = bgSourceId(layer.id);
+    const fc  = { type: 'FeatureCollection', features: layer.features };
+    if (!map.getSource(src)) {
+        map.addSource(src, { type: 'geojson', data: fc });
+    } else {
+        map.getSource(src).setData(fc);
+    }
+    const insertBefore = map.getLayer('gv-fill') ? 'gv-fill'
+        : (map.getStyle().layers.find(l => l.type === 'symbol')?.id || undefined);
+    if (!map.getLayer(bgFillId(layer.id))) {
+        map.addLayer({ id: bgFillId(layer.id), type: 'fill', source: src,
+            filter: ['in', ['geometry-type'], ['literal', ['Polygon','MultiPolygon']]],
+            paint: { 'fill-color': layer.color, 'fill-opacity': layer.opacity * 0.3 }
+        }, insertBefore);
+    }
+    if (!map.getLayer(bgLineId(layer.id))) {
+        map.addLayer({ id: bgLineId(layer.id), type: 'line', source: src,
+            paint: { 'line-color': layer.color, 'line-width': 1, 'line-opacity': layer.opacity }
+        }, insertBefore);
+    }
+    updateBgLayerVisibility(layer);
+    console.log('[bg] layers added:', bgFillId(layer.id), bgLineId(layer.id));
+}
+
+function updateBgLayerVisibility(layer) {
+    const vis = layer.visible ? 'visible' : 'none';
+    [bgLineId(layer.id), bgFillId(layer.id)].forEach(id => {
+        if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
+    });
+}
+
+function updateBgLayerColor(layer) {
+    if (map.getLayer(bgLineId(layer.id))) {
+        map.setPaintProperty(bgLineId(layer.id), 'line-color', layer.color);
+        map.setPaintProperty(bgFillId(layer.id), 'fill-color', layer.color);
+    }
+}
+
+function updateBgLayerOpacity(layer) {
+    if (map.getLayer(bgLineId(layer.id))) {
+        map.setPaintProperty(bgLineId(layer.id), 'line-opacity', layer.opacity);
+        map.setPaintProperty(bgFillId(layer.id), 'fill-opacity', layer.opacity * 0.3);
+    }
+}
+
+function removeBgLayer(id) {
+    [bgLineId(id), bgFillId(id)].forEach(lid => { if (map.getLayer(lid)) map.removeLayer(lid); });
+    if (map.getSource(bgSourceId(id))) map.removeSource(bgSourceId(id));
+    const idx = bgLayers.findIndex(l => l.id === id);
+    if (idx >= 0) bgLayers.splice(idx, 1);
+    renderBgLayerList();
+}
+
+function bgPropOptions(layer, selected) {
+    const counts = {};
+    layer.features.forEach(f => Object.keys(f.properties||{}).forEach(k => { if (!k.startsWith('_')) counts[k]=(counts[k]||0)+1; }));
+    const opts = Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([k])=>k);
+    return ['', ...opts].map(k => `<option value="${k}" ${k===selected?'selected':''}>${k||'— none —'}</option>`).join('');
+}
+
+function bgPropIsNumeric(layer, prop) {
+    let num = 0, total = 0;
+    for (const f of layer.features) {
+        const v = (f.properties||{})[prop];
+        if (v != null) { total++; if (!isNaN(parseFloat(v))) num++; }
+        if (total >= 50) break;
+    }
+    return total > 0 && num / total > 0.8;
+}
+
+function buildBgPaletteMap(layer, prop) {
+    if (!prop) return {};
+    layer._propIsNumeric = bgPropIsNumeric(layer, prop);
+    if (layer._propIsNumeric) {
+        // Quantitative: build stops array, return as special object
+        const vals = layer.features.map(f => parseFloat((f.properties||{})[prop])).filter(v => !isNaN(v));
+        if (!vals.length) return {};
+        vals.sort((a,b)=>a-b);
+        const min = vals[0], max = vals[vals.length-1];
+        const scheme = layer.paletteScheme || 'YlOrRd';
+        const ramp = getQuantitativeRampColors(scheme, 7);
+        const effectiveRamp = layer.bgPaletteReversed ? [...ramp].reverse() : ramp;
+        // Store stops for expression building
+        layer._bgStops = effectiveRamp.map((c,i) => [min + (max-min)*i/(effectiveRamp.length-1), c]);
+        return { _quantitative: true, min, max };
+    }
+    // Categorical
+    const counts = {};
+    layer.features.forEach(f => { const v=String((f.properties||{})[prop]??''); if(v) counts[v]=(counts[v]||0)+1; });
+    const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,12);
+    const ramp = getPaletteColors(layer.paletteScheme||'Set1').slice(0,entries.length);
+    const effectiveRamp = layer.bgPaletteReversed ? [...ramp].reverse() : ramp;
+    const m = {}; entries.forEach(([v],i)=>{ m[v]=effectiveRamp[i%effectiveRamp.length]; }); return m;
+}
+
+function applyBgPalette(layer) {
+    if (!map.getLayer(bgLineId(layer.id))) return;
+    if (layer.paletteProp && layer.paletteMap) {
+        if (layer._propIsNumeric && layer._bgStops && layer._bgStops.length) {
+            // Interpolate expression for numeric property
+            const expr = ['interpolate', ['linear'], ['to-number', ['get', layer.paletteProp], 0]];
+            layer._bgStops.forEach(([v,c]) => { expr.push(v, c); });
+            map.setPaintProperty(bgLineId(layer.id), 'line-color', expr);
+            map.setPaintProperty(bgFillId(layer.id), 'fill-color', expr);
+        } else if (Object.keys(layer.paletteMap).length && !layer.paletteMap._quantitative) {
+            const expr = ['match', ['to-string', ['get', layer.paletteProp]]];
+            Object.entries(layer.paletteMap).forEach(([v,c])=>{ expr.push(v,c); });
+            expr.push(layer.color);
+            map.setPaintProperty(bgLineId(layer.id), 'line-color', expr);
+            map.setPaintProperty(bgFillId(layer.id), 'fill-color', expr);
+        }
+    } else {
+        map.setPaintProperty(bgLineId(layer.id), 'line-color', layer.color);
+        map.setPaintProperty(bgFillId(layer.id), 'fill-color', layer.color);
+    }
+}
+
+function setBgLayerOrder(layer) {
+    // Move bg layers above or below road layers in the MapLibre stack.
+    // 'above roads' = insert before first symbol (place labels) layer
+    // 'below roads' = insert before gv-fill (our data), which is below road lines
+    const aboveTarget = map.getStyle().layers.find(l => l.type === 'symbol')?.id;
+    const belowTarget = map.getLayer('gv-fill') ? 'gv-fill' : aboveTarget;
+    const target = layer.aboveRoads ? aboveTarget : belowTarget;
+    [bgFillId(layer.id), bgLineId(layer.id)].forEach(id => {
+        if (map.getLayer(id)) {
+            try { map.moveLayer(id, target); } catch(e) { console.warn('[bg] moveLayer', id, e); }
+        }
+    });
+    // Label layer always stays above road labels
+    const labelId = `bg-labels-${layer.id}`;
+    if (map.getLayer(labelId)) {
+        try { map.moveLayer(labelId, undefined); } catch {}
+    }
+}
+
+function applyBgLabels(layer) {
+    const labelId = `bg-labels-${layer.id}`;
+    if (layer.labelProp) {
+        const expr = ['coalesce', ['to-string', ['get', layer.labelProp]], ''];
+        if (!map.getLayer(labelId)) {
+            const before = map.getLayer('gv-labels') ? 'gv-labels' : undefined;
+            map.addLayer({ id: labelId, type: 'symbol', source: bgSourceId(layer.id),
+                layout: { 'text-field': expr, 'text-size': 10, 'text-font': ['Noto Sans Regular'],
+                    'symbol-placement': 'line', 'symbol-spacing': 300, 'text-allow-overlap': false },
+                paint: { 'text-color': layer.color, 'text-halo-color': 'rgba(0,0,0,0.6)', 'text-halo-width': 1.5 }
+            }, before);
+        } else {
+            map.setLayoutProperty(labelId, 'text-field', expr);
+            map.setPaintProperty(labelId, 'text-color', layer.color);
+        }
+    } else {
+        if (map.getLayer(labelId)) map.removeLayer(labelId);
+    }
+}
+
+function renderBgLayerList() {
+    const rows = document.getElementById('bg-layer-rows');
+    if (!rows) return;
+    if (bgLayers.length > 0) rows.style.display = '';
+    const QUAL_SCHEMES = ['Set1','Set2','Paired','Dark2','Accent','Pastel1','Pastel2'];
+    const QUANT_SCHEMES = ['YlOrRd','YlGnBu','Blues','Greens','Reds','Purples','Oranges','Spectral','RdYlBu','RdBu','BrBG','PuOr'];
+    const schemeForLayer = l => bgPropIsNumeric(l, l.paletteProp||'') ? QUANT_SCHEMES : QUAL_SCHEMES;
+    rows.innerHTML = bgLayers.length === 0
+        ? '<div style="padding:4px 16px 6px;font-size:10px;color:var(--text-muted)">No background layers</div>'
+        : bgLayers.map(layer => `
+        <div class="bg-layer-row" data-bg-id="${layer.id}">
+            <div class="bg-row-main">
+                <span class="bg-layer-swatch" style="background:${layer.color}" data-bg-color="${layer.id}" title="Change color"></span>
+                <span class="bg-layer-name" title="${layer.name}">${layer.name}</span>
+                <input type="range" class="bg-layer-opacity" min="0" max="1" step="0.05" value="${layer.opacity}" data-bg-opacity="${layer.id}" title="Opacity">
+                <button class="bg-layer-eye" data-bg-eye="${layer.id}" title="${layer.visible?'Hide':'Show'}">${layer.visible?'◉':'◎'}</button>
+                <button class="bg-layer-zorder${layer.aboveRoads?' above':''}" data-bg-zorder="${layer.id}" title="${layer.aboveRoads?'Above roads (click to move below)':'Below roads (click to move above)'}">${layer.aboveRoads?'↑':'↓'}</button>
+                <button class="bg-layer-del" data-bg-del="${layer.id}" title="Remove">✕</button>
+            </div>
+            <div class="bg-row-controls">
+                <span class="bg-ctrl-label">label</span>
+                <select class="bg-ctrl-select" data-bg-label="${layer.id}">${bgPropOptions(layer,layer.labelProp||'')}</select>
+                <span class="bg-ctrl-label">color</span>
+                <select class="bg-ctrl-select" data-bg-pal-prop="${layer.id}">${bgPropOptions(layer,layer.paletteProp||'')}</select>
+                <select class="bg-ctrl-select" data-bg-pal-scheme="${layer.id}" style="max-width:55px">${schemeForLayer(layer).map(s=>`<option value="${s}" ${s===(layer.paletteScheme||(bgPropIsNumeric(layer,layer.paletteProp||'')?'YlOrRd':'Set1'))?'selected':''}>${s}</option>`).join('')}</select>
+                <button class="bg-layer-del" data-bg-flip="${layer.id}" title="Flip palette" style="${layer.bgPaletteReversed?'color:var(--accent)':''}">${layer.bgPaletteReversed?'↕*':'↕'}</button>
+            </div>
+        </div>`).join('');
+    rows.querySelectorAll('[data-bg-del]').forEach(b=>{b.onclick=()=>removeBgLayer(b.dataset.bgDel);});
+    rows.querySelectorAll('[data-bg-zorder]').forEach(b=>{b.onclick=()=>{
+        const l=bgLayers.find(l=>l.id===b.dataset.bgZorder);if(!l)return;
+        l.aboveRoads=!l.aboveRoads;
+        setBgLayerOrder(l);
+        renderBgLayerList();
+    };});
+    rows.querySelectorAll('[data-bg-eye]').forEach(b=>{b.onclick=()=>{const l=bgLayers.find(l=>l.id===b.dataset.bgEye);if(l){l.visible=!l.visible;updateBgLayerVisibility(l);renderBgLayerList();}};});
+    rows.querySelectorAll('[data-bg-opacity]').forEach(inp=>{inp.oninput=()=>{const l=bgLayers.find(l=>l.id===inp.dataset.bgOpacity);if(l){l.opacity=parseFloat(inp.value);updateBgLayerOpacity(l);}};});
+    rows.querySelectorAll('[data-bg-color]').forEach(sw=>{
+        sw.onclick=(e)=>{
+            e.stopPropagation();
+            const l=bgLayers.find(l=>l.id===sw.dataset.bgColor);if(!l)return;
+            showBgColorPopover(l, sw);
+        };
+    });
+    rows.querySelectorAll('[data-bg-label]').forEach(sel=>{sel.onchange=()=>{const l=bgLayers.find(l=>l.id===sel.dataset.bgLabel);if(l){l.labelProp=sel.value||null;applyBgLabels(l);}};});
+    rows.querySelectorAll('[data-bg-pal-prop]').forEach(sel=>{sel.onchange=()=>{const l=bgLayers.find(l=>l.id===sel.dataset.bgPalProp);if(l){l.paletteProp=sel.value||null;l.paletteMap=l.paletteProp?buildBgPaletteMap(l,l.paletteProp):{};applyBgPalette(l);}};});
+    rows.querySelectorAll('[data-bg-pal-scheme]').forEach(sel=>{sel.onchange=()=>{const l=bgLayers.find(l=>l.id===sel.dataset.bgPalScheme);if(l){l.paletteScheme=sel.value;if(l.paletteProp){l.paletteMap=buildBgPaletteMap(l,l.paletteProp);applyBgPalette(l);}}};});
+    rows.querySelectorAll('[data-bg-flip]').forEach(b=>{b.onclick=()=>{const l=bgLayers.find(l=>l.id===b.dataset.bgFlip);if(l){l.bgPaletteReversed=!l.bgPaletteReversed;if(l.paletteProp){l.paletteMap=buildBgPaletteMap(l,l.paletteProp);applyBgPalette(l);}renderBgLayerList();}};});
+}
+
+function loadBgFile(file) {
+    console.log('[bg] loadBgFile called:', file.name);
+    const reader = new FileReader();
+    reader.onload = e => {
+        console.log('[bg] file read, length:', e.target.result.length);
+        let geojson;
+        try { geojson = JSON.parse(e.target.result); }
+        catch {
+            const lines = e.target.result.trim().split('\n').filter(l => l.trim());
+            const features = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+            if (features.length) geojson = { type: 'FeatureCollection', features };
+        }
+        if (!geojson) { alert('Could not parse background file.'); return; }
+        if (geojson.type === 'Feature') geojson = { type: 'FeatureCollection', features: [geojson] };
+        console.log('[bg] parsed', geojson.features.length, 'features');
+        const id = String(bgLayerCounter++);
+        const layer = {
+            id, name: file.name.replace(/\.(geojson|json|geojsonl)$/i, ''),
+            features: geojson.features, visible: true, opacity: 0.6, lineWidth: 1,
+            color: BG_DEFAULT_COLORS[bgLayers.length % BG_DEFAULT_COLORS.length]
+        };
+        bgLayers.push(layer);
+        addBgLayerToMap(layer);
+        renderBgLayerList();
+    };
+    reader.onerror = e => console.error('[bg] FileReader error:', e);
+    reader.readAsText(file);
+}
+
+async function loadBgUrl(url) {
+    console.log('[bg] loadBgUrl:', url);
+    try {
+        const res = await fetch(url);
+        const text = await res.text();
+        let geojson;
+        try { geojson = JSON.parse(text); }
+        catch {
+            const lines = text.trim().split('\n').filter(l => l.trim());
+            const features = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+            if (features.length) geojson = { type: 'FeatureCollection', features };
+        }
+        if (!geojson) throw new Error('parse failed');
+        if (geojson.type === 'Feature') geojson = { type: 'FeatureCollection', features: [geojson] };
+        const id = String(bgLayerCounter++);
+        const name = url.split('/').pop().replace(/\.(geojson|json)$/i, '');
+        const layer = {
+            id, name, url, features: geojson.features,
+            visible: true, opacity: 0.6, lineWidth: 1, aboveRoads: false,
+            color: BG_DEFAULT_COLORS[bgLayers.length % BG_DEFAULT_COLORS.length]
+        };
+        bgLayers.push(layer);
+        addBgLayerToMap(layer);
+        renderBgLayerList();
+        return layer;
+    } catch(err) {
+        console.error('[bg] Failed to load', url, err);
+        return null;
+    }
+}
+
+function restoreBgLayers() {
+    console.log('[bg] restoreBgLayers, count:', bgLayers.length);
+    bgLayers.forEach(layer => addBgLayerToMap(layer));
 }
 
 // ── DRAG & DROP ──
@@ -4098,6 +4606,10 @@ document.addEventListener('drop', e => {
     const file = e.dataTransfer.files[0]; if (file) loadFile(file);
 });
 document.getElementById('file-input').addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+const _bgFileInput = document.getElementById('bg-file-input');
+if (_bgFileInput) _bgFileInput.addEventListener('change', e => {
+    if (e.target.files[0]) { loadBgFile(e.target.files[0]); e.target.value = ''; }
+});
 
 // ── LAYER SETUP FUNCTIONS — called on first load and after basemap style swap ──
 
@@ -8342,6 +8854,38 @@ function switchBasemapTo(val) {
         discoverBasemapGroups();
         applyBasemapCheckboxStates();
         updateLabelColors();
+        restoreBgLayers();
+
+        // ── CREEK FILTER ──────────────────────────────────────────────────────
+        // Some creeks are miscategorized in Protomaps/OSM data:
+        //   - Small streams appear as kind:stream on water_stream layer (correct)
+        //   - BUT many Bay Area creeks are tagged kind:river and appear on
+        //     water_river at z10+, including some that are underground (layer:-1)
+        // We hide them by name pattern since kind alone isn't reliable.
+        // This filter must be re-applied after every setStyle() call.
+        try {
+            // a) Hide all kind:stream features and their labels
+            if (map.getLayer('water_stream')) {
+                map.setLayoutProperty('water_stream', 'visibility', 'none');
+            }
+            // b) Hide kind:river features with "Creek" or "Arroyo" in name,
+            //    and suppress their labels too
+            if (map.getLayer('water_river')) {
+                map.setFilter('water_river', ['all',
+                    ['!', ['in', 'Creek',  ['get', 'name']]],
+                    ['!', ['in', 'Arroyo', ['get', 'name']]]
+                ]);
+            }
+            // Combined label filter: no stream labels, no creek/arroyo river labels
+            if (map.getLayer('water_waterway_label')) {
+                map.setFilter('water_waterway_label', ['all',
+                    ['!=', ['get', 'kind'], 'stream'],
+                    ['!', ['in', 'Creek',  ['get', 'name']]],
+                    ['!', ['in', 'Arroyo', ['get', 'name']]]
+                ]);
+            }
+        } catch(e) { console.warn('[creek filter]', e); }
+        // ─────────────────────────────────────────────────────────────────────
         if (fc) {
             setupGeoJsonLayers(fc);
             if (midFC && map.getSource('geojson-midpoints')) {
@@ -8796,26 +9340,22 @@ function exportSVG() {
         // Tile mode
         isTileMode = true;
         labelPropsList = typeof tileLabelProps !== 'undefined' ? [...tileLabelProps] : [];
-        const seen = new Set();
-        const addF = f => {
-            if (!f?.geometry) return;
-            const key = `${f.layer?.['source-layer']}::${f.id}`;
-            if (seen.has(key)) return;
-            seen.add(key);
-            rawFeatures.push(f);
-        };
+        let preMerge = [];
         if (tileSelected.size > 0) {
-            tileSelected.forEach(({ feature }) => addF(feature));
+            tileSelected.forEach(({ feature }) => { if (feature?.geometry) preMerge.push(feature); });
         } else if (tileActiveFilter) {
             const { prop, value, mode } = tileActiveFilter;
             tileViewportFeatures.forEach(f => {
+                if (!f?.geometry) return;
                 const fval = String((f.properties || {})[prop] ?? '');
                 const match = fval === String(value);
-                if (mode === 'filter' ? match : mode === 'exclude' ? !match : true) addF(f);
+                if (mode === 'filter' ? match : mode === 'exclude' ? !match : true) preMerge.push(f);
             });
         } else {
-            tileViewportFeatures.forEach(f => { if (!isTileFeatureHidden(f)) addF(f); });
+            tileViewportFeatures.forEach(f => { if (f?.geometry && !isTileFeatureHidden(f)) preMerge.push(f); });
         }
+        // Merge tile-clipped fragments of the same OSM way into complete geometries
+        rawFeatures = mergeTileFeatures(preMerge);
     }
 
     if (rawFeatures.length === 0) { alert('No features to export.'); return; }
