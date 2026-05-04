@@ -1654,7 +1654,7 @@
     <!-- row 0: tile-selected road features (only when >0) -->
     <div class="bar-row" id="tile-row" style="display:none">
         <span class="stat-num" style="color:#f97316" id="tile-num">0</span>
-        <span class="stat-label">map features</span>
+        <span class="stat-label" id="tile-num-label">map features</span>
         <button class="bar-btn" id="add-to-layer-btn">⊕ Add to Layer</button>
     </div>
     <!-- row 1: selected · save selected -->
@@ -1757,7 +1757,6 @@ map.once('load', () => {
     setupTileInteraction();
     restoreFromHash();
     discoverBasemapGroups();
-    console.log('[basemap] roads:', basemapGroups.roads.length, 'places:', basemapGroups.places.length, 'streets:', basemapGroups.streets.length, 'buildings:', basemapGroups.buildings.length);
     updateLabelColors(); // apply dark-mode label colors for default dark basemap
 
     // Apply creek filter on initial load (also applied after every setStyle)
@@ -1922,14 +1921,12 @@ function setupTileInteraction() {
             (l.id + (l['source-layer'] || '')).toLowerCase().includes(x)
         )
     );
-    console.log('[GeoJSON Viewer] Road-ish layers:', roadish.map(l => ({id: l.id, source: l.source, 'source-layer': l['source-layer'], type: l.type})));
 
     const TARGET_SOURCE_LAYERS = ['roads', 'bicycle_routes', 'transit', 'paths', 'physical_line'];
     const roadLayers = allLayers.filter(l =>
         l.type === 'line' && l['source-layer'] &&
         TARGET_SOURCE_LAYERS.some(t => l['source-layer'].toLowerCase().includes(t))
     );
-    console.log('[GeoJSON Viewer] Interactive layers:', roadLayers.map(l => l.id));
     populateMapLayerList(roadLayers);
 
     // ── OVERLAY SOURCES for precise per-segment highlighting ──
@@ -1946,7 +1943,7 @@ function setupTileInteraction() {
 
     // Layer draw order: highlight (blue base) → labels → select (magenta) → hover (teal on top)
     map.addLayer({ id: 'tile-highlight-line', type: 'line', source: 'tile-highlight-overlay',
-        paint: { 'line-color': '#3b82f6', 'line-width': zoomWidth(1.5, 4), 'line-opacity': 0.85 }
+        paint: { 'line-color': '#2dd4bf', 'line-width': zoomWidth(1.5, 4), 'line-opacity': 0.85 }
     });
     map.addLayer({ id: 'tile-labels-line', type: 'symbol', source: 'tile-highlight-overlay',
         layout: {
@@ -1976,13 +1973,13 @@ function setupTileInteraction() {
         }
     });
     map.addLayer({ id: 'tile-select-line', type: 'line', source: 'tile-select-overlay',
-        paint: { 'line-color': '#e040fb', 'line-width': zoomWidth(2, 4), 'line-opacity': 0.9 }
+        paint: { 'line-color': '#2dd4bf', 'line-width': zoomWidth(2, 4), 'line-opacity': 0.9 }
     });
     map.addLayer({ id: 'tile-hover-casing', type: 'line', source: 'tile-hover-overlay',
         paint: { 'line-color': '#0f0f11', 'line-width': zoomWidth(7, 13), 'line-opacity': 0 }
     });
     map.addLayer({ id: 'tile-hover-line', type: 'line', source: 'tile-hover-overlay',
-        paint: { 'line-color': '#2dd4bf', 'line-width': zoomWidth(2, 5), 'line-opacity': 0.85 }
+        paint: { 'line-color': '#e040fb', 'line-width': zoomWidth(2, 5), 'line-opacity': 0.85 }
     });
 
     // ── VIEWPORT FEATURE QUERY ──
@@ -2020,7 +2017,7 @@ function setupTileInteraction() {
             map.setPaintProperty('tile-hover-line', 'line-width', zoomWidth(3, 6));
             map.setPaintProperty('tile-hover-casing', 'line-opacity', 0.6);
         } else {
-            map.setPaintProperty('tile-hover-line', 'line-color', '#2dd4bf');
+            map.setPaintProperty('tile-hover-line', 'line-color', '#e040fb');
             map.setPaintProperty('tile-hover-line', 'line-width', zoomWidth(2, 5));
             map.setPaintProperty('tile-hover-casing', 'line-opacity', 0);
         }
@@ -2084,7 +2081,6 @@ function setupTileInteraction() {
         const sourceId = layer.source;
         const sourceLayer = layer['source-layer'];
         const isCasing = layerId.includes('casing');
-        console.log(`[tile] registering handlers for layer=${layerId} sourceLayer=${sourceLayer} isCasing=${isCasing}`);
 
         const _mmHandler = (e) => {
             if (!tileInteractionEnabled) return;
@@ -2419,13 +2415,23 @@ function updateHighlightOverlay() {
         const feats = visibleFeatures.map(f => ({ type: 'Feature', geometry: f.geometry, properties: f.properties || {} }));
         if (feats.length > 0) {
             const sample = feats[0].properties;
-            console.log('[tile highlight] writing', feats.length, 'features, sample props:', Object.keys(sample).slice(0,6));
         }
         map.getSource('tile-highlight-overlay').setData({ type: 'FeatureCollection', features: feats });
     } else {
         const { prop, value, mode } = tileActiveFilter;
-        const matchColor   = mode === 'highlight' ? '#6ee7b7' : mode === 'filter' ? '#fbbf24' : '#ff4d6d';
+        const matchColor   = mode === 'highlight' ? '#2dd4bf' : mode === 'filter' ? '#fbbf24' : '#ff4d6d';
         const noMatchColor = '#3b82f6';
+
+        // ── Set color BEFORE setData to avoid a one-frame flash at the old color ──
+        try {
+            if (mode === 'highlight') {
+                map.setPaintProperty('tile-highlight-line', 'line-color', [
+                    'case', ['==', ['get', 'm'], 1], matchColor, noMatchColor
+                ]);
+            } else {
+                map.setPaintProperty('tile-highlight-line', 'line-color', matchColor);
+            }
+        } catch {}
 
         const features = tileViewportFeatures
             .filter(f => !(_kindHidden && _kindHidden.size > 0 && _kindHidden.has(f.properties?.[_kindProp])))
@@ -2447,16 +2453,6 @@ function updateHighlightOverlay() {
 
         visibleFeatures = features;
         map.getSource('tile-highlight-overlay').setData({ type: 'FeatureCollection', features });
-
-        try {
-            if (mode === 'highlight') {
-                map.setPaintProperty('tile-highlight-line', 'line-color', [
-                    'case', ['==', ['get', 'm'], 1], matchColor, noMatchColor
-                ]);
-            } else {
-                map.setPaintProperty('tile-highlight-line', 'line-color', matchColor);
-            }
-        } catch {}
     }
 
     // tile-labels-line reads from the same tile-highlight-overlay source — no separate setData needed
@@ -2533,20 +2529,35 @@ function pointToSegmentDistSq(p, a, b) {
 function updateTileSelectionRow() {
     const n = tileSelected.size;
     const tileRowN = n > 0 ? n : (tileActiveFilter ? (() => {
-        // Count unique visible features under the current filter for the button label
+        // Count unique features that match the active filter (not all viewport features)
         const seen = new Set();
         tileViewportFeatures.forEach(f => {
             const val = String((f.properties || {})[tileActiveFilter.prop] ?? '');
             const match = val === String(tileActiveFilter.value);
-            if ((tileActiveFilter.mode === 'filter' && match) ||
-                (tileActiveFilter.mode === 'highlight' && true) ||
-                (tileActiveFilter.mode === 'exclude' && !match)) {
-                seen.add(`${f.layer?.['source-layer']}::${f.id}`);
-            }
+            const visible = tileActiveFilter.mode === 'filter'    ?  match
+                          : tileActiveFilter.mode === 'highlight'  ?  match   // ← only matching, not all
+                          : tileActiveFilter.mode === 'exclude'    ? !match
+                          : false;
+            if (visible) seen.add(`${f.layer?.['source-layer']}::${f.id}`);
         });
         return seen.size;
     })() : 0);
     document.getElementById('tile-num').textContent = tileRowN.toLocaleString();
+
+    // Label describes what the count means
+    const tileNumLabel = document.getElementById('tile-num-label');
+    if (tileNumLabel) {
+        if (n > 0) {
+            tileNumLabel.textContent = 'selected';
+        } else if (tileActiveFilter) {
+            const mode = tileActiveFilter.mode;
+            // highlight = search result, ready to export — show as "selected" to be clear
+            tileNumLabel.textContent = mode === 'highlight' ? 'selected' : mode === 'filter' ? 'matched' : 'excluded';
+        } else {
+            tileNumLabel.textContent = 'in viewport';
+        }
+    }
+
     document.getElementById('tile-row').style.display = (n > 0 || !!tileActiveFilter) ? 'grid' : 'none';
 
     // Show bar when tile features selected OR a tile filter is active
@@ -2560,31 +2571,30 @@ function updateTileSelectionRow() {
             : 0;
 
         let visCount = uniqueVP, hidCount = 0;
+        let effectiveSelCount = n; // default: manual tileSelected
+
         if (tileActiveFilter) {
             const { prop, value, mode } = tileActiveFilter;
-            // Count unique features matching the filter
-            const seen = new Set();
+            const seen = new Set(), seenMatch = new Set();
             tileViewportFeatures.forEach(f => {
                 const key = `${f.layer?.['source-layer']}::${f.id}`;
-                if (!seen.has(key)) {
-                    seen.add(key);
-                }
-            });
-            const uniqueFeatures = [...seen].length;
-            // Count matching
-            const seenMatch = new Set();
-            tileViewportFeatures.forEach(f => {
-                const key = `${f.layer?.['source-layer']}::${f.id}`;
+                seen.add(key);
                 const fval = String((f.properties || {})[prop] ?? '');
-                if (fval === String(value) && !seenMatch.has(key)) seenMatch.add(key);
+                if (fval === String(value)) seenMatch.add(key);
             });
+            const uniqueFeatures = seen.size;
             const matchCount = seenMatch.size;
-            if (mode === 'filter')  { visCount = matchCount; hidCount = uniqueFeatures - matchCount; }
-            if (mode === 'exclude') { visCount = uniqueFeatures - matchCount; hidCount = matchCount; }
-            if (mode === 'highlight') { visCount = uniqueFeatures; hidCount = 0; }
+
+            if (mode === 'filter')    { visCount = matchCount; hidCount = uniqueFeatures - matchCount; }
+            if (mode === 'exclude')   { visCount = uniqueFeatures - matchCount; hidCount = matchCount; }
+            if (mode === 'highlight') {
+                // Treat highlight as implicit selection — matched features are "selected"
+                visCount = uniqueFeatures; hidCount = 0;
+                if (n === 0) effectiveSelCount = matchCount;
+            }
         }
 
-        document.getElementById('sel-num').textContent = n.toLocaleString();
+        document.getElementById('sel-num').textContent = effectiveSelCount.toLocaleString();
         document.getElementById('vis-num').textContent = visCount.toLocaleString();
         document.getElementById('hid-num').textContent = hidCount.toLocaleString();
         document.getElementById('save-visible-btn').style.visibility = (hidCount > 0 || allFeatures.length > 0) ? 'visible' : 'hidden';
@@ -2605,7 +2615,8 @@ function addTileSelectionToLayer() {
             if (!f?.geometry) return false;
             const fval = String((f.properties || {})[prop] ?? '');
             const match = fval === String(value);
-            return mode === 'filter' ? match : mode === 'exclude' ? !match : true;
+            // highlight and filter both export the matching features
+            return mode === 'filter' ? match : mode === 'exclude' ? !match : match;
         });
         // Merge tile-clipped fragments of the same OSM way
         const filtered = mergeTileFeatures(allMatching);
@@ -2967,7 +2978,7 @@ function switchTab(tab) {
         map.getSource('tile-hover-overlay').setData({ type: 'FeatureCollection', features: [] });
         if (map.getSource('tile-highlight-overlay')) {
             map.getSource('tile-highlight-overlay').setData({ type: 'FeatureCollection', features: [] });
-            try { map.setPaintProperty('tile-highlight-line', 'line-color', '#3b82f6'); } catch {}
+            try { map.setPaintProperty('tile-highlight-line', 'line-color', '#2dd4bf'); } catch {}
         }
         if (map.getSource('tile-dots-overlay')) {
             map.getSource('tile-dots-overlay').setData({ type: 'FeatureCollection', features: [] });
@@ -3000,7 +3011,6 @@ function updateTileLabels() {
     if (!map.getLayer(layer)) { console.warn('[tile labels] layer not found:', layer); return; }
     if (tileLabelProps.size === 0) {
         map.setLayoutProperty(layer, 'text-field', '');
-        console.log('[tile labels] cleared (no props selected)');
         updateTileLabelHint();
         return;
     }
@@ -3016,7 +3026,6 @@ function updateTileLabels() {
         });
         expr = ['concat', ...pieces];
     }
-    console.log('[tile labels] setting text-field for props:', [...tileLabelProps], 'expr:', JSON.stringify(expr));
     map.setLayoutProperty(layer, 'text-field', expr);
     updateTileLabelHint();
 }
@@ -3194,7 +3203,6 @@ function populateMapLayerList(roadLayers) {
         </label>`
     ).join('');
 
-    console.log('[tile] enabledSourceLayers after populate:', [...enabledSourceLayers]);
 
 
 
@@ -3494,11 +3502,44 @@ document.getElementById('map-props-list').addEventListener('change', e => {
     } else {
         tileLabelProps.delete(k);
     }
-    console.log('[tile labels] tileLabelProps:', [...tileLabelProps], 'checked:', cb.checked);
     updateTileLabels();
     updateTileLabelHint();
     pushHashState();
     // Don't call renderMapPanel() here — that would rebuild innerHTML and lose focus
+});
+
+// Hover delegation — preview matching features in magenta when hovering a val row
+let _mapValHoverProp = null, _mapValHoverVal = null;
+document.getElementById('map-props-list').addEventListener('mouseover', e => {
+    const row = e.target.closest('.map-val-item');
+    if (!row) return;
+    const prop = row.dataset.prop, val = row.dataset.val;
+    if (!prop || val === undefined) return;
+    if (_mapValHoverProp === prop && _mapValHoverVal === val) return; // no change
+    _mapValHoverProp = prop; _mapValHoverVal = val;
+    // Highlight matching features in magenta on the hover overlay
+    if (map.getSource('tile-hover-overlay')) {
+        const matching = tileViewportFeatures.filter(f => {
+            const fval = String((f.properties || {})[prop] ?? '');
+            return fval === String(val) && !isTileFeatureHidden(f) && f?.geometry;
+        });
+        // Merge cross-tile fragments so complete streets appear, not just tile-clipped segments
+        const merged = mergeTileFeatures(matching);
+        map.getSource('tile-hover-overlay').setData({
+            type: 'FeatureCollection',
+            features: merged.map(f => ({ type: 'Feature', geometry: f.geometry, properties: {} }))
+        });
+    }
+});
+document.getElementById('map-props-list').addEventListener('mouseout', e => {
+    const row = e.target.closest('.map-val-item');
+    if (!row) return;
+    // Only clear if we're leaving the val-item entirely (not moving to a child)
+    if (row.contains(e.relatedTarget)) return;
+    _mapValHoverProp = null; _mapValHoverVal = null;
+    if (map.getSource('tile-hover-overlay')) {
+        map.getSource('tile-hover-overlay').setData({ type: 'FeatureCollection', features: [] });
+    }
 });
 
 // Click delegation — collapse groups and cycle value filters
@@ -3546,6 +3587,11 @@ document.getElementById('map-props-list').addEventListener('click', e => {
     tileValueStates = {};
     if (next > 0) tileValueStates[stateKey] = next;
     tileActiveFilter = next === 0 ? null : { prop, value: val, mode: ['', 'highlight', 'filter', 'exclude'][next] };
+    // Clear hover overlay immediately on click so magenta doesn't bleed into the new state
+    _mapValHoverProp = null; _mapValHoverVal = null;
+    if (map.getSource('tile-hover-overlay')) {
+        map.getSource('tile-hover-overlay').setData({ type: 'FeatureCollection', features: [] });
+    }
     updateSelectOverlay();
     updateTileSelectionRow();
     pushHashState();
@@ -4375,7 +4421,6 @@ function bgLineId(id)   { return `bg-line-${id}`; }
 function bgFillId(id)   { return `bg-fill-${id}`; }
 
 function addBgLayerToMap(layer) {
-    console.log('[bg] addBgLayerToMap', layer.id, layer.name, layer.features.length, 'features');
     const src = bgSourceId(layer.id);
     const fc  = { type: 'FeatureCollection', features: layer.features };
     if (!map.getSource(src)) {
@@ -4397,7 +4442,6 @@ function addBgLayerToMap(layer) {
         }, insertBefore);
     }
     updateBgLayerVisibility(layer);
-    console.log('[bg] layers added:', bgFillId(layer.id), bgLineId(layer.id));
 }
 
 function updateBgLayerVisibility(layer) {
@@ -4586,7 +4630,6 @@ function loadBgFile(file) {
     console.log('[bg] loadBgFile called:', file.name);
     const reader = new FileReader();
     reader.onload = e => {
-        console.log('[bg] file read, length:', e.target.result.length);
         let geojson;
         try { geojson = JSON.parse(e.target.result); }
         catch {
@@ -4596,7 +4639,6 @@ function loadBgFile(file) {
         }
         if (!geojson) { alert('Could not parse background file.'); return; }
         if (geojson.type === 'Feature') geojson = { type: 'FeatureCollection', features: [geojson] };
-        console.log('[bg] parsed', geojson.features.length, 'features');
         const id = String(bgLayerCounter++);
         const layer = {
             id, name: file.name.replace(/\.(geojson|json|geojsonl)$/i, ''),
@@ -4643,7 +4685,6 @@ async function loadBgUrl(url) {
 }
 
 function restoreBgLayers() {
-    console.log('[bg] restoreBgLayers, count:', bgLayers.length);
     bgLayers.forEach(layer => addBgLayerToMap(layer));
 }
 
@@ -5057,10 +5098,8 @@ function truncateCoordPrecision(geojson) {
     };
     sample.forEach(f => { if (f.geometry?.coordinates) check([f.geometry.coordinates]); });
     const t1 = performance.now();
-    console.log(`[coords] sample: ${sampleCoordCount} coords in ${sample.length} features, max decimals: ${maxDecimals} (${(t1-t0).toFixed(1)}ms)`);
 
     if (maxDecimals <= 6) {
-        console.log('[coords] precision OK — no truncation needed');
         return geojson;
     }
 
@@ -5083,7 +5122,6 @@ function truncateCoordPrecision(geojson) {
     // Estimate memory saved: each coord value shrunk from ~15 digits to ~8 digits = ~7 bytes × 2 values per pair
     const bytesSaved = coordPairs * 2 * (maxDecimals - 6);
     const bytesSavedPct = Math.round(bytesSaved / (coordPairs * 2 * maxDecimals) * 100);
-    console.log(`[coords] truncated ${coordPairs.toLocaleString()} coord pairs in ${(t2-t1).toFixed(1)}ms — est. ${(bytesSaved/1e6).toFixed(1)}MB saved (~${bytesSavedPct}%, ${maxDecimals}dp → 6dp)`);
 
     // Store coord count for datasetBytes recalculation
     geojson._truncatedCoordPairs = coordPairs;
@@ -6033,14 +6071,12 @@ function applyLineOpacity() {
     if (lineOpacActive && lineOpacProp && propData[lineOpacProp]?.isNumeric) {
         const stats = propData[lineOpacProp].numericStats;
         const opacExpr = buildLineValueExpr(lineOpacProp, lineOpacMin, lineOpacMax, stats?.sorted);
-        console.log('[applyLineOpacity] data-driven expr:', JSON.stringify(opacExpr)?.slice(0, 120));
-        if (opacExpr) {
+            if (opacExpr) {
             map.setPaintProperty('gv-line', 'line-opacity', hiddenCase(opacExpr));
             return;
         }
     }
     const mode = lineStyleMode === 'ghost' ? 0.15 : 1;
-    console.log('[applyLineOpacity] default mode:', lineStyleMode, mode);
     if (lineStyleMode === 'ghost') {
         map.setPaintProperty('gv-line', 'line-opacity', hiddenCase(0.15));
     } else {
@@ -6899,7 +6935,6 @@ function buildLabelValueExpr(key) {
         const fmt = ['case',
             ['>=', unitAbs, 100], ['concat', nf0(unit), suffix],
                                   ['concat', nf1(unit), suffix]];
-        console.log('[label abbrev] divisor:', divisor, 'suffix:', suffix, 'expr:', JSON.stringify(fmt).slice(0, 120));
         return fmt;
     };
 
@@ -7269,7 +7304,6 @@ function renderNumericPanel(key, container) {
         const applyPointSize = () => {
             pointSizeMin = parseFloat(document.getElementById(`point-size-min-${key}`)?.value) || 3;
             pointSizeMax = parseFloat(document.getElementById(`point-size-max-${key}`)?.value) || 12;
-            console.log('[applyPointSize] active:', pointSizeActive, 'prop:', pointSizeProp, 'min:', pointSizeMin, 'max:', pointSizeMax);
             updatePointRadius();
             updateStylePanelBadges();
         };
@@ -7327,7 +7361,6 @@ function renderNumericPanel(key, container) {
         const doOpac = () => {
             lineOpacMin = parseFloat(document.getElementById(`line-opac-min-${key}`)?.value) ?? 0.15;
             lineOpacMax = parseFloat(document.getElementById(`line-opac-max-${key}`)?.value) ?? 1;
-            console.log('[opac] active:', lineOpacActive, 'prop:', lineOpacProp, 'min:', lineOpacMin, 'max:', lineOpacMax);
             applyLineOpacity();
             updateStylePanelBadges();
         };
@@ -9601,21 +9634,13 @@ function buildSaveFilename(suffix) {
 
 document.getElementById('save-visible-btn').addEventListener('click', () => {
     if (activeTab === 'map') {
-        // Save visible tile viewport features (those passing the active filter)
-        const seen = new Set();
-        const features = tileViewportFeatures
-            .filter(f => {
-                const key = `${f.layer?.['source-layer']}::${f.id}`;
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return !isTileFeatureHidden(f);
-            })
-            .map(f => {
-                const p = { ...f.properties, _source_layer: f.layer?.['source-layer'] || '' };
-                return { type: 'Feature', geometry: f.geometry, properties: p };
-            });
-        const filename = buildTileSaveFilename('visible');
-        saveGeoJSON(features, filename);
+        // Collect visible features then merge cross-tile fragments of the same OSM way
+        const raw = tileViewportFeatures.filter(f => f?.geometry && !isTileFeatureHidden(f));
+        const features = mergeTileFeatures(raw).map(f => ({
+            type: 'Feature', geometry: f.geometry,
+            properties: { ...f.properties, _source_layer: f.layer?.['source-layer'] || '' }
+        }));
+        saveGeoJSON(features, buildTileSaveFilename('visible'));
     } else {
         const features = allFeatures
             .filter(f => !hiddenIds.has(f.properties._gvid))
@@ -9626,11 +9651,24 @@ document.getElementById('save-visible-btn').addEventListener('click', () => {
 
 document.getElementById('save-btn').addEventListener('click', () => {
     if (activeTab === 'map') {
-        // Save selected tile features
-        const features = [...tileSelected.values()].map(({ feature }) => {
-            const p = { ...feature.properties, _source_layer: feature.layer?.['source-layer'] || '' };
-            return { type: 'Feature', geometry: feature.geometry, properties: p };
-        });
+        let raw = [];
+        if (tileSelected.size > 0) {
+            // Manual click selections
+            tileSelected.forEach(({ feature }) => { if (feature?.geometry) raw.push(feature); });
+        } else if (tileActiveFilter) {
+            // Search/filter result — export matching features (highlight = implicit selection)
+            const { prop, value, mode } = tileActiveFilter;
+            raw = tileViewportFeatures.filter(f => {
+                if (!f?.geometry) return false;
+                const fval = String((f.properties || {})[prop] ?? '');
+                const match = fval === String(value);
+                return mode === 'exclude' ? !match : match;
+            });
+        }
+        const features = mergeTileFeatures(raw).map(f => ({
+            type: 'Feature', geometry: f.geometry,
+            properties: { ...f.properties, _source_layer: f.layer?.['source-layer'] || '' }
+        }));
         saveGeoJSON(features, buildTileSaveFilename('selected'));
     } else {
         const features = allFeatures
@@ -9742,7 +9780,7 @@ function exportSVG() {
                 if (!f?.geometry) return;
                 const fval = String((f.properties || {})[prop] ?? '');
                 const match = fval === String(value);
-                if (mode === 'filter' ? match : mode === 'exclude' ? !match : true) preMerge.push(f);
+                if (mode === 'filter' ? match : mode === 'exclude' ? !match : match) preMerge.push(f);
             });
         } else {
             tileViewportFeatures.forEach(f => { if (f?.geometry && !isTileFeatureHidden(f)) preMerge.push(f); });
