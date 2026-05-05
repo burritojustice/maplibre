@@ -749,7 +749,7 @@
 
         /* ── WELCOME DIALOG ── */
         #welcome-modal {
-            position: fixed; inset: 0; z-index: 300;
+            position: fixed; inset: 0; z-index: 1000;
             background: rgba(15,15,17,0.85); backdrop-filter: blur(6px);
             display: flex; align-items: center; justify-content: center;
             opacity: 1; transition: opacity 0.3s;
@@ -1028,18 +1028,21 @@
             flex: 1; text-align: center; width: auto;
         }
         .action-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(110,231,183,0.06); }
-        #screenshot-btn, #svg-export-btn { flex: 0 0 auto; padding: 4px 7px; }
+        #screenshot-btn { flex: 0 0 auto; padding: 4px 7px; }
         #share-btn { display: none; }
         #share-btn.visible { display: block; }
 
         /* stat rows */
         .bar-row {
-            display: grid;
-            grid-template-columns: 64px 1fr auto;
+            display: flex;
             align-items: center;
-            gap: 0 6px;
+            gap: 6px;
             padding: 3px 0;
         }
+        .bar-row .stat-num { font-family: var(--mono); font-size: 13px; flex: 0 0 auto; min-width: 36px; text-align: right; }
+        .bar-row .stat-label { font-size: 11px; color: var(--text-muted); }
+        .bar-row .bar-row-mid { display:flex;align-items:center;gap:4px;flex:1;min-width:0; }
+        .bar-row .bar-row-btns { display:flex;gap:4px;align-items:center;margin-left:auto;flex-shrink:0; }
         .bar-row + .bar-row { border-top: 1px solid var(--border); }
 
         .stat-num {
@@ -1054,10 +1057,10 @@
         /* outline-only buttons */
         .bar-btn {
             font-family: var(--sans); font-size: 10px; font-weight: 500;
-            padding: 3px 7px; border-radius: 4px; cursor: pointer;
+            padding: 3px 8px; border-radius: 4px; cursor: pointer;
             transition: background 0.15s, color 0.15s, border-color 0.15s;
             background: transparent; white-space: nowrap;
-            text-align: center; width: 100px; justify-self: end;
+            text-align: center; flex-shrink: 0;
         }
         #add-to-layer-btn {
             border: 1px solid rgba(249,115,22,0.5); color: #f97316;
@@ -1068,6 +1071,10 @@
             border: 1px solid rgba(224,64,251,0.5); color: var(--magenta);
         }
         #save-btn:hover { background: var(--magenta); color: white; border-color: var(--magenta); }
+        #undo-btn { color: var(--text-muted); }
+        #undo-btn:hover { color: var(--accent); border-color: var(--accent); }
+        #delete-btn { color: var(--red); border-color: rgba(255,77,109,0.4); width:26px; padding:3px 0; text-align:center; }
+        #delete-btn:hover { background: var(--red) !important; color: white !important; border-color: var(--red) !important; }
 
         #save-visible-btn {
             border: 1px solid rgba(110,231,183,0.5); color: var(--accent);
@@ -1139,7 +1146,7 @@
 </div>
 
 <!-- Collapse toggle — outside sidebar so overflow:hidden doesn't clip it -->
-<button id="sidebar-collapse-btn" title="Collapse to legend">‹</button>
+<button id="sidebar-collapse-btn" title="Collapse to legend" style="display:none">‹</button>
 
 <div id="sidebar">
     <!-- Legend card — shown in legend mode instead of full explorer -->
@@ -1601,8 +1608,10 @@
                     <li>Click again to filter or exclude</li>
                     <li>Label features by properties</li>
                     <li>Save selected or visible features</li>
+                    <li>Drag in multiple files to combine layers</li>
                 </ul>
-                <p style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5">⚠ Files over 100MB may cause browser memory issues depending on their complexity.</p>
+                <p style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5">Coordinates are automatically truncated to 6 decimal places (~11cm precision) to reduce file size. Files in other coordinate systems (e.g. California Albers EPSG:3310) are automatically reprojected to WGS84 on load.</p>
+                <p style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5">⚠ Files over 100MB may cause browser memory issues depending on their complexity.</p>
             </div>
             <div class="welcome-mode">
                 <div class="welcome-mode-icon">🗺</div>
@@ -1651,38 +1660,43 @@
 </div>
 
 <div id="selection-bar">
-    <!-- row 0: tile-selected road features (only when >0) -->
+    <!-- row 0: tile features (only when >0 or filter active) -->
     <div class="bar-row" id="tile-row" style="display:none">
         <span class="stat-num" style="color:#f97316" id="tile-num">0</span>
-        <span class="stat-label" id="tile-num-label">map features</span>
-        <button class="bar-btn" id="add-to-layer-btn">⊕ Add to Layer</button>
+        <div class="bar-row-mid"><span class="stat-label" id="tile-num-label">selected</span></div>
+        <div class="bar-row-btns">
+            <button class="bar-btn" id="add-to-layer-btn">✚ Layer</button>
+        </div>
     </div>
-    <!-- row 1: selected · save selected -->
-    <div class="bar-row">
+    <!-- row 1: selected · delete · save (hidden when sel=0) -->
+    <div class="bar-row" id="sel-row" style="display:none">
         <span class="stat-num red" id="sel-num">0</span>
-        <span class="stat-label" id="sel-label">selected</span>
-        <button class="bar-btn" id="save-btn" title="Save selected features as GeoJSON">⬇ Save Selected</button>
+        <div class="bar-row-mid"><span class="stat-label" id="sel-label">selected</span></div>
+        <div class="bar-row-btns">
+            <button class="bar-btn" id="delete-btn" title="Delete selected features">🗑</button>
+            <button class="bar-btn" id="save-btn" title="Save selected features as GeoJSON">⬇ Save</button>
+        </div>
     </div>
-    <!-- row 2: visible · save visible -->
-    <div class="bar-row">
+    <!-- row 2: visible · hidden (inline) · clear · export -->
+    <div class="bar-row" id="vis-row">
         <span class="stat-num green" id="vis-num">0</span>
-        <span class="stat-label">visible</span>
-        <button class="bar-btn" id="save-visible-btn" title="Save all visible features as GeoJSON">⬇ Export</button>
-    </div>
-    <!-- row 3: hidden · clear -->
-    <div class="bar-row">
-        <span class="stat-num muted" id="hid-num">0</span>
-        <span class="stat-label">hidden</span>
-        <button class="bar-btn" id="clear-btn" title="Clear all selections and filters">Clear</button>
+        <div class="bar-row-mid">
+            <span class="stat-label">visible</span>
+            <span id="hid-badge" style="display:none;font-size:9px;color:var(--text-muted);white-space:nowrap">· <span id="hid-num">0</span> hidden</span>
+        </div>
+        <div class="bar-row-btns">
+            <button class="bar-btn" id="clear-btn" title="Clear all selections and filters">Clear</button>
+            <button class="bar-btn" id="save-visible-btn" title="Save all visible features as GeoJSON">⬇ Export</button>
+        </div>
     </div>
     <!-- row 4: file + url + share -->
     <div id="action-row">
         <button class="action-btn" id="upload-btn" onclick="document.getElementById('file-input').click()" title="Upload a local GeoJSON file">↑ File</button>
         <button class="action-btn" id="url-btn" onclick="openUrlModal()" title="Load GeoJSON from a URL">🔗 URL</button>
         <button class="action-btn" id="bar-samples-btn" title="Browse sample datasets">↑ 📂</button>
+        <button class="action-btn" id="undo-btn" title="Undo (Cmd+Z)" style="display:none">↩ Undo</button>
         <button class="action-btn" id="reset-btn" onclick="resetAll()" title="Reset view and clear all selections"><span style="font-size:14px;vertical-align:middle;line-height:1">↻</span> Reset</button>
-        <button class="action-btn" id="screenshot-btn" onclick="takeScreenshot()" title="Save map as PNG image">📷</button>
-        <button class="action-btn" id="svg-export-btn" onclick="exportSVG()" title="Export selected/filtered features as SVG vector">SVG</button>
+        <button class="action-btn" id="screenshot-btn" title="Save map as PNG image · Shift-click for SVG export (BETA)">📷</button>
         <button class="action-btn" id="share-btn" onclick="copyShareUrl()" title="Copy shareable URL to clipboard">⎘ Share</button>
     </div>
 </div>
@@ -2558,7 +2572,7 @@ function updateTileSelectionRow() {
         }
     }
 
-    document.getElementById('tile-row').style.display = (n > 0 || !!tileActiveFilter) ? 'grid' : 'none';
+    document.getElementById('tile-row').style.display = (n > 0 || !!tileActiveFilter) ? '' : 'none';
 
     // Show bar when tile features selected OR a tile filter is active
     const tileBarActive = n > 0 || !!tileActiveFilter;
@@ -2597,6 +2611,10 @@ function updateTileSelectionRow() {
         document.getElementById('sel-num').textContent = effectiveSelCount.toLocaleString();
         document.getElementById('vis-num').textContent = visCount.toLocaleString();
         document.getElementById('hid-num').textContent = hidCount.toLocaleString();
+        const selRow2 = document.getElementById('sel-row');
+        if (selRow2) selRow2.style.display = effectiveSelCount > 0 ? '' : 'none';
+        const hidBadge2 = document.getElementById('hid-badge');
+        if (hidBadge2) hidBadge2.style.display = hidCount > 0 ? '' : 'none';
         document.getElementById('save-visible-btn').style.visibility = (hidCount > 0 || allFeatures.length > 0) ? 'visible' : 'hidden';
     }
 
@@ -2607,6 +2625,7 @@ function updateTileSelectionRow() {
 }
 
 function addTileSelectionToLayer() {
+    pushUndo(); // allow undoing tile→layer additions
     // If no manually selected features, fall back to filter-mode visible features
     if (tileSelected.size === 0 && tileActiveFilter) {
         const { prop, value, mode } = tileActiveFilter;
@@ -2736,6 +2755,7 @@ document.getElementById('add-to-layer-btn').addEventListener('click', addTileSel
 // ── WELCOME DIALOG ──
 function closeWelcome() {
     document.getElementById('welcome-modal').classList.add('hidden');
+    document.getElementById('sidebar-collapse-btn').style.display = '';
 }
 
 document.getElementById('welcome-browse-btn').addEventListener('click', () => {
@@ -4018,6 +4038,7 @@ function getHashParams() {
     const p = getHashParams();
     if (p.url || p.tfilter || p.tlabels || p.filter || p.labels) {
         document.getElementById('welcome-modal').classList.add('hidden');
+        document.getElementById('sidebar-collapse-btn').style.display = '';
     }
 })();
 
@@ -4688,7 +4709,11 @@ function restoreBgLayers() {
     bgLayers.forEach(layer => addBgLayerToMap(layer));
 }
 
-// ── DRAG & DROP ──
+// Screenshot: normal click = PNG, shift-click = SVG export (BETA)
+document.getElementById('screenshot-btn').addEventListener('click', e => {
+    if (e.shiftKey) exportSVG();
+    else takeScreenshot();
+});
 const dropOverlay = document.getElementById('drop-overlay');
 let dragDepth = 0;
 
@@ -4724,10 +4749,10 @@ function setupGeoJsonLayers(fc) {
     const firstBasemapLabelId = map.getStyle().layers.find(l => l.type === 'symbol')?.id;
 
     const colorExpr = ['case',
-        ['boolean', ['feature-state', 'selected'],    false], '#e040fb',
+        ['boolean', ['feature-state', 'hovered'],     false], '#e040fb',
+        ['boolean', ['feature-state', 'selected'],    false], '#2dd4bf',
         ['boolean', ['feature-state', 'filtered'],    false], '#fbbf24',
         ['boolean', ['feature-state', 'highlighted'], false], '#6ee7b7',
-        ['boolean', ['feature-state', 'hovered'],     false], '#2dd4bf',
         '#3b82f6'];
     const visExpr = ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1];
 
@@ -4765,9 +4790,9 @@ function setupGeoJsonLayers(fc) {
         filter: ['==', ['geometry-type'], 'Polygon'],
         paint: {
             'line-color': ['case',
-                ['boolean', ['feature-state', 'selected'],    false], '#e040fb',
+                ['boolean', ['feature-state', 'hovered'],     false], '#e040fb',
+                ['boolean', ['feature-state', 'selected'],    false], '#2dd4bf',
                 ['boolean', ['feature-state', 'highlighted'], false], '#6ee7b7',
-                ['boolean', ['feature-state', 'hovered'],     false], '#2dd4bf',
                 'transparent'],
             'line-opacity': ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1],
             'line-width': ['interpolate', ['linear'], ['zoom'],
@@ -4972,6 +4997,7 @@ function loadFile(file) {
     reader.onload = e => {
         const text = e.target.result;
         updateProgress(40, 'Parsing…');
+        let _reprojectToastMsg = null; // hoisted so all nested callbacks can access it
         // Yield to browser to render the progress bar before blocking JSON.parse
         requestAnimationFrame(() => setTimeout(() => {
             let geojson;
@@ -4996,6 +5022,10 @@ function loadFile(file) {
                 requestAnimationFrame(() => setTimeout(() => {
                     geojson = truncateCoordPrecision(geojson);
                     let _truncToastMsg = null;
+                    // Check CRS after truncation (ingestGeoJSON will reproject)
+                    const _fileCRS = detectGeoJSONCRS(geojson);
+                    _reprojectToastMsg = (_fileCRS && _fileCRS !== 'EPSG:4326')
+                        ? `Reprojected ${_fileCRS} → 4326` : null;
                     if (geojson._truncatedCoordPairs) {
                         const geomBytes = geojson._truncatedCoordPairs * 2 * 10;
                         const propBytes = datasetBytes - geojson._truncatedCoordPairs * 2 * 16;
@@ -5211,6 +5241,7 @@ async function ingestGeoJSON(geojson, filename, skipFit = false) {
 
     // ── APPEND MODE: merge into existing layer instead of replacing ──
     if (allFeatures.length > 0 && filename !== 'map-selection') {
+        pushUndo(); // allow undoing file append
         const startId = allFeatures.length;
         const newFeatures = geojson.features.map((f, i) => ({
             ...f, id: startId + i,
@@ -9398,6 +9429,14 @@ function updateSelectionBar() {
     document.getElementById('vis-num').textContent = numVisible.toLocaleString();
     document.getElementById('hid-num').textContent = numHidden.toLocaleString();
 
+    // sel-row: only show when something is selected/highlighted
+    const selCount = parseInt(document.getElementById('sel-num').textContent) || 0;
+    const selRow = document.getElementById('sel-row');
+    if (selRow) selRow.style.display = selCount > 0 ? '' : 'none';
+    // hid-badge inline in vis-row
+    const hidBadge = document.getElementById('hid-badge');
+    if (hidBadge) hidBadge.style.display = numHidden > 0 ? '' : 'none';
+
     // Bar is always visible once data is loaded or a tile filter is active
     const barVisible = totalFeatures > 0 || (activeTab === 'map' && (tileSelected.size > 0 || !!tileActiveFilter));
     document.getElementById('selection-bar').classList.toggle('visible', barVisible);
@@ -9648,6 +9687,69 @@ document.getElementById('save-visible-btn').addEventListener('click', () => {
         saveGeoJSON(features, buildSaveFilename('visible'));
     }
 });
+
+// ── UNDO STACK ───────────────────────────────────────────────────────────
+const _undoStack = [];
+const UNDO_MAX = 10;
+
+function pushUndo() {
+    _undoStack.push(allFeatures.map(f => ({ ...f, properties: { ...f.properties } })));
+    if (_undoStack.length > UNDO_MAX) _undoStack.shift();
+    const ub = document.getElementById('undo-btn');
+    if (ub) ub.style.display = '';
+}
+
+function undoDelete() {
+    if (_undoStack.length === 0) return;
+    allFeatures = _undoStack.pop();
+    selectedIds.clear(); highlightedIds.clear();
+    if (map.getSource('geojson-data')) {
+        map.getSource('geojson-data').setData({ type: 'FeatureCollection', features: allFeatures });
+    }
+    if (_undoStack.length === 0) {
+        const ub = document.getElementById('undo-btn');
+        if (ub) ub.style.display = 'none';
+    }
+    buildPropData(); renderSidebar(); updateSelectionBar();
+    console.log('[undo] restored', allFeatures.length, 'features, stack depth:', _undoStack.length);
+}
+
+document.getElementById('undo-btn').addEventListener('click', undoDelete);
+
+document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        if (_undoStack.length > 0) { e.preventDefault(); undoDelete(); }
+    }
+});
+
+function deleteSelected() {
+    if (selectedIds.size === 0) return;
+    pushUndo(); // save snapshot before destructive operation
+    console.log('[delete] before:', allFeatures.length, 'features, deleting ids:', [...selectedIds]);
+    const before = allFeatures.length;
+    allFeatures = allFeatures.filter(f => !selectedIds.has(f.properties._gvid));
+    console.log('[delete] after filter:', allFeatures.length, 'features (removed', before - allFeatures.length, ')');
+    // Clear all feature states before re-indexing to avoid stale state on wrong ids
+    if (map.getSource('geojson-data')) {
+        // Wipe feature states for deleted ids
+        selectedIds.forEach(id => {
+            try { map.removeFeatureState({ source: 'geojson-data', id }); } catch {}
+        });
+    }
+    selectedIds.clear(); highlightedIds.clear();
+    // Re-index _gvid so ids stay sequential and match array position
+    allFeatures = allFeatures.map((f, i) => ({
+        ...f, id: i, properties: { ...f.properties, _gvid: i }
+    }));
+    console.log('[delete] re-indexed, updating source');
+    if (map.getSource('geojson-data')) {
+        map.getSource('geojson-data').setData({ type: 'FeatureCollection', features: allFeatures });
+    }
+    buildPropData(); renderSidebar(); updateSelectionBar();
+    console.log('[delete] done');
+}
+
+document.getElementById('delete-btn').addEventListener('click', deleteSelected);
 
 document.getElementById('save-btn').addEventListener('click', () => {
     if (activeTab === 'map') {
