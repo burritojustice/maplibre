@@ -1073,7 +1073,17 @@
         #save-btn:hover { background: var(--magenta); color: white; border-color: var(--magenta); }
         #undo-btn { color: var(--text-muted); }
         #undo-btn:hover { color: var(--accent); border-color: var(--accent); }
+        #split-btn { width:26px; padding:3px 0; text-align:center; color:var(--text-muted); border-color:var(--border); background:var(--surface2); }
+        #split-btn:hover { color:var(--text); background:var(--surface3,#2a2a30); }
+        #split-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(110,231,183,0.15); }
         #delete-btn { color: var(--red); border-color: rgba(255,77,109,0.4); width:26px; padding:3px 0; text-align:center; }
+        /* Context menu */
+        #feature-context-menu { position:fixed;z-index:500;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px 0;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,0.5);display:none }
+        #feature-context-menu button { display:block;width:100%;padding:6px 14px;background:none;border:none;text-align:left;font-size:11px;color:var(--text-muted);cursor:pointer;font-family:var(--sans) }
+        #feature-context-menu button:hover { background:var(--surface2);color:var(--text) }
+        #feature-context-menu .ctx-sep { height:1px;background:var(--border);margin:3px 0 }
+        /* Split vertex dots on map */
+        .split-vertex-dot { width:8px;height:8px;border-radius:50%;background:#2dd4bf;border:2px solid white;cursor:crosshair;position:absolute;transform:translate(-50%,-50%);pointer-events:all }
         #delete-btn:hover { background: var(--red) !important; color: white !important; border-color: var(--red) !important; }
 
         #save-visible-btn {
@@ -1673,6 +1683,7 @@
         <span class="stat-num red" id="sel-num">0</span>
         <div class="bar-row-mid"><span class="stat-label" id="sel-label">selected</span></div>
         <div class="bar-row-btns">
+            <button class="bar-btn" id="split-btn" title="Enter split mode — click line to split" style="display:none">✂</button>
             <button class="bar-btn" id="delete-btn" title="Delete selected features">🗑</button>
             <button class="bar-btn" id="save-btn" title="Save selected features as GeoJSON">⬇ Save</button>
         </div>
@@ -4844,7 +4855,7 @@ function setupGeoJsonLayers(fc) {
         });
         map.on('mousemove', 'gv-dots', onMouseMove);
         map.on('mouseleave', 'gv-dots', onMouseLeave);
-        map.on('click', 'gv-dots', onFeatureClick);
+        map.on('click', 'gv-dots', e => { if (!splitModeActive) onFeatureClick(e); });
     }
 
     // gv-point added last so it's topmost — ensures point clicks are never intercepted
@@ -8685,22 +8696,52 @@ function setHoveredFeature(id) {
     }
 }
 
+// Dismiss pinned popup when clicking empty map space (no feature under cursor)
+map.on('click', e => {
+    if (splitModeActive) return; // split mode click handled separately
+    if (e.originalEvent?.shiftKey) return; // shift+click = context menu (handled separately)
+    const features = map.queryRenderedFeatures(e.point, {
+        layers: ['gv-outline-interact', 'gv-line', 'gv-fill', 'gv-point', 'gv-dots']
+    });
+    if (features.length === 0 && frozenPopup) {
+        frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null;
+        // Don't deselect — just clear the pinned popup
+    }
+});
+
 function onMouseMove(e) {
+    // Cancel any pending pin dismiss timer when user returns to a feature
+    clearTimeout(_pinDismissTimer);
+    // In split mode: suppress hover popup, show snap dot
+    if (splitModeActive) { hoverPopup.remove(); return; }
+    // Shift held: change cursor to indicate context menu available
+    if (e.originalEvent?.shiftKey) {
+        map.getCanvas().style.cursor = 'crosshair';
+        hoverPopup.remove();
+        // Still highlight the feature so user knows what they'd act on
+        const f = e.features?.[0] || map.queryRenderedFeatures(e.point, {
+            layers: ['gv-outline-interact', 'gv-fill', 'gv-point']
+        })[0];
+        if (f?.properties?._gvid != null) setHoveredFeature(f.properties._gvid);
+        return;
+    } else {
+        map.getCanvas().style.cursor = '';
+    }
     const f = e.features[0];
     if (!f) return;
     const fid = f.properties._gvid;
 
     // Skip hidden features entirely
     if (hiddenIds.has(fid)) {
-        map.getCanvas().style.cursor = '';
+        map.getCanvas().style.cursor = splitModeActive ? 'crosshair' : '';
         setHoveredFeature(null);
         lastHoveredId = null;
         hoverPopup.remove();
         return;
     }
 
-    // Always show pointer and apply hover tint
-    map.getCanvas().style.cursor = 'pointer';
+    // Always show pointer and apply hover tint (unless in split mode)
+    map.getCanvas().style.cursor = splitModeActive ? 'crosshair' : 'pointer';
     setHoveredFeature(fid);
 
     // If a popup is pinned on a DIFFERENT feature, close it and switch to hover mode
@@ -8742,15 +8783,421 @@ function onMouseMove(e) {
     }
 }
 
+let _pinDismissTimer = null;
 function onMouseLeave() {
-    map.getCanvas().style.cursor = '';
+    map.getCanvas().style.cursor = splitModeActive ? 'crosshair' : '';
     setHoveredFeature(null);
     lastHoveredId = null;
     hoverPopup.remove();
+    // Auto-dismiss pinned popup 1s after user leaves the feature.
+    // Timer is shared with the popup element's mouseenter/mouseleave handlers
+    // so moving cursor onto the popup itself cancels the dismissal.
+    // See: frozenPopup element mouseenter → clearTimeout(_pinDismissTimer)
+    if (frozenPopup) {
+        _pinDismissTimer = setTimeout(() => {
+            if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
+        }, 1000);
+    }
 }
 
 // ── CLICK: PIN POPUP + SELECT ──
+// ── SPLIT MODE ────────────────────────────────────────────────────────────
+let splitModeActive = false;
+let _splitVertexMarkers = [];
+
+function getSelectedLineFeature() {
+    if (selectedIds.size !== 1) return null;
+    const id = [...selectedIds][0];
+    const f = allFeatures.find(f => f.properties._gvid === id);
+    if (!f) return null;
+    const t = f.geometry?.type;
+    return (t === 'LineString' || t === 'MultiLineString') ? f : null;
+}
+
+function updateSplitButton() {
+    const btn = document.getElementById('split-btn');
+    if (!btn) return;
+    const f = getSelectedLineFeature();
+    btn.style.display = f ? '' : 'none';
+    btn.classList.toggle('active', splitModeActive);
+    if (!f && splitModeActive) exitSplitMode();
+}
+
+function enterSplitMode() {
+    splitModeActive = true;
+    map.getCanvas().style.cursor = 'crosshair';
+    document.getElementById('split-btn').classList.add('active');
+    showSplitVertexDots();
+}
+
+function exitSplitMode() {
+    splitModeActive = false;
+    map.getCanvas().style.cursor = '';
+    const btn = document.getElementById('split-btn');
+    if (btn) btn.classList.remove('active');
+    clearSplitVertexDots();
+    const snapDot = document.getElementById('split-snap-dot');
+    if (snapDot) snapDot.remove();
+}
+
+function showSplitVertexDots() {
+    clearSplitVertexDots();
+    const f = getSelectedLineFeature();
+    if (!f) return;
+    const rings = f.geometry.type === 'LineString'
+        ? [f.geometry.coordinates]
+        : f.geometry.coordinates;
+    rings.forEach(coords => {
+        coords.forEach(coord => {
+            const pt = map.project(coord);
+            const dot = document.createElement('div');
+            dot.className = 'split-vertex-dot';
+            dot.style.left = pt.x + 'px';
+            dot.style.top  = pt.y + 'px';
+            dot.title = 'Click to split here';
+            dot.addEventListener('click', e => {
+                e.stopPropagation();
+                splitFeatureAtPoint({ lng: coord[0], lat: coord[1] });
+            });
+            map.getCanvasContainer().appendChild(dot);
+            _splitVertexMarkers.push(dot);
+        });
+    });
+}
+
+function clearSplitVertexDots() {
+    _splitVertexMarkers.forEach(d => d.remove());
+    _splitVertexMarkers = [];
+}
+
+function splitFeatureAtPoint(lngLat) {
+    const f = getSelectedLineFeature();
+    if (!f) return;
+    pushUndo();
+    try {
+        const pt = turf.point([lngLat.lng, lngLat.lat]);
+        const allRings = f.geometry.type === 'LineString'
+            ? [f.geometry.coordinates]
+            : f.geometry.coordinates;
+
+        // Find the single nearest ring to the click point
+        let nearestRingIdx = 0, nearestRingDist = Infinity;
+        allRings.forEach((coords, ri) => {
+            if (coords.length < 2) return;
+            try {
+                const d = turf.distance(pt, turf.nearestPointOnLine(turf.lineString(coords), pt));
+                if (d < nearestRingDist) { nearestRingDist = d; nearestRingIdx = ri; }
+            } catch {}
+        });
+        const splitCoords = allRings[nearestRingIdx];
+        const otherRings  = allRings.filter((_, i) => i !== nearestRingIdx);
+
+        const snap      = turf.nearestPointOnLine(turf.lineString(splitCoords), pt);
+        const snapCoord = snap.geometry.coordinates;
+
+        // Find the segment within the ring closest to the click
+        let bestIdx = 0, bestDist = Infinity;
+        for (let i = 0; i < splitCoords.length - 1; i++) {
+            try {
+                const d = turf.distance(pt, turf.nearestPointOnLine(
+                    turf.lineString([splitCoords[i], splitCoords[i+1]]), pt));
+                if (d < bestDist) { bestDist = d; bestIdx = i; }
+            } catch {}
+        }
+
+        const part1 = [...splitCoords.slice(0, bestIdx + 1), snapCoord];
+        const part2 = [snapCoord, ...splitCoords.slice(bestIdx + 1)];
+        console.log('[split] ring', nearestRingIdx, 'of', allRings.length,
+            '→ part1:', part1.length, 'part2:', part2.length, 'otherRings:', otherRings.length);
+
+        if (part1.length < 2 || part2.length < 2) {
+            alert('Could not split — try clicking closer to the line.'); return;
+        }
+
+        const gvid = f.properties._gvid;
+        allFeatures = allFeatures.filter(feat => feat.properties._gvid !== gvid);
+
+        // Part 1: gets any remaining rings as a MultiLineString
+        const geom1 = otherRings.length > 0
+            ? { type: 'MultiLineString', coordinates: [part1, ...otherRings] }
+            : { type: 'LineString', coordinates: part1 };
+        // Part 2: always a plain LineString
+        const geom2 = { type: 'LineString', coordinates: part2 };
+
+        [geom1, geom2].forEach(geom => {
+            const newId = allFeatures.length;
+            allFeatures.push({ type: 'Feature', id: newId, geometry: geom,
+                properties: { ...f.properties, _gvid: newId } });
+        });
+
+        // Re-index
+        allFeatures = allFeatures.map((feat, i) => ({
+            ...feat, id: i, properties: { ...feat.properties, _gvid: i }
+        }));
+        selectedIds.clear();
+        if (map.getSource('geojson-data')) {
+            map.getSource('geojson-data').setData({ type: 'FeatureCollection', features: allFeatures });
+        }
+        // Clear any pinned popup — don't show one for newly split features
+        if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
+        buildPropData(); renderSidebar(); updateSelectionBar();
+        exitSplitMode();
+        console.log('[split] done — 2 features created');
+        // Flash the two new features alternately to show the split point
+        const newIds = allFeatures.slice(-2).map(f => f.id);
+        let _flashCount = 0;
+        const _flashInterval = setInterval(() => {
+            _flashCount++;
+            const bright = newIds[_flashCount % 2];
+            const dim    = newIds[(_flashCount + 1) % 2];
+            map.setFeatureState({ source: 'geojson-data', id: bright }, { highlighted: true });
+            map.setFeatureState({ source: 'geojson-data', id: dim },    { highlighted: false });
+            if (_flashCount >= 6) {
+                clearInterval(_flashInterval);
+                newIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }));
+            }
+        }, 150);
+    } catch(err) {
+        console.error('[split] error:', err);
+        alert('Split failed: ' + err.message);
+    }
+}
+
+// Update vertex dot positions when map moves (zoom/pan)
+map.on('move', () => { if (splitModeActive) showSplitVertexDots(); });
+
+// Click on map in split mode → split
+map.on('click', e => {
+    if (!splitModeActive) return;
+    splitFeatureAtPoint(e.lngLat);
+});
+
+// In split mode: highlight nearest point on line as user moves mouse
+map.on('mousemove', e => {
+    if (!splitModeActive) return;
+    const f = getSelectedLineFeature();
+    if (!f) return;
+    try {
+        const pt = turf.point([e.lngLat.lng, e.lngLat.lat]);
+        const snap = turf.nearestPointOnLine(turf.feature(f.geometry), pt);
+        const snapPx = map.project(snap.geometry.coordinates);
+        // Update or create a snap indicator dot
+        let snapDot = document.getElementById('split-snap-dot');
+        if (!snapDot) {
+            snapDot = document.createElement('div');
+            snapDot.id = 'split-snap-dot';
+            snapDot.style.cssText = 'position:absolute;width:10px;height:10px;border-radius:50%;background:#e040fb;border:2px solid white;pointer-events:none;transform:translate(-50%,-50%);z-index:10';
+            map.getCanvasContainer().appendChild(snapDot);
+        }
+        snapDot.style.left = snapPx.x + 'px';
+        snapDot.style.top  = snapPx.y + 'px';
+    } catch {}
+});
+
+// Escape exits split mode
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && splitModeActive) exitSplitMode();
+    if (e.key === 'Shift') {
+        hoverPopup.remove();
+        if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
+        if (!splitModeActive) map.getCanvas().style.cursor = 'crosshair';
+    }
+});
+document.addEventListener('keyup', e => {
+    if (e.key === 'Shift' && !splitModeActive) map.getCanvas().style.cursor = '';
+});
+
+document.getElementById('split-btn').addEventListener('click', () => {
+    if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
+    if (splitModeActive) exitSplitMode();
+    else enterSplitMode();
+});
+
+// ── CONTEXT MENU ─────────────────────────────────────────────────────────
+const _ctxMenu = null; // lazy-initialized below
+function getCtxMenu() { return document.getElementById('feature-context-menu'); }
+let _ctxLngLat = null;
+let _ctxFeature = null;
+
+function showContextMenu(x, y, lngLat, feature) {
+    _ctxLngLat = lngLat;
+    _ctxFeature = feature;
+    const t = feature?.geometry?.type || '';
+    const isLine = t === 'LineString' || t === 'MultiLineString';
+    const hasSelection = selectedIds.size > 0;
+    // _gvid in selectedIds is stored as a number; MapLibre feature.id may be string
+    const fGvid = feature?.properties?._gvid;
+    const fSelected = fGvid != null && selectedIds.has(Number(fGvid));
+
+    const items = [];
+
+    // Split — only for a line that is selected
+    if (isLine && fSelected) {
+        items.push(`<button data-ctx="split">✂ Split here</button>`);
+        items.push(`<div class="ctx-sep"></div>`);
+    }
+
+    if (feature && !fSelected) {
+        // Clicked an unselected feature — offer to select it
+        items.push(`<button data-ctx="select-one">◎ Select</button>`);
+        items.push(`<div class="ctx-sep"></div>`);
+    }
+
+    if (hasSelection) {
+        items.push(`<button data-ctx="delete">🗑 Delete selected (${selectedIds.size})</button>`);
+        items.push(`<button data-ctx="hide">👁 Hide selected</button>`);
+        items.push(`<button data-ctx="duplicate">⎘ Duplicate selected</button>`);
+    } else if (feature) {
+        const isHidden = hiddenIds.has(Number(fGvid));
+        items.push(`<button data-ctx="delete-one">🗑 Delete</button>`);
+        items.push(`<button data-ctx="${isHidden ? 'unhide-one' : 'hide-one'}">${isHidden ? '👁 Show' : '👁 Hide'}</button>`);
+        items.push(`<button data-ctx="duplicate-one">⎘ Duplicate</button>`);
+    }
+    if (hiddenIds.size > 0) {
+        if (items.length) items.push(`<div class="ctx-sep"></div>`);
+        items.push(`<button data-ctx="unhide-all">👁 Show all hidden (${hiddenIds.size})</button>`);
+    }
+
+    console.log('[ctx] showing menu with', items.length, 'items, feature:', feature?.properties?._gvid ?? 'none');
+    if (!items.length) { console.log('[ctx] no items, returning'); return; }
+    getCtxMenu().innerHTML = items.join('');
+
+    // Position clamped to viewport
+    const W = window.innerWidth, H = window.innerHeight;
+    const mw = 180;
+    const menuLeft = Math.min(x, W - mw - 8);
+    const menuTop  = Math.min(y, H - 200);
+    getCtxMenu().style.left  = menuLeft + 'px';
+    getCtxMenu().style.top   = menuTop + 'px';
+    getCtxMenu().style.display = 'block';
+    console.log('[ctx] menu positioned at', menuLeft, menuTop, 'viewport size', W, 'x', H, 'display:', getCtxMenu().style.display);
+
+    getCtxMenu().querySelectorAll('button[data-ctx]').forEach(btn => {
+        btn.onclick = () => { handleContextAction(btn.dataset.ctx); closeContextMenu(); };
+    });
+    _ctxMenuOpenedAt = Date.now(); // prevent mousedown from immediately closing
+}
+
+function closeContextMenu() {
+    console.log('[ctx] closing menu');
+    getCtxMenu().style.display = 'none';
+    _ctxLngLat = null; _ctxFeature = null;
+}
+
+function handleContextAction(action) {
+    switch (action) {
+        case 'split':
+            if (_ctxLngLat) splitFeatureAtPoint(_ctxLngLat);
+            break;
+        case 'select-one':
+            if (_ctxFeature) {
+                const id = Number(_ctxFeature.properties?._gvid);
+                if (!isNaN(id)) {
+                    selectedIds.add(id);
+                    map.setFeatureState({ source: 'geojson-data', id }, { selected: true });
+                    updateSelectionBar();
+                }
+            }
+            break;
+        case 'delete':
+            deleteSelected();
+            break;
+        case 'delete-one':
+            if (_ctxFeature) {
+                const id = _ctxFeature.properties?._gvid;
+                if (id != null) { selectedIds.add(id); deleteSelected(); }
+            }
+            break;
+        case 'hide':
+            selectedIds.forEach(id => {
+                hiddenIds.add(id);
+                map.setFeatureState({ source: 'geojson-data', id }, { hidden: true });
+            });
+            selectedIds.clear(); updateSelectionBar(); renderSidebar();
+            break;
+        case 'hide-one':
+            if (_ctxFeature) {
+                const id = Number(_ctxFeature.properties?._gvid);
+                if (!isNaN(id)) { hiddenIds.add(id); map.setFeatureState({ source: 'geojson-data', id }, { hidden: true }); updateSelectionBar(); }
+            }
+            break;
+        case 'unhide-one':
+            if (_ctxFeature) {
+                const id = Number(_ctxFeature.properties?._gvid);
+                if (!isNaN(id)) { hiddenIds.delete(id); map.setFeatureState({ source: 'geojson-data', id }, { hidden: false }); updateSelectionBar(); }
+            }
+            break;
+        case 'unhide-all':
+            hiddenIds.forEach(id => map.setFeatureState({ source: 'geojson-data', id }, { hidden: false }));
+            hiddenIds.clear(); updateSelectionBar(); renderSidebar();
+            break;
+        case 'duplicate':
+        case 'duplicate-one': {
+            pushUndo();
+            const ids = action === 'duplicate'
+                ? [...selectedIds]
+                : [_ctxFeature?.properties?._gvid].filter(x => x != null);
+            ids.forEach(id => {
+                const orig = allFeatures.find(f => f.properties._gvid === id);
+                if (!orig) return;
+                const newId = allFeatures.length;
+                allFeatures.push({ ...orig, id: newId,
+                    properties: { ...orig.properties, _gvid: newId } });
+            });
+            if (map.getSource('geojson-data')) {
+                map.getSource('geojson-data').setData({ type: 'FeatureCollection', features: allFeatures });
+            }
+            buildPropData(); renderSidebar(); updateSelectionBar();
+            break;
+        }
+    }
+}
+
+// Wire context menu to map right-click / ctrl+click
+function _triggerContextMenu(point, lngLat) {
+    console.log('[ctx] triggered at', point);
+    if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
+    const features = map.queryRenderedFeatures(point, { layers: ['gv-outline-interact', 'gv-line', 'gv-fill', 'gv-point', 'gv-dots'] });
+    const f = features.find(feat => feat.source === 'geojson-data') || null;
+    console.log('[ctx] feature:', f?.properties?._gvid ?? 'none', 'selectedIds:', [...selectedIds]);
+    // Convert canvas-relative point to viewport coords for position:fixed menu
+    const rect = map.getCanvas().getBoundingClientRect();
+    showContextMenu(rect.left + point.x, rect.top + point.y, lngLat, f);
+}
+
+map.on('contextmenu', e => {
+    e.preventDefault();
+    _triggerContextMenu(e.point, e.lngLat);
+});
+
+// Shift+click for context menu — reliable cross-platform, no browser conflicts
+map.getCanvas().addEventListener('mousedown', e => {
+    if (!e.shiftKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const _onUp = (upE) => {
+        map.getCanvas().removeEventListener('mouseup', _onUp, true);
+        const point = new maplibregl.Point(upE.offsetX, upE.offsetY);
+        const lngLat = map.unproject(point);
+        console.log('[ctx] shift+click at', upE.offsetX, upE.offsetY);
+        _triggerContextMenu(point, lngLat);
+    };
+    map.getCanvas().addEventListener('mouseup', _onUp, true);
+}, true);
+
+// Close context menu on outside click — timestamp prevents self-closing on the opening event
+let _ctxMenuOpenedAt = 0;
+document.addEventListener('mousedown', e => {
+    if (Date.now() - _ctxMenuOpenedAt < 300) return; // ignore clicks within 300ms of opening
+    if (getCtxMenu()?.style.display !== 'none' && !getCtxMenu()?.contains(e.target)) closeContextMenu();
+});
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeContextMenu();
+});
+
 function onOutlineInteractClick(e) {
+    if (splitModeActive) return; // split mode click handled by splitFeatureAtPoint
+    if (e.originalEvent?.shiftKey) return; // shift+click → context menu
     const f = e.features && e.features[0];
     if (!f) return;
     const t = f.geometry?.type;
@@ -8760,6 +9207,10 @@ function onOutlineInteractClick(e) {
 }
 
 function onFeatureClick(e) {
+    // In split mode, clicks split the line — don't pin a popup
+    if (splitModeActive) return;
+    // Shift+click / right-click should show the context menu, not pin a popup
+    if (e.originalEvent?.shiftKey || e.originalEvent?.button === 2) return;
     e.preventDefault();
     const f = e.features[0]; if (!f) return;
     const id = f.id ?? f.properties._gvid;
@@ -8790,7 +9241,20 @@ function onFeatureClick(e) {
     hoverPopup.remove(); lastHoveredId = null;
     frozenPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 });
     frozenPopup.setLngLat(e.lngLat).setHTML(buildFrozenHTML()).addTo(map);
-    setTimeout(() => attachFrozenEvents(), 50);
+    // Auto-dismiss pinned popup if mouse leaves it after a short delay
+    setTimeout(() => {
+        attachFrozenEvents();
+        const el = frozenPopup?.getElement();
+        if (el) {
+            // Use the same shared timer as onMouseLeave so moving onto the popup cancels it
+            el.addEventListener('mouseenter', () => { clearTimeout(_pinDismissTimer); _pinDismissTimer = null; });
+            el.addEventListener('mouseleave', () => {
+                _pinDismissTimer = setTimeout(() => {
+                    if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
+                }, 1000);
+            });
+        }
+    }, 50);
 }
 
 function cleanProps(raw) { const p = { ...raw }; delete p._gvid; return p; }
@@ -9436,6 +9900,7 @@ function updateSelectionBar() {
     // hid-badge inline in vis-row
     const hidBadge = document.getElementById('hid-badge');
     if (hidBadge) hidBadge.style.display = numHidden > 0 ? '' : 'none';
+    updateSplitButton();
 
     // Bar is always visible once data is loaded or a tile filter is active
     const barVisible = totalFeatures > 0 || (activeTab === 'map' && (tileSelected.size > 0 || !!tileActiveFilter));
@@ -10059,5 +10524,6 @@ function takeScreenshot() {
     map.triggerRepaint();
 }
 </script>
+<div id="feature-context-menu"></div>
 </body>
 </html>
