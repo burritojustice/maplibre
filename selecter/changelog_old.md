@@ -2,7 +2,7 @@
 
 ---
 
-## April 16–22, 2026 (this session)
+## April 16–22, 2026 
 
 - Line casing: per-feature `hidden` state expression replaces scalar opacity, fixes casing on filtered items
 - `isQuantitativeScheme` check in Hide block gates correctly on cleared `filterHiddenIds`
