@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 440">
+<!--
+  Selecter favicon — GeoJSON Viewer / Selecter
+  4×4 grid, cell=80px, bounding box [60,380]×[60,380]
+  Pin diagonal: (60,380)→(380,60), slope=-1
+  Pin head (hollow ring): (340,100) — intersection of line0 with diagonal
+  Pin pointed end: (100,340) — intersection of line6 with diagonal
+-->
+<defs>
+  <clipPath id="tile">
+    <rect x="60" y="60" width="320" height="320" rx="40"/>
+  </clipPath>
+  <clipPath id="tl">
+    <polygon points="60,60 380,60 60,380"/>
+  </clipPath>
+  <clipPath id="br">
+    <polygon points="380,60 380,380 60,380"/>
+  </clipPath>
+</defs>
+
+<!-- Tile background -->
+<rect x="60" y="60" width="320" height="320" rx="40" fill="#0f0f11"/>
+
+<g clip-path="url(#tile)">
+
+  <!-- Magenta filled blocks -->
+  <!-- Top-left: row1 col2 -->
+  <rect x="140" y="60" width="80" height="80" fill="#c026d3" opacity="0.50"/>
+  <!-- (2,3) triangle clipped by pin -->
+  <polygon points="140,220 220,220 140,300" fill="#c026d3" opacity="0.50"/>
+  <!-- BR strip pin/p1: (300,140),(260,180),(300,220),(340,180) -->
+  <polygon points="300,140 260,180 300,220 340,180" fill="#c026d3" opacity="0.50"/>
+  <!-- BR strip p1/p2: middle parallelogram -->
+  <polygon points="220,300 180,340 220,380 260,340" fill="#c026d3" opacity="0.50"/>
+  <!-- BR strip p1/p2: NE parallelogram -->
+  <polygon points="260,260 220,300 260,340 300,300" fill="#c026d3" opacity="0.50"/>
+
+  <!-- Top-left orthogonal grid, clipped to TL triangle -->
+  <g clip-path="url(#tl)" stroke="#3a3a5c" stroke-width="3.5" stroke-linecap="round">
+    <line x1="60"  y1="140" x2="380" y2="140"/>
+    <line x1="60"  y1="220" x2="380" y2="220"/>
+    <line x1="60"  y1="300" x2="380" y2="300"/>
+    <line x1="140" y1="60"  x2="140" y2="380"/>
+    <line x1="220" y1="60"  x2="220" y2="380"/>
+    <line x1="300" y1="60"  x2="300" y2="380"/>
+  </g>
+
+  <!-- Bottom-right diagonal grid, clipped to BR triangle -->
+  <g clip-path="url(#br)" stroke="#3a3a5c" stroke-width="3.5" stroke-linecap="round">
+    <!-- 7 NW-SE lines (slope +1) -->
+    <line x1="300" y1="60"  x2="380" y2="140"/>
+    <line x1="220" y1="60"  x2="380" y2="220"/>
+    <line x1="140" y1="60"  x2="380" y2="300"/>
+    <line x1="220" y1="220" x2="380" y2="380"/>
+    <line x1="180" y1="260" x2="300" y2="380"/>
+    <line x1="140" y1="300" x2="220" y2="380"/>
+    <line x1="100" y1="340" x2="140" y2="380"/>
+    <!-- 3 SW-NE parallel lines (slope -1), getting shorter -->
+    <line x1="140" y1="380" x2="380" y2="140"/>
+    <line x1="220" y1="380" x2="380" y2="220"/>
+    <line x1="300" y1="380" x2="380" y2="300"/>
+  </g>
+
+  <!-- Grey street — full diagonal, drawn over grids -->
+  <line x1="60" y1="380" x2="380" y2="60"
+        stroke="#3a3a5c" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- Teal pin line — from head (340,100) to pointed end (100,340) -->
+  <line x1="340" y1="100" x2="100" y2="340"
+        stroke="#6ee7b7" stroke-width="7" stroke-linecap="butt"/>
+
+  <!-- Pointed arrowhead at (100,340) pointing SW -->
+  <polygon points="100,340 106,334 123,317" fill="#6ee7b7"/>
+
+  <!-- Pin head hollow ring at (340,100) -->
+  <circle cx="340" cy="100" r="16" fill="#6ee7b7"/>
+  <circle cx="340" cy="100" r="8"  fill="#0f0f11"/>
+
+</g>
+</svg>
