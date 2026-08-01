@@ -1,28 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360">
-<!--
-  Selecter favicon — 3×3 grid, white background, black streets
-  360×360 viewBox, cell=120px
-  Diagonal: (0,360)→(360,0), x+y=360
-
-  TL grid intersections on diagonal: (120,240) and (240,120)
-
-  5 NW-SE lines (slope+1):
-    C= 240: (0,240)→(120,360)
-    C= 120: (0,120)→(240,360)   — through (120,240)
-    C=   0: clipped to BR: (180,180)→(360,360)
-    C=-120: (120,0)→(360,240)   — through (240,120)
-    C=-240: (240,0)→(360,120)
-
-  2 SW-NE parallels (slope-1):
-    P1: x+y=480: (120,360)→(360,120)
-    P2: x+y=600: (240,360)→(360,240)
-
-  Pin head: (300,60)  tail: (60,300)
-  Magenta: top-left square x∈[0,120] y∈[0,120] (TL triangle clipped)
-  BR parallelogram: (240,120),(180,180),(240,240),(300,180)
-
-  Line weight: 22px streets, 38px teal pin, rx=28
--->
 <defs>
   <clipPath id="tile">
     <rect x="0" y="0" width="360" height="360" rx="28"/>
@@ -35,8 +11,8 @@
   </clipPath>
 </defs>
 
-<!-- White tile -->
-<rect x="0" y="0" width="360" height="360" rx="28" fill="#f8f8f8"/>
+<!-- Black tile -->
+<rect x="0" y="0" width="360" height="360" rx="28" fill="#0f0f11"/>
 
 <g clip-path="url(#tile)">
 
@@ -45,16 +21,16 @@
   <!-- Magenta: BR parallelogram -->
   <polygon points="240,120 180,180 240,240 300,180" fill="#c026d3" opacity="0.55"/>
 
-  <!-- TL orthogonal grid, clipped to TL triangle, black thick -->
-  <g clip-path="url(#tl)" stroke="#111" stroke-width="22" stroke-linecap="round">
+  <!-- TL orthogonal grid, white streets -->
+  <g clip-path="url(#tl)" stroke="#f0f0f0" stroke-width="22" stroke-linecap="round">
     <line x1="0"   y1="120" x2="360" y2="120"/>
     <line x1="0"   y1="240" x2="360" y2="240"/>
     <line x1="120" y1="0"   x2="120" y2="360"/>
     <line x1="240" y1="0"   x2="240" y2="360"/>
   </g>
 
-  <!-- BR diagonal grid, clipped to BR triangle, black thick -->
-  <g clip-path="url(#br)" stroke="#111" stroke-width="22" stroke-linecap="round">
+  <!-- BR diagonal grid, white streets -->
+  <g clip-path="url(#br)" stroke="#f0f0f0" stroke-width="22" stroke-linecap="round">
     <line x1="240" y1="0"   x2="360" y2="120"/>
     <line x1="120" y1="0"   x2="360" y2="240"/>
     <line x1="180" y1="180" x2="360" y2="360"/>
@@ -64,20 +40,20 @@
     <line x1="240" y1="360" x2="360" y2="240"/>
   </g>
 
-  <!-- Grey street — full diagonal, black -->
+  <!-- Full diagonal street, white -->
   <line x1="0" y1="360" x2="360" y2="0"
-        stroke="#111" stroke-width="22" stroke-linecap="round"/>
+        stroke="#f0f0f0" stroke-width="22" stroke-linecap="round"/>
 
-  <!-- Teal pin line: (300,60)→(60,300) -->
+  <!-- Teal pin line -->
   <line x1="300" y1="60" x2="60" y2="300"
         stroke="#6ee7b7" stroke-width="38" stroke-linecap="butt"/>
 
-  <!-- Arrowhead at (60,300) pointing SW -->
+  <!-- Arrowhead at (60,300) -->
   <polygon points="60,300 69,292 91,269" fill="#6ee7b7"/>
 
   <!-- Pin head at (300,60) -->
   <circle cx="300" cy="60" r="32" fill="#6ee7b7"/>
-  <circle cx="300" cy="60" r="16" fill="#f8f8f8"/>
+  <circle cx="300" cy="60" r="16" fill="#0f0f11"/>
 
 </g>
 </svg>
