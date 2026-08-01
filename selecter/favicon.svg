@@ -1,4 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360">
+<!--
+  Pin head: large filled circle at (300,60) — pushed NE, stays inside rx=28 corner
+  Pin tail: at (60,300) — pushed SW, stays inside rx=28 corner
+  Pin head: fully filled teal (no hole), radius 44 — fits inside corner at (300,60)
+    Corner circle center at (332,28) radius 28, pin head center (300,60) dist=45 — safe
+  Magenta: full #c026d3 no opacity reduction
+-->
 <defs>
   <clipPath id="tile">
     <rect x="0" y="0" width="360" height="360" rx="28"/>
@@ -11,17 +18,16 @@
   </clipPath>
 </defs>
 
-<!-- Black tile -->
 <rect x="0" y="0" width="360" height="360" rx="28" fill="#0f0f11"/>
 
 <g clip-path="url(#tile)">
 
-  <!-- Magenta: top-left cell (TL triangle clipped) -->
-  <rect x="0" y="0" width="120" height="120" fill="#c026d3" opacity="0.55" clip-path="url(#tl)"/>
+  <!-- Magenta: top-left cell, full brightness -->
+  <rect x="0" y="0" width="120" height="120" fill="#e621f5" clip-path="url(#tl)"/>
   <!-- Magenta: BR parallelogram -->
-  <polygon points="240,120 180,180 240,240 300,180" fill="#c026d3" opacity="0.55"/>
+  <polygon points="240,120 180,180 240,240 300,180" fill="#e621f5"/>
 
-  <!-- TL orthogonal grid, white streets -->
+  <!-- TL orthogonal grid -->
   <g clip-path="url(#tl)" stroke="#f0f0f0" stroke-width="22" stroke-linecap="round">
     <line x1="0"   y1="120" x2="360" y2="120"/>
     <line x1="0"   y1="240" x2="360" y2="240"/>
@@ -29,7 +35,7 @@
     <line x1="240" y1="0"   x2="240" y2="360"/>
   </g>
 
-  <!-- BR diagonal grid, white streets -->
+  <!-- BR diagonal grid -->
   <g clip-path="url(#br)" stroke="#f0f0f0" stroke-width="22" stroke-linecap="round">
     <line x1="240" y1="0"   x2="360" y2="120"/>
     <line x1="120" y1="0"   x2="360" y2="240"/>
@@ -40,20 +46,19 @@
     <line x1="240" y1="360" x2="360" y2="240"/>
   </g>
 
-  <!-- Full diagonal street, white -->
+  <!-- Full diagonal street -->
   <line x1="0" y1="360" x2="360" y2="0"
         stroke="#f0f0f0" stroke-width="22" stroke-linecap="round"/>
 
-  <!-- Teal pin line -->
-  <line x1="300" y1="60" x2="60" y2="300"
+  <!-- Teal pin line: head(310,50)→tail(50,310) -->
+  <line x1="310" y1="50" x2="50" y2="310"
         stroke="#6ee7b7" stroke-width="38" stroke-linecap="butt"/>
 
-  <!-- Arrowhead at (60,300) -->
-  <polygon points="60,300 69,292 91,269" fill="#6ee7b7"/>
+  <!-- Arrowhead at tail (50,310) pointing SW -->
+  <polygon points="50,310 61,299 83,276" fill="#6ee7b7"/>
 
-  <!-- Pin head at (300,60) -->
-  <circle cx="300" cy="60" r="32" fill="#6ee7b7"/>
-  <circle cx="300" cy="60" r="16" fill="#0f0f11"/>
+  <!-- Pin head: large filled teal circle, no hole, at (310,50) -->
+  <circle cx="310" cy="50" r="44" fill="#6ee7b7"/>
 
 </g>
 </svg>
