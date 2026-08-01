@@ -1,112 +1,93 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360">
 <!--
-  Selecter favicon — redesigned to fill the viewBox edge-to-edge.
-  Grid: 4×4 cells, each 80px, covering the full 320×320 viewBox.
-  Bounding box: [0,320]×[0,320]
-  Pin diagonal: (0,320)→(320,0), slope=-1, x+y=320
+  Selecter favicon — simplified 3×3 grid
+  360×360 viewBox, cell=120px
+  Diagonal: (0,360)→(360,0), x+y=360
 
-  Internal H lines: y=80,160,240
-  Internal V lines: x=80,160,240
+  TL grid intersections on diagonal: (120,240) and (240,120)
 
-  Diagonal intersections SW→NE (9 stops):
-    0: (0,320)   — SW corner
-    1: (40,280)  — line6
-    2: (80,240)  — line5
-    3: (120,200) — line4
-    4: (160,160) — line3
-    5: (200,120) — line2
-    6: (240,80)  — line1
-    7: (280,40)  — line0  ← pin head
-    8: (320,0)   — NE corner
+  5 NW-SE lines (slope+1, y=x+C):
+    C= 240: (0,240)→(120,360)          — 1 cell, SW anchor (60,300)
+    C= 120: (0,120)→(240,360)          — through (120,240)
+    C=   0: (0,0)→(360,360) clipped BR: (180,180)→(360,360)
+    C=-120: (120,0)→(360,240)          — through (240,120)
+    C=-240: (240,0)→(360,120)          — 1 cell, NE anchor (300,60)
 
-  Pin head (hollow ring): stop 7 = (280,40)
-  Pin pointed end: stop 1 = (40,280)
-  Teal line: (280,40)→(40,280)
+  2 SW-NE parallels (slope-1, x+y=C):
+    P1: x+y=480: (120,360)→(360,120)
+    P2: x+y=600: (240,360)→(360,240)
 
-  NW-SE lines (slope+1, perp to pin):
-    line0: y=x-240, (240,0)→(320,80)   — 1 cell, stop7 anchor
-    line1: y=x-160, (160,0)→(320,160)
-    line2: y=x-80,  (80,0)→(320,240)
-    line3: y=x,     (160,160)→(320,320) [clipped to BR]
-    line4: y=x+80,  (120,200)→(240,320)
-    line5: y=x+160, (80,240)→(160,320)
-    line6: y=x+240, (40,280)→(80,320)  — 1 cell, stop1 anchor
+  Pin: head(300,60) → tail(60,300), teal
+  Grey street: full diagonal (0,360)→(360,0)
 
-  SW-NE parallel lines (slope-1):
-    p1: y=-x+400, (80,320)→(320,80)
-    p2: y=-x+480, (160,320)→(320,160)
-    p3: y=-x+560, (240,320)→(320,240)
+  Magenta:
+    TL: full square x∈[0,120] y∈[0,120]
+    BR: parallelogram (240,120),(180,180),(240,240),(300,180)
 
-  Magenta blocks:
-    TL (2,1): x∈[80,160] y∈[0,80]
-    TL (2,3) triangle: (80,160),(160,160),(80,240)
-    BR pin/p1 strip: (240,80),(200,120),(240,160),(280,120)
-    BR p1/p2 strip NE: (200,200),(160,240),(200,280),(240,240)
-    BR p1/p2 strip mid: (160,240),(120,280),(160,320),(200,280)
+  Line weights:
+    Streets: 22px  (~2px at 16px render)
+    Teal pin: 38px (~3px at 16px render)
+    rx: 28px
 -->
 <defs>
   <clipPath id="tile">
-    <rect x="0" y="0" width="320" height="320" rx="32"/>
+    <rect x="0" y="0" width="360" height="360" rx="28"/>
   </clipPath>
   <clipPath id="tl">
-    <polygon points="0,0 320,0 0,320"/>
+    <polygon points="0,0 360,0 0,360"/>
   </clipPath>
   <clipPath id="br">
-    <polygon points="320,0 320,320 0,320"/>
+    <polygon points="360,0 360,360 0,360"/>
   </clipPath>
 </defs>
 
-<rect x="0" y="0" width="320" height="320" rx="32" fill="#0f0f11"/>
+<rect x="0" y="0" width="360" height="360" rx="28" fill="#0f0f11"/>
 
 <g clip-path="url(#tile)">
 
   <!-- Magenta blocks -->
-  <rect x="80" y="0" width="80" height="80" fill="#c026d3" opacity="0.50"/>
-  <polygon points="80,160 160,160 80,240" fill="#c026d3" opacity="0.50"/>
-  <polygon points="240,80 200,120 240,160 280,120" fill="#c026d3" opacity="0.50"/>
-  <polygon points="200,200 160,240 200,280 240,240" fill="#c026d3" opacity="0.50"/>
-  <polygon points="160,240 120,280 160,320 200,280" fill="#c026d3" opacity="0.50"/>
+  <!-- TL full square: top-left cell -->
+  <rect x="0" y="0" width="120" height="120" fill="#c026d3" opacity="0.55"/>
+  <!-- BR parallelogram: (240,120),(180,180),(240,240),(300,180) -->
+  <polygon points="240,120 180,180 240,240 300,180" fill="#c026d3" opacity="0.55"/>
 
-  <!-- Top-left orthogonal grid -->
-  <g clip-path="url(#tl)" stroke="#3a3a5c" stroke-width="3" stroke-linecap="round">
-    <line x1="0"   y1="80"  x2="320" y2="80"/>
-    <line x1="0"   y1="160" x2="320" y2="160"/>
-    <line x1="0"   y1="240" x2="320" y2="240"/>
-    <line x1="80"  y1="0"   x2="80"  y2="320"/>
-    <line x1="160" y1="0"   x2="160" y2="320"/>
-    <line x1="240" y1="0"   x2="240" y2="320"/>
+  <!-- Top-left orthogonal grid, clipped to TL triangle -->
+  <g clip-path="url(#tl)" stroke="#3d3d58" stroke-width="22" stroke-linecap="round">
+    <line x1="0"   y1="120" x2="360" y2="120"/>
+    <line x1="0"   y1="240" x2="360" y2="240"/>
+    <line x1="120" y1="0"   x2="120" y2="360"/>
+    <line x1="240" y1="0"   x2="240" y2="360"/>
   </g>
 
-  <!-- Bottom-right diagonal grid -->
-  <g clip-path="url(#br)" stroke="#3a3a5c" stroke-width="3" stroke-linecap="round">
-    <!-- 7 NW-SE lines (slope+1) -->
-    <line x1="240" y1="0"   x2="320" y2="80"/>
-    <line x1="160" y1="0"   x2="320" y2="160"/>
-    <line x1="80"  y1="0"   x2="320" y2="240"/>
-    <line x1="160" y1="160" x2="320" y2="320"/>
-    <line x1="120" y1="200" x2="240" y2="320"/>
-    <line x1="80"  y1="240" x2="160" y2="320"/>
-    <line x1="40"  y1="280" x2="80"  y2="320"/>
-    <!-- 3 SW-NE parallel lines (slope-1) -->
-    <line x1="80"  y1="320" x2="320" y2="80"/>
-    <line x1="160" y1="320" x2="320" y2="160"/>
-    <line x1="240" y1="320" x2="320" y2="240"/>
+  <!-- Bottom-right diagonal grid, clipped to BR triangle -->
+  <g clip-path="url(#br)" stroke="#3d3d58" stroke-width="22" stroke-linecap="round">
+    <!-- 5 NW-SE lines (slope+1) -->
+    <line x1="240" y1="0"   x2="360" y2="120"/>
+    <line x1="120" y1="0"   x2="360" y2="240"/>
+    <line x1="180" y1="180" x2="360" y2="360"/>
+    <line x1="0"   y1="120" x2="240" y2="360"/>
+    <line x1="0"   y1="240" x2="120" y2="360"/>
+    <!-- 2 SW-NE parallels (slope-1) -->
+    <line x1="120" y1="360" x2="360" y2="120"/>
+    <line x1="240" y1="360" x2="360" y2="240"/>
   </g>
 
   <!-- Grey street — full diagonal -->
-  <line x1="0" y1="320" x2="320" y2="0" stroke="#3a3a5c" stroke-width="3" stroke-linecap="round"/>
+  <line x1="0" y1="360" x2="360" y2="0"
+        stroke="#3d3d58" stroke-width="22" stroke-linecap="round"/>
 
-  <!-- Teal pin line: head (280,40) → pointed end (40,280) -->
-  <line x1="280" y1="40" x2="40" y2="280" stroke="#6ee7b7" stroke-width="7" stroke-linecap="butt"/>
+  <!-- Teal pin line: head(300,60)→tail(60,300) -->
+  <line x1="300" y1="60" x2="60" y2="300"
+        stroke="#6ee7b7" stroke-width="38" stroke-linecap="butt"/>
 
-  <!-- Arrowhead at (40,280) pointing SW
-       back 16px toward NE: (+11.3,−11.3) → (51.3,268.7)
-       perp ±10px: left(51.3−7.1,268.7+7.1)=(44.2,275.8) right(51.3+7.1,268.7−7.1)=(58.4,261.6) -->
-  <polygon points="40,280 44,276 58,262" fill="#6ee7b7"/>
+  <!-- Arrowhead at (60,300) pointing SW
+       back 28px NE: (+19.8,−19.8) → (79.8,280.2)
+       perp ±16px: (79.8−11.3,280.2+11.3)=(68.5,291.5) (79.8+11.3,280.2−11.3)=(91.1,268.9) -->
+  <polygon points="60,300 69,292 91,269" fill="#6ee7b7"/>
 
-  <!-- Pin head at (280,40) -->
-  <circle cx="280" cy="40" r="16" fill="#6ee7b7"/>
-  <circle cx="280" cy="40" r="8"  fill="#0f0f11"/>
+  <!-- Pin head hollow ring at (300,60) -->
+  <circle cx="300" cy="60" r="28" fill="#6ee7b7"/>
+  <circle cx="300" cy="60" r="14" fill="#0f0f11"/>
 
 </g>
 </svg>
