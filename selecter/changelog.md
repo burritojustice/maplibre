@@ -6,6 +6,71 @@ are described by date and feature area only.
 
 ---
 
+## 2026-08-07 — Satellite/terrain, basemap UX, rotate/fly · v629–v655
+
+### Favicon (v629)
+- `<link rel="icon">` tags added to `<head>` with relative paths so they resolve correctly on GitHub Pages subdirectory deploys
+- Paths later updated to `favicon/` subdirectory (v641)
+
+### Basemap panel promoted + UI restructure (v629–v646)
+- **Basemap** promoted from a subsection inside Background to its own top-level panel
+- Panel sits below the green teal divider line alongside Style and Background — collapses with them when hovering the property list
+- Panel header shows active basemap name: `· Satellite, 1× terrain` etc., updates on every basemap or terrain change
+- All three panel toggle labels (Basemap, Style, Background) now use `var(--accent)` green
+- Basemap pill restructured into two rows: vector styles (White/Light/Gray/Dark/Black) on row 1, satellite/terrain/none on row 2
+- `Hide` renamed to `None`
+- Default basemap changed from `black` to `white` to match the actual initial style URL; `bm=black` now correctly appears in the hash; `bm=white` is omitted as the default
+- `pushHashState` called immediately on basemap switch (not only on `moveend`) so hash updates without requiring a pan
+
+### Satellite basemap (v630–v638)
+- **Esri World Imagery** raster source added as `Sat` option — no API key, no style reload
+- **Maptiler Satellite** added as `MT Sat` / `ESRI Satellite` — uses Maptiler API key, 512px tiles
+- Satellite entry: hides Protomaps fill/background layers, hides roads, water, POI; keeps street name labels; hides highway shields specifically; unchecks and syncs all affected checkboxes
+- Pre-satellite state (road/water/POI/landuse/buildings checkboxes, File+Working line styles) snapshotted on entry and restored on exit
+- Satellite line defaults on entry: `medium` width, `solid` style, `dark` outline — applied to both File and Working tabs
+- Satellite label style: white text, black glow applied to all Protomaps symbol layers
+- Satellite hash restore: `bm=satellite` in URL deferred until after `onStyleLoad` so `discoverBasemapGroups()` has populated before road-hiding runs
+- `_satelliteTogglePolygonGroup()`: in satellite mode, checking Water/Landuse/Buildings shows outlines only (not fills); synthetic line layers added for groups with no native line equivalent
+- Switching between Esri and Maptiler removes the previous provider's source/layer cleanly
+
+### Terrain + hillshade (v639–v655)
+- **AWS Terrarium** DEM tiles (no key, global, CC0) as default terrain source
+- **Maptiler Terrain RGB v2** as alternative — higher quality, requires API key
+- `Terrarium / Maptiler` source pill in the Basemap panel — independent of basemap choice; switching provider removes all dependent layers before removing the source
+- `map.setTerrain({ exaggeration })` with Off / 0.5× / 1× / 1.5× / 2× pill
+- Terrain restored after basemap style reloads via `restoreBgLayers()` inside `onStyleLoad`
+- **Hillshade layer** (`hillshade` type) added above satellite raster but below GeoJSON data layers
+  - On/Off checkbox; hides Style and Opacity controls when off
+  - Style presets: `Subtle` (scale 0.2, shadow #666, highlight #ddd), `Natural` (0.3, #333, #eee), `Strong` (0.45, #111, #fff)
+  - Opacity pill (25%/50%/75%/100%) folded into `hillshade-exaggeration` (MapLibre hillshade layers have no `raster-opacity` property)
+  - `hillshade-exaggeration = terrainExag × preset.scale × opacity`, capped at 0.95
+- **Terrain raw view** (`Terrain` button in basemap pill): hides all vector layers, shows full-intensity greyscale hillshade only — diagnostic view for confirming DEM coverage and illumination; restores all layers on exit
+
+### Water checkbox (v633–v635)
+- New **Water** checkbox in Basemap Layers alongside Roads/Places/Streets/Buildings/Landuse/POI
+- `discoverBasemapGroups()` now splits water layers out of the general landuse group
+- In satellite mode, toggling Water shows boundary line layers only (no fills)
+
+### Session restore fix (v644–v646)
+- `labelOverlap`, `labelVarPlacement`, `labelFmtDecimals`, `labelFmtAbbreviate`, `labelFmtYears` now declared as top-level `let` variables with defaults — previously only assigned inside a reset block, causing `ReferenceError` when `setupGeoJsonLayers` was called from session restore before any reset had run
+- Session restore now calls `setupGeoJsonLayers`, `applyLineStyle`, `applyPointStyle`, `applyPolyStyle`, `applyLineCasing`, and `switchTab('file')` so features appear immediately with correct styles
+
+### Terrain race condition fix (v644)
+- `_applyTerrain()` in `map.once('load')` now only runs when `currentBasemapStyle === 'white'` (no `setStyle` pending); other basemaps apply terrain via `restoreBgLayers` inside `onStyleLoad` after the style finishes loading — prevents `Error: Style is not done loading`
+
+### Line defaults on satellite entry respect reload (v636)
+- `ingestGeoJSON` fresh-load reset block now checks `currentBasemapStyle === 'satellite'` and applies `medium`/`dark`/`solid` defaults instead of the standard `thin`/`none`/`translucent` — dragging files onto satellite no longer resets to thin transparent lines
+
+### Rotate and Fly animation buttons (v652–v655)
+- **↻** (rotate) and **↑** (fly/pan) buttons in the toolbar and as a native MapLibre `IControl` below the +/− navigation controls
+- Uses `map.jumpTo({ bearing, center })` with timestamp-based `dt` stepping — avoids `Attempting to run(), but is already running` errors from MapLibre's animation queue
+- `pushHashState` suppressed during animation (`_mapAnimating` flag) to avoid `history.replaceState` rate limit (>100 calls/10s = SecurityError)
+- Fly speed scales with zoom: `baseDeg × 2^(refZoom - currentZoom)` — halves with each zoom level in, so street-level and regional zoom feel appropriately paced
+- Rotation: 2.25°/sec (~160s per revolution); pan base: 0.00225°/sec at zoom 12
+- Both toggles keep toolbar and map control buttons in sync via `_setRotateActive`/`_setFlyActive`
+
+---
+
 ## 2026-07-31 — Shapefile import: WKT projection parsing, metadata stamping · v613–v628
 
 **Shapefile import** (v618–v628) — full import pipeline for `.shp` files with two
