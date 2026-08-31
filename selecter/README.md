@@ -287,3 +287,31 @@ map.resize()
 ```js
 map.getPaintProperty('contour-line', 'line-color')  // check contour color expression
 ```
+
+## Technical Notes
+
+### MapLibre + mlcontour DataCloneError Fix
+
+**Problem:** MapLibre v5's tile loading pipeline sends requests to a web worker via `structuredClone`. When `mlcontour` registers a custom protocol via `addProtocol`, the DEM tile fetch completes and the browser may **transfer** (neuter) the `ArrayBuffer` as an optimization, setting its `byteLength` to 0. MapLibre then tries to clone this neutered buffer to send it to the worker — which throws `DataCloneError` because transferred `ArrayBuffer`s can't be serialized.
+
+**Fix:** Wrap `maplibregl.addProtocol` before calling `mlcontour.DemSource.setupMaplibre()`. The wrapper intercepts the handler result and calls `.slice(0)` on any `ArrayBuffer`, creating a fresh copy that can be structured-cloned:
+
+```javascript
+const _origAddProtocol = maplibregl.addProtocol.bind(maplibregl);
+maplibregl.addProtocol = function(name, handler) {
+    const wrappedHandler = async (params, abortController) => {
+        const result = await handler(params, abortController);
+        if (result instanceof ArrayBuffer) return { data: result.slice(0) };
+        if (result?.data instanceof ArrayBuffer) return { data: result.data.slice(0) };
+        // ... handle other return shapes
+        return result;
+    };
+    return _origAddProtocol(name, wrappedHandler);
+};
+source.setupMaplibre(maplibregl);
+maplibregl.addProtocol = _origAddProtocol; // restore
+```
+
+**Why `.slice(0)` works:** `ArrayBuffer.prototype.slice()` always creates a new, non-transferred buffer. The original buffer may be neutered (zero byteLength), but `slice(0)` of a neutered buffer returns an empty buffer — which at least doesn't throw. For non-neutered buffers it returns a full copy that the worker can receive safely.
+
+**Note:** `Response` objects are also not serializable via `structuredClone` in Safari — wrapping in `new Response(arrayBuffer)` causes `"can't serialize object of unregistered class Response"`. The `{ data: ArrayBuffer }` shape is the correct target format for MapLibre v5 custom protocols.
