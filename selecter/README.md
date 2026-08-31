@@ -160,7 +160,9 @@ Click **⬇ Export visible contours** to download the currently visible contour 
 
 ## Basemap
 
-**Styles:** White, Light, Gray, Dark, Black, Satellite (MapTiler)
+**Styles:** White, Light, Gray, Dark, Black, Satellite (ESRI and Maptiler)
+
+**Satellite:** ESRI and Maptiler (key required). Note that ESRI tiles seem slightly offset at city block zoom levels, at least for SF. Maptiler lines up better with public data sources but seems lower resolution and imagery updates lag.
 
 **Terrain:** 3D elevation with exaggeration from Off to 3×. Full settings in the Basemap accordion.
 
