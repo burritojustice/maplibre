@@ -1,4 +1,8 @@
-# Changelog — GeoJSON Viewer / Selecter (map-viewer.html)
+# What Is This?
+
+A single-file MapLibre GL web app for loading, inspecting, styling, and selecting GeoJSON features — points, lines, and polygons. Works offline, no server required. Three primary modes: **File** (GeoJSON data), **Tiles** (live vector tiles from the basemap), and **Working** (features pinned across sessions).
+
+## Changelog — GeoJSON Viewer / Selecter (map-viewer.html)
 
 Reverse chronological. Build/revision numbers (`vNNN`) are included from the point
 they started being tracked in-file; earlier sessions predate that convention and
