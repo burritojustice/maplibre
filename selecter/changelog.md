@@ -6,11 +6,358 @@ are described by date and feature area only.
 
 ---
 
+## 2026-08-24 - 2026-08-29 (v700–v774)
+
+### v774 · 2026-08-29 — Contour DataCloneError Fix
+**Bug fix:** MapLibre v5's custom protocol system tries to `structuredClone` tile response data across the worker boundary. Safari's structured clone fails on `ArrayBuffer` objects that have been transferred (neutered) during fetch. Fixed by wrapping `mlcontour`'s `addProtocol` handler to `slice(0)` the ArrayBuffer before returning, creating a fresh cloneable copy. Contours are now stable without console errors.
+
+### v773 · 2026-08-29 — Contour Protocol Normalization
+Normalized mlcontour protocol return values to `{ data: ArrayBuffer }` — the format MapLibre v5 expects on Safari. Intermediate attempt before the slice fix.
+
+### v771 · 2026-08-29 — Contour Debounce
+Added 150ms debounce on `_scheduleContours()` to prevent rapid pill changes from tearing down and rebuilding the contour source while tile requests are in-flight. Added style-loaded guard in `_applyContours()`.
+
+### v770 · 2026-08-29 — Magnet Select + Search Deselect
+Dwell-deselecting a feature that was selected by search now correctly clears `filtered`, `highlighted`, and `hidden` feature states, and adds the feature to `filterHiddenIds` so it disappears from the filtered view. Fixed `toggleMapRotate` missing `_setRotateActive(!_rotateActive)` (second occurrence of this bug).
+
+### v769 · 2026-08-29 — Dwell Timer 400ms
+Dwell select timer reduced to 400ms on all three tabs.
+
+### v768 · 2026-08-28 — Magnet Select: Tiles + Working Tabs
+Extended dwell select to Tile and Working tabs. `_startDwell` and `_dwellBlink` now accept a `source` parameter. Tile dwell uses the same `geoKey` fingerprint as tile click for accurate deselect.
+
+### v767 · 2026-08-28 — Line Defaults
+Lines now load fully opaque (Solid, 1.0) by default. Outline mode defaults to None. Width pill hidden until an outline color is chosen.
+
+### v766 · 2026-08-28 — 🧲 Magnet Select Mode
+New **Magnet Select** mode (action bar button). Hover any feature for 400ms → 3 magenta blink pulses → feature added to selection (teal). Hover a selected feature → blink → deselected. Works on all geometry types. Uses existing `hovered` feature state for the blink animation. Toggle with 🧲 button in action bar.
+
+### v765 · 2026-08-27 — Symbol Outline Visibility
+Reduced SDF sprite padding from 15% to 8%, giving the halo room to render outside the shape boundary. Halo width fixed at 5px.
+
+### v764 · 2026-08-27 — Symbol Halos (SDF)
+Shape sprites regenerated as **SDF (signed distance field)** via `sdf: true` in `map.addImage()`. This enables `icon-color` and `icon-halo-color` paint properties, allowing palette colors to apply to symbol shapes and outlines to render via `icon-halo-width`.
+
+### v763 · 2026-08-27 — Palette Pin + Shape Popover Fixes
+Pinned palette toast shows when opening any other property. Palette picker blocked with toast when palette is pinned for another property. Shape assignment popover stays open when changing symbols (stopPropagation fix). `gv-point-shape` added to click stack query for deselect.
+
+### v762 · 2026-08-27 — Pin Guard + No-Symbol Labels
+Pinned palette correctly blocks property name click path (nameBtn). Only one pin allowed at a time (`pinnedPalettes.clear()` before set). Dwell-deselect now hides feature when a filter is active. Hidden symbols (∅) suppress their labels via feature-state `hidden`.
+
+### v761 · 2026-08-27 — Palette Pinning UI
+Palette dot (◉) now cycles through three states on click: **None** (dim) → **Active** (teal, unpinned) → **Pinned** (filled, survives property switching). Toast fires on pin. Opening another property while pinned shows a reminder toast but doesn't switch the palette.
+
+### v760 · 2026-08-27 — Symbol Interaction Fixes
+Circles suppressed correctly when shape mode active (guarded in `updateLayerFilters` and `applyPointStyle`). Filter/click operations no longer un-hide circles. `gv-point-shape` included in tile stack query.
+
+### v759 · 2026-08-27 — Shape Palette Colors
+Shape sprites use `icon-color` driven by the same `colorExpr` as the circle layer. Switching palettes immediately recolors shapes. Palette on elevation → shapes show elevation gradient. Outline via `icon-halo-color` / `icon-halo-width`.
+
+### v758 · 2026-08-27 — Shape Indicator Improvements
+Removed duplicate ◆ from right side of property row. Indicators sized better (palette dot 8px, ◆ 12px). Off button added to shape popover. Shape fill changed to neutral `#e8e8f0` so other-property palettes are readable.
+
+### v757 · 2026-08-27 — Shape Assignment via Property List
+Shape assignment moved from Style panel into a **floating popover** triggered by ◆ in the property list. Clicking ◆ on any categorical property immediately assigns shapes and opens the popover. Style › Points › Shapes now only contains Size and Outline. Shapes survive basemap changes.
+
+### v756 · 2026-08-27 — Property Row Indicators
+Property rows now show two stacked indicators on the left: ◉ (palette dot, clickable) and ◆ (shape indicator, categorical properties only). The ◆ indicator is accent-colored when that property drives shapes.
+
+### v755 · 2026-08-27 — Shape Style Persistence + Click Fixes
+Shape state (`shapeMode`, `shapeProp`, `shapeMap`, `shapeSize`, `shapeOutlineMode`) saved to style JSON and restored on session reload. Symbol layer click now works for hover popup and pinned popup. Shape property shows in popup priority sorting.
+
+### v754 · 2026-08-27 — Shape System Fixes
+Circles suppressed when shapes active. Sprite sizes corrected (16–72px at pixelRatio 2). Async race condition fixed with `_shapeApplyInFlight` guard. Auto/Manual modes collapsed into single mode with Reset button.
+
+### v753 · 2026-08-27 — Point Shape System
+New **data-driven point shapes** in Style › Points › Shapes. 11 shapes generated as canvas sprites: Circle, Triangle, Inv. Triangle, Square, Diamond, Star, Pentagon, Hex-flat, Hex-point, Plus (+), X. Shapes assigned by categorical property frequency (auto) or manually per value. ∅ (no symbol) hides a value. `gv-point-shape` symbol layer added above `gv-point`.
+
+### v752 · 2026-08-27 — Point Size Split
+Size pill split into two rows: Auto / Zoom (adaptive) and Tiny / Small / Medium / Large / Huge (fixed: 2–13px). Separate `point-fixed-size-pill` with `flex-wrap`. Fixed sizes and adaptive modes clear each other's active state.
+
+### v751 · 2026-08-27 — Point Fixed Sizes
+Fixed size options added to point radius pill. Density function minimum extended: 10,000+ points → 1px radius. `densityRadiusThresholds` exposed as a mutable `var` for console experimentation.
+
+### v750 · 2026-08-27 — Density Radius
+Added 1px tier for 10,000+ points. `densityRadiusThresholds` made mutable for console tuning.
+
+### v749 · 2026-08-27 — Line Outline Width Pill
+Added **Hairline / Thin / Medium / Thick** outline width pill. `_outlineExtra()` helper: Hairline=1px, Thin=2px, Medium=4px, Thick=6px per side. Width pill appears/hides based on outline color selection.
+
+### v748 · 2026-08-27 — Line Style Defaults
+Line opacity pill: **Solid | Soft (75%) | Translucent (50%) | Ghost (15%)**. Solid is new default. Casing uses `_outlineExtra()` for visible hairline outlines.
+
+### v747 · 2026-08-27 — Pinned Popup Fix
+`buildFrozenHTML` was missing `const diffCls` declaration after an edit, causing `ReferenceError` that silently broke all pinned popups. Restored.
+
+### v746 · 2026-08-27 — Elevation Value Units
+`_displayPropValue(key, value)` formats `_selecter_*` properties with units in hover/pinned popups: elevation shows `23.8m (78ft)`, slopes show `8.3%`, distances show `km`. Map labels for elevation/slope get unit suffixes. `_selecter_units` metadata written to every feature after batch calculation, hidden from sidebar.
+
+### v745 · 2026-08-26 — Settings Panel Height Cap + Popup Colors
+All settings panels (Elevation, Basemap, Style, Background) wrapped in `#settings-panels` with `max-height: 55vh`. Property list hover collapses all three panels. Popup property names white (was muted). Elevation tooltip uses `#c8c8e0` for dim text.
+
+### v744 · 2026-08-26 — Pinned Popup Values
+`buildFrozenHTML` now calls `_displayPropValue` for elevation/slope formatting. Fixed missing `diffCls` declaration.
+
+### v743 · 2026-08-26 — Hillshade Mirror + Terrain Mirror Fixes
+Hillshade mirror dispatches `change` event on `chk-hillshade-on` correctly. Terrain mirror updates `active` class on mirror label.
+
+### v742 · 2026-08-26 — Elevation Panel First
+Elevation accordion panel moved to be first below the green divider (above Basemap). Gets the green accent border. Basemap gets a subtle border.
+
+### v741 · 2026-08-26 — Panel Order Fix
+Elevation panel correctly positioned below Basemap after initial placement error.
+
+### v740 · 2026-08-26 — Elevation Accordion Panel
+Elevation promoted to a collapsible panel like Basemap/Style/Background. Contains: Elevation data (inspect/calculate/stats), Terrain On/Off mirror, Hillshade On/Off mirror, Contours (moved from Basemap).
+
+### v739 · 2026-08-26 — Elevation Tab (Reverted)
+Attempted to make Elevation a sidebar tab — reverted. Correct approach is accordion panel.
+
+### v738 · 2026-08-27 — Contour Export Fix
+Fixed geometry nesting bug: MapLibre-contour wraps coordinates as `[subline1, subline2, ...]` (MultiLineString-style) even for LineString. Each sub-line is now pushed as its own segment, fixing the "no geometry" error in QGIS.
+
+### v737 · 2026-08-27 — Contour Export Debug
+Added debug logging to identify coordinate nesting depth in exported contours.
+
+### v736 · 2026-08-27 — Contour Export Safety Check
+Fixed safety check in contour export — `!Array.isArray(coords[0])` was backwards, now skips only genuinely malformed entries.
+
+### v735 · 2026-08-27 — Contour Merge Export
+Tile-boundary contour merging implemented: segments grouped by elevation, endpoint matching via spatial bucket index (TOL=1e-5°, BUCKET=1e-3°). Each merged chain becomes a separate Feature. Console reports merge ratio.
+
+### v734 · 2026-08-27 — Export Visible Contours
+**⬇ Export visible contours** button in Elevation panel. Exports contour lines from the current viewport as GeoJSON with `ele`, `ele_ft`, `level`, `source`, `unit`, `detail` properties. Filename includes bbox: `contours-fine-ft-[-122.50,37.75,-122.35,37.85].geojson`.
+
+### v733 · 2026-08-27 — Contour Color Palette
+RdYlBu elevation palette for contours: blue (sea level) → yellow (mid) → red (high). **Color** pill in Contour controls: Default | Elevation (RdYlBu).
+
+### v732 · 2026-08-26 — Contour Detail + Rotate Fix
+Contour "Auto" renamed to **Medium**, **Fine** is new default. `_setRotateActive` was missing `_rotateActive = on` assignment — rotate button broken since v700, now fixed. Logging removed from subtitle system.
+
+### v731 · 2026-08-26 — Subtitle Clear on Data Clear
+`_clearFileData` directly sets `sidebar-subtitle` to "No file loaded" — `renderSidebar` never updated it because the subtitle is set in a separate code path after `addTileSelectionToLayer`.
+
+### v729–v730 · 2026-08-26 — Subtitle Debug + Fix
+Added debug logging to all subtitle-setting code paths. Found `addTileSelectionToLayer` was re-setting `currentSourceName = 'map-selection'` after `_clearFileData` cleared it.
+
+### v728 · 2026-08-26 — Sidebar Subtitle Guard
+`renderSidebar` shows "No file loaded" when `allFeatures` is empty and `currentSourceName` is empty. Fixed by adding early return before the stats line.
+
+### v727 · 2026-08-26 — Export Filename Suffixes
+Export filename appends `-slopes` when `_selecter_slope_pct` is present, `-elevation` for point datasets with `_selecter_elev`.
+
+### v726 · 2026-08-26 — Elevation Stats Table Units
+Stats table `elev_m` / `elev_ft` and `pt_elev_m` / `pt_elev_ft` pills now use independent fixed formatters. Global m/ft pill only affects hover tooltip, not the stats table.
+
+### v725 · 2026-08-26 — m/ft Pill
+**[m | ft]** pill in Elevation section controls the hover tooltip display unit. Switching updates tooltip immediately. Stats table pills remain independent.
+
+### v724 · 2026-08-26 — Point Elevation Palette + Sync
+Point datasets auto-apply RdBu palette on `_selecter_elev` after batch calculation. `_syncElevationButtonState()` called after file load — detects pre-computed elevation, shows Recalculate button and enables Stats.
+
+### v723 · 2026-08-26 — Calculate/Stats Button Row
+Calculate elevation and Stats ▸ buttons now side by side. Stats greyed (opacity 0.4, pointer-events none) until calculation completes. Resets on data clear.
+
+### v722 · 2026-08-26 — Button State on Clear
+`_clearFileData` resets "Calculate elevation" button text and hides Stats button.
+
+### v721 · 2026-08-26 — Elevation Subsection Label
+Elevation controls wrapped in a named "Elevation" subsection between Terrain and Hillshade in Basemap panel (before Elevation was promoted to its own accordion).
+
+### v720 · 2026-08-26 — Elevation Stats: Points vs Lines
+Stats panel dynamically rebuilds pills based on geometry types present. Lines: Slope % / Slope ° / Line elev m / Line elev ft. Points: Point elev m / Point elev ft. Summary row stable (no wrapping).
+
+### v719 · 2026-08-26 — Style History Button Removed from Action Bar
+`showStyleHistory()` still available via console and export dialog, but 🕐 button removed from action bar.
+
+### v718 · 2026-08-26 — Filter State in Style JSON
+`_captureStyleState` now includes `activeFilter`, `hiddenIds`, `filterHiddenIds`. Restored by `_applyStyleState` which calls `doHighlight`/`doFilterSelect`/`doExclude` as appropriate.
+
+### v717 · 2026-08-26 — Palette Filter State in Style JSON
+`paletteFilterLo`, `paletteFilterHi`, `paletteFilterHide`, `numericRangeFilter` added to style capture/restore.
+
+### v716 · 2026-08-26 — Style Banner: Session Filename Only
+Style restore banner now reads `sourceName` from `sessionStorage._selecter_session`. Only shows banner for the file from the previous session — not any file in the cache. "Clear all" link added to banner.
+
+### v715 · 2026-08-26 — Style Restore Fixes
+`_styleCustomized` flag — only saves style to localStorage on unload when user made meaningful changes. Dismiss clears the localStorage entry. "Start fresh" clears style cache. `_showStyleRestoreBanner` called from `_offerSessionRestore` after features are loaded (so Reapply button shows correctly).
+
+### v714 · 2026-08-26 — Style Restore Banner
+Style restore banner shows at bottom of screen when previous session had a customized style. Shows filename, age, style summary. Buttons: Reapply style (when file is loaded), Open file…, Save style.json, Dismiss.
+
+### v713 · 2026-08-26 — Style History Panel
+`showStyleHistory()` — modal listing all cached styles with filename, summary, age. Apply (current file only), Save .json, × delete per entry. Clear all button.
+
+### v712 · 2026-08-26 — Export/Import Style JSON
+`exportStyleJSON()` / `importStyleJSON()` — export and import `.style.json` files. Style files intercepted in drop zone. Export dialog offers: GeoJSON | GeoJSON + style | Style only | Feature IDs… | Cancel.
+
+### v711 · 2026-08-26 — Style Save/Restore to localStorage
+`_captureStyleState()` captures palette, labels, line/point/polygon style, filter state. Saved to `localStorage._selecter_style_FILENAME` on unload. Restored on file reload via `_applyStyleState()`.
+
+### v708 · 2026-08-26 — Working Tab Persistence
+Working tab features saved to `localStorage._selecter_working_data` (up to 8MB). Auto-restored on startup if session didn't have working features. Toast: "Restored N features from Xm ago".
+
+### v700–v707 · 2026-08-24 — Freeze Hardening
+`unfreeze()` reloads from Protomaps style URL, calls `restoreBgLayers()` after. `moveend` guard: returns if style not loaded. `_fetchElevTile` 8s timeout. Auto-pause animation after 30 minutes.
+
+
+## 2026-08-08 - 2026-08-24 (v655–v699)
+
+### v699 · 2026-08-24 — Freeze Hardening (Round 1)
+Three fixes: **`unfreeze()`** now reloads from the actual Protomaps style URL (not `map.getStyle()` which returns null when broken), then calls `restoreBgLayers()` to re-apply satellite/terrain/hillshade/contours. Accepts `unfreeze(true)` for a hard page reload with hash preserved. **`moveend` guard** — `if (!map.isStyleLoaded?.()) return` stops `updateDotsLayer`, `updatePointRadius`, `applyLineStyle`, `applyPolyStyle` from running on a broken style. **`updatePointRadius` double-guarded** with `isStyleLoaded`.
+
+### v698 · 2026-08-23 — Elevation Stats Panel Polish
+Stats table layout — 5 columns: bin label (D1/B1) | From | To (right-aligned) | Count | %. **Stats pills** — Slope % / Slope ° / Elevation m / Elevation ft. Elevation ft converts `_selecter_elev_start` × 3.28084 at display time. **Hover popup** — `_selecter_` prefix suppressed from all property name display sites via `_displayPropName(k)`.
+
+### v697 · 2026-08-23 — Display Property Name Formatting
+`_displayPropName(key)` strips `_selecter_` prefix from known elevation/slope properties and adds unit suffixes: `_slope %`, `_slope °`, `_elev_start m`, etc. Applied to all popup row renderers.
+
+### v696 · 2026-08-23 — Elevation Stats Panel (First Pass)
+Fixed-bottom stats panel with equal-count decile bins and equal-value bins. Console logging shows processing rate, percentiles (p10–p99), and both bin types for slope and elevation. Pills: Slope % / Slope ° / Elevation m / Elevation ft.
+
+### v695 · 2026-08-22 — Auto-Slope Palette Fix
+`paletteScheme = 'quantile'` (was `'quantitative'` — invalid). Added `buildPropData()` inside `_applyElevationPalette` so numeric stats are fresh. After batch elevation: auto-applies RdBu reversed quantile palette on `_selecter_slope_pct` (red=steep, blue=flat).
+
+### v694 · 2026-08-22 — Elevation Stats Logging
+Statistics logging after batch: rate (features/sec), per-property min/max/mean/median, p10–p99 percentiles, decile bins with counts. Logged to a collapsed console group.
+
+### v693 · 2026-08-22 — Batch Elevation Calculation
+**"Calculate elevation" button** in the Basemap panel. Computes `_selecter_elev_start/mid/end`, `_selecter_rise`, `_selecter_run`, `_selecter_slope_pct`, `_selecter_slope_deg`, `_selecter_slope_a_pct/b_pct`, `_selecter_slope_max_pct`, `_selecter_bearing`, `_selecter_elevations[]`, `_selecter_slopes[]` for all features. 20 concurrent DEM fetches. Progress bar with rate display. Button relabels to "Recalculate elevation (YYYY-MM-DD)" after completion. Signed slopes: positive = uphill in draw direction.
+
+### v692 · 2026-08-22 — Elevation Cursor Hardening
+Tile fetch 8s timeout — stalled requests no longer lock `_pending` forever. Mouse leave resets `_pending` immediately. `unfreeze()` stops the elevation cursor as step 2.
+
+### v691 · 2026-08-22 — Elevation Cursor: Line Hover Segment Breakdown
+Seg A/B % values shown for all lines including 2-coordinate segments (geographic midpoint computed via interpolation, DEM elevation fetched at that point). `_bearing()` destructuring fixed for Safari (explicit index access instead of parameter destructuring).
+
+### v690 · 2026-08-21 — Caret Offset Fix
+Caret offset formula corrected: `offset = [cos(bearing) * -3, sin(bearing) * -3]` derived from console testing. The negative value and corrected trig place the caret tip precisely on the midpoint.
+
+### v689 · 2026-08-21 — Caret Console Tuning
+`nudgeCaret(halfPx)` console utility for live-tuning caret position while hovering a line.
+
+### v688 · 2026-08-21 — Caret MapLibre Offset
+Switched from CSS `translateX(-40%)` (operates in rotated local space) to MapLibre marker `offset` option: `[x, y]` in world-space pixels. Offset computed from bearing: `offsetX = -sin(bearing) * halfGlyph`, `offsetY = cos(bearing) * halfGlyph` — places the tip (not center) on the midpoint.
+
+### v687 · 2026-08-21 — Caret Bearing Offset
+Bearing correction changed from `translateY` to a direct bearing offset: `bearing - 90 - 7`. Subtracts 7° counterclockwise to compensate for glyph baseline asymmetry.
+
+### v685 · 2026-08-21 — Caret Position Tune
+Caret `translateY` set to `+8%`, popup blur reduced to 1px on both hover and pinned popups.
+
+### v684 · 2026-08-21 — Caret Position Tune 2
+`translateY(-18%)` on caret, blur reduced from 4px to 2px.
+
+### v683 · 2026-08-21 — Caret Centering
+`translateY(-10%)` shifts the `›` glyph upward in rotated coordinate frame to compensate for typographic baseline being below optical center.
+
+### v681 · 2026-08-20 — Caret Rotation Fix
+MapLibre applies `transform: translate(X,Y)` on the marker root element, overwriting any CSS `transform` we set there. Fix: two-element structure — outer `div` for MapLibre positioning, inner `span` for our `rotate()`. Standard pattern for MapLibre custom markers needing rotation.
+
+### v679 · 2026-08-19 — Caret Safari Fix
+`_bearing()` destructuring crash on Safari fixed (explicit index access). Marker switched from `cssText` to `setAttribute('style', ...)`. Glyph uses `innerHTML = '&#x203A;'` instead of `textContent`. Explicit `width`/`height` and `display:flex` centering for correct anchor point.
+
+### v678 · 2026-08-18 — Caret Size and Rotation
+Caret `font-size: 32px`, `font-weight: bold`, double shadow for legibility. Rotation formula: `rotate(bearing - 90deg)` — `›` points east at 0° CSS rotation; north bearing = `rotate(-90deg)`.
+
+### v677 · 2026-08-17 — Caret Midpoint Marker
+`›` marker at geographic midpoint of hovered line, pointing toward the higher endpoint. Tooltip order: Start / Mid / End / Rise / Run. `fmtDist(m)` formats distances as feet/imperial first. Marker disappears when cursor leaves the line.
+
+### v676 · 2026-08-17 — Tooltip Styling + Midpoint Row
+Light tooltip background (`rgba(255,255,255,0.95)`) with teal left border — visually distinct from dark property popup. Popup-aware positioning — detects `.maplibregl-popup` overlap and flips/nudges. Mid elevation row added between End and Rise.
+
+### v675 · 2026-08-16 — Segment Breakdown for 2-coord Lines
+"Horiz" → "Run" in tooltip. Segment A/B breakdown now works for 2-coordinate lines — geographic midpoint `[(lng1+lng2)/2, (lat1+lat2)/2]` is fetched from terrain tiles, capturing actual terrain shape regardless of vertex count.
+
+### v674 · 2026-08-16 — Slope Segment Breakdown
+Midpoint deviation warning replaced by segment breakdown row: seg A (start→midpoint) and seg B (midpoint→end) slopes shown in every line tooltip. Turns orange with ⚠ if they differ by more than 3%. Suppressed for 2-coordinate lines.
+
+### v673 · 2026-08-16 — Tooltip Elevation Units
+All measurements in ft and m: `fmt(m)` renders every elevation as `NNN′ / NNNm`. Distances over 1km show `km/mi`. Midpoint deviation also shows both units. 2-coordinate lines handled explicitly — geographic midpoint interpolated, deviation warning suppressed.
+
+### v672 · 2026-08-16 — Slope Tooltip Fixes
+Rise shows absolute value (`Math.abs`). Screen-edge clipping fixed via `_positionTooltip` — measures tooltip size and flips to the other side of cursor if it would overflow. MultiLineString logging added. Midpoint deviation check added.
+
+### v671 · 2026-08-15 — Elevation Line Hover: Stage 1
+When hovering a line feature: shows slope %, degrees, start/end elevation (ft/m), rise, run, seg A/B breakdown. The two endpoint tiles are fetched in parallel. Tile cache expanded to 128 entries. MultiLineString features supported.
+
+### v670 · 2026-08-14 — Elevation Cursor + Hide Below Sea Level
+**"Show elevation" checkbox** in Basemap panel. Floating tooltip follows cursor with terrain elevation (ft/m) and lat/lon coordinates. Tile cache (64 entries), async fetch with `_pending` flag to avoid queuing redundant requests. **Hide below sea level** filter changed from `≠ 0` to `> 0` — catches all bathymetry, not just exactly zero.
+
+### v669 · 2026-08-14 — Contour UI Polish + Console Elevation Query
+Contour controls UI updated. Console function `getElevation(lat, lng, zoom=12)` for querying Terrarium DEM tiles.
+
+### v668 · 2026-08-13 — Dual Contour Sources: Terrarium + OSM.us
+**Source pill** — Terrain (default, generated from DEM) | OSM.us (pre-generated vector tiles). Source-specific controls shown/hidden per selection. Both share Major, Labels, Opacity, Hide bathymetry controls. OSM.us: feet only, no DataCloneErrors, US-focused coverage.
+
+### v667 · 2026-08-12 — Contour Rewrite: OSM.us Vector Tiles (First Pass)
+Switched from maplibre-contour (browser-generated) to OSM.us vector contour tile service — no custom protocol, no DataCloneError. mlcontour library removed. Later reverted to supporting both.
+
+### v666 · 2026-08-12 — Contour Major Labels
+Major contour label layer added. Label text shows elevation in configured units.
+
+### v665 · 2026-08-12 — Contour Opacity + Bathymetry Hide
+Opacity pill (25%/50%/75%/100%). **Hide bathymetry** checkbox filters out `ele <= 0` contours.
+
+### v664 · 2026-08-11 — Contour Lines (maplibre-contour)
+**Contour lines** added — maplibre-contour v0.1.0 inlined (31KB, BSD-3-Clause), `worker: false`. Source: Terrarium DEM tiles. Unit: Feet | Meters. Detail: Coarse | Auto | Fine | V. Fine. Line and major contour layers. Minor/major distinction via `level` field (0=minor, 1=major).
+
+### v663 · 2026-08-11 — Label Pitch Alignment
+`applyLineLabelPitchAlignment()` applies `text-pitch-alignment: 'viewport'` + `text-rotation-alignment: 'map'` to all symbol layers with line placement. Road, waterway, and transit labels stay readable when the map is tilted.
+
+### v662 · 2026-08-10 — Pinch-Zoom Animation Fix
+Real fix for animation vs. pinch-zoom conflict: inside `_animFrame`, check `map.isZooming() || map.isRotating()` and skip the `jumpTo` call for that frame. MapLibre's `jumpTo` calls `map.stop()` internally, which cancelled pinch gestures. Now pinch runs uninterrupted.
+
+### v661 · 2026-08-10 — Touch Handler Refinement
+Touch handlers moved to `canvas.addEventListener`. `touchstart`: 1 finger = pause animation; 2 fingers (pinch) = clear pause. `touchend`: only clear pause when all fingers lifted (`e.touches.length === 0`), so lifting one finger during pinch doesn't prematurely resume.
+
+### v660 · 2026-08-09 — Tilt + Animation Coordination
+`toggleMapTilt` pauses animation via `_userInteracting = true` before calling `easeTo`. `map.once('moveend', ...)` resumes animation after 800ms ease completes. Tilt animates smoothly, then orbit/fly resumes.
+
+### v659 · 2026-08-09 — Rotate Button Fix (Round 1)
+`_setRotateActive(!_rotateActive)` was dropped during a previous edit. `toggleMapRotate` was toggling animation without flipping the flag, so it always evaluated as false and went straight to `_stopAnimation()`. One line restored.
+
+### v658 · 2026-08-08 — `unfreeze()` + Tilt Button + Interaction Pause
+**`unfreeze()`** console function — stops animation, clears progress overlay, calls `map.stop()`/`resize()`/`triggerRepaint()`, attempts style reload if `isStyleLoaded()` is false. **⛰ Tilt button** — third button in map control group. Toggles 0° ↔ 60° pitch with 800ms `easeTo`. Teal when tilted. **Pause animation during user interaction** — `mousedown`/`touchstart` sets `_userInteracting = true`, animation loop skips `jumpTo` while flag is set, `mouseup`/`touchend` resumes.
+
+### v657 · 2026-08-08 — Visibility Change Auto-Pause
+`document.addEventListener('visibilitychange', ...)` stops animation when tab goes hidden (laptop close, tab switch, screen lock). `_stopAnimation()` cancels RAF, clears `_mapAnimating`, resets button states, fires `pushHashState`.
+
+### v656 · 2026-08-08 — Tile Interaction Source Guard Fix
+Root cause: `setupTileInteraction` called on every basemap style reload. `map.addSource`/`map.addLayer` had no existence guards, so the second call threw `Source already exists` — silently caught, but `_tileHandlers` was populated with unregistered handlers. Fix: `_addSrcIfMissing` and `_addLayerIfMissing` guard all setup calls.
+
+### v655 · 2026-08-07 — Animation Speed Tuning
+Rotation halved to 2.25°/sec (~160s per revolution). Pan base reduced to `0.018/8 = 0.00225°/sec` at zoom 12 (~250m/sec). Pan speed scales with `2^(12 - zoom)` — read fresh each frame so zooming while flying auto-adjusts pace. Tunable in console: `_FLY_BASE_DEG_PER_SEC`, `_FLY_REF_ZOOM`.
+
 ## 2026-08-07 — Satellite/terrain, basemap UX, rotate/fly · v629–v655
 
-### Favicon (v629)
-- `<link rel="icon">` tags added to `<head>` with relative paths so they resolve correctly on GitHub Pages subdirectory deploys
-- Paths later updated to `favicon/` subdirectory (v641)
+### Rotate and Fly animation buttons (v652–v655)
+- **↻** (rotate) and **↑** (fly/pan) buttons in the toolbar and as a native MapLibre `IControl` below the +/− navigation controls
+- Uses `map.jumpTo({ bearing, center })` with timestamp-based `dt` stepping — avoids `Attempting to run(), but is already running` errors from MapLibre's animation queue
+- `pushHashState` suppressed during animation (`_mapAnimating` flag) to avoid `history.replaceState` rate limit (>100 calls/10s = SecurityError)
+- Fly speed scales with zoom: `baseDeg × 2^(refZoom - currentZoom)` — halves with each zoom level in, so street-level and regional zoom feel appropriately paced
+- Rotation: 2.25°/sec (~160s per revolution); pan base: 0.00225°/sec at zoom 12
+- Both toggles keep toolbar and map control buttons in sync via `_setRotateActive`/`_setFlyActive`
+
+### Terrain + hillshade (v639–v655)
+- **AWS Terrarium** DEM tiles (no key, global, CC0) as default terrain source
+- **Maptiler Terrain RGB v2** as alternative — higher quality, requires API key
+- `Terrarium / Maptiler` source pill in the Basemap panel — independent of basemap choice; switching provider removes all dependent layers before removing the source
+- `map.setTerrain({ exaggeration })` with Off / 0.5× / 1× / 1.5× / 2× pill
+- Terrain restored after basemap style reloads via `restoreBgLayers()` inside `onStyleLoad`
+- **Hillshade layer** (`hillshade` type) added above satellite raster but below GeoJSON data layers
+  - On/Off checkbox; hides Style and Opacity controls when off
+  - Style presets: `Subtle` (scale 0.2, shadow #666, highlight #ddd), `Natural` (0.3, #333, #eee), `Strong` (0.45, #111, #fff)
+  - Opacity pill (25%/50%/75%/100%) folded into `hillshade-exaggeration` (MapLibre hillshade layers have no `raster-opacity` property)
+  - `hillshade-exaggeration = terrainExag × preset.scale × opacity`, capped at 0.95
+- **Terrain raw view** (`Terrain` button in basemap pill): hides all vector layers, shows full-intensity greyscale hillshade only — diagnostic view for confirming DEM coverage and illumination; restores all layers on exit
+
+### Session restore fix (v644–v646)
+- `labelOverlap`, `labelVarPlacement`, `labelFmtDecimals`, `labelFmtAbbreviate`, `labelFmtYears` now declared as top-level `let` variables with defaults — previously only assigned inside a reset block, causing `ReferenceError` when `setupGeoJsonLayers` was called from session restore before any reset had run
+- Session restore now calls `setupGeoJsonLayers`, `applyLineStyle`, `applyPointStyle`, `applyPolyStyle`, `applyLineCasing`, and `switchTab('file')` so features appear immediately with correct styles
+
+### Terrain race condition fix (v644)
+- `_applyTerrain()` in `map.once('load')` now only runs when `currentBasemapStyle === 'white'` (no `setStyle` pending); other basemaps apply terrain via `restoreBgLayers` inside `onStyleLoad` after the style finishes loading — prevents `Error: Style is not done loading`
 
 ### Basemap panel promoted + UI restructure (v629–v646)
 - **Basemap** promoted from a subsection inside Background to its own top-level panel
@@ -33,41 +380,19 @@ are described by date and feature area only.
 - `_satelliteTogglePolygonGroup()`: in satellite mode, checking Water/Landuse/Buildings shows outlines only (not fills); synthetic line layers added for groups with no native line equivalent
 - Switching between Esri and Maptiler removes the previous provider's source/layer cleanly
 
-### Terrain + hillshade (v639–v655)
-- **AWS Terrarium** DEM tiles (no key, global, CC0) as default terrain source
-- **Maptiler Terrain RGB v2** as alternative — higher quality, requires API key
-- `Terrarium / Maptiler` source pill in the Basemap panel — independent of basemap choice; switching provider removes all dependent layers before removing the source
-- `map.setTerrain({ exaggeration })` with Off / 0.5× / 1× / 1.5× / 2× pill
-- Terrain restored after basemap style reloads via `restoreBgLayers()` inside `onStyleLoad`
-- **Hillshade layer** (`hillshade` type) added above satellite raster but below GeoJSON data layers
-  - On/Off checkbox; hides Style and Opacity controls when off
-  - Style presets: `Subtle` (scale 0.2, shadow #666, highlight #ddd), `Natural` (0.3, #333, #eee), `Strong` (0.45, #111, #fff)
-  - Opacity pill (25%/50%/75%/100%) folded into `hillshade-exaggeration` (MapLibre hillshade layers have no `raster-opacity` property)
-  - `hillshade-exaggeration = terrainExag × preset.scale × opacity`, capped at 0.95
-- **Terrain raw view** (`Terrain` button in basemap pill): hides all vector layers, shows full-intensity greyscale hillshade only — diagnostic view for confirming DEM coverage and illumination; restores all layers on exit
 
 ### Water checkbox (v633–v635)
 - New **Water** checkbox in Basemap Layers alongside Roads/Places/Streets/Buildings/Landuse/POI
 - `discoverBasemapGroups()` now splits water layers out of the general landuse group
 - In satellite mode, toggling Water shows boundary line layers only (no fills)
 
-### Session restore fix (v644–v646)
-- `labelOverlap`, `labelVarPlacement`, `labelFmtDecimals`, `labelFmtAbbreviate`, `labelFmtYears` now declared as top-level `let` variables with defaults — previously only assigned inside a reset block, causing `ReferenceError` when `setupGeoJsonLayers` was called from session restore before any reset had run
-- Session restore now calls `setupGeoJsonLayers`, `applyLineStyle`, `applyPointStyle`, `applyPolyStyle`, `applyLineCasing`, and `switchTab('file')` so features appear immediately with correct styles
-
-### Terrain race condition fix (v644)
-- `_applyTerrain()` in `map.once('load')` now only runs when `currentBasemapStyle === 'white'` (no `setStyle` pending); other basemaps apply terrain via `restoreBgLayers` inside `onStyleLoad` after the style finishes loading — prevents `Error: Style is not done loading`
-
 ### Line defaults on satellite entry respect reload (v636)
 - `ingestGeoJSON` fresh-load reset block now checks `currentBasemapStyle === 'satellite'` and applies `medium`/`dark`/`solid` defaults instead of the standard `thin`/`none`/`translucent` — dragging files onto satellite no longer resets to thin transparent lines
 
-### Rotate and Fly animation buttons (v652–v655)
-- **↻** (rotate) and **↑** (fly/pan) buttons in the toolbar and as a native MapLibre `IControl` below the +/− navigation controls
-- Uses `map.jumpTo({ bearing, center })` with timestamp-based `dt` stepping — avoids `Attempting to run(), but is already running` errors from MapLibre's animation queue
-- `pushHashState` suppressed during animation (`_mapAnimating` flag) to avoid `history.replaceState` rate limit (>100 calls/10s = SecurityError)
-- Fly speed scales with zoom: `baseDeg × 2^(refZoom - currentZoom)` — halves with each zoom level in, so street-level and regional zoom feel appropriately paced
-- Rotation: 2.25°/sec (~160s per revolution); pan base: 0.00225°/sec at zoom 12
-- Both toggles keep toolbar and map control buttons in sync via `_setRotateActive`/`_setFlyActive`
+
+### Favicon (v629)
+- `<link rel="icon">` tags added to `<head>` with relative paths so they resolve correctly on GitHub Pages subdirectory deploys
+- Paths later updated to `favicon/` subdirectory (v641)
 
 ---
 
