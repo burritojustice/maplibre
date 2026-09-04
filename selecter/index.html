@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: v775 -->
+<!-- build: v829 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -162,6 +162,11 @@
         }
         #map-panel.active { display: flex; }
         #file-panel { display: flex; flex-direction: column; flex: 1; overflow: hidden; min-height: 0; }
+        /* Aqua dividing bar between tab content and universal settings panels */
+        #file-panel:not(.hidden), #working-panel[style*="flex"], #map-panel.active {
+            border-bottom: 3px solid rgba(45,212,191,0.5);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        }
         #file-panel.hidden { display: none; }
         /* When all file-panel content hidden (Map Tiles tab), show only the tab strip */
         #sidebar:not(.map-tab-visible) { min-height: 0; }
@@ -1117,17 +1122,17 @@
         #elevation-tooltip {
             position: fixed;
             pointer-events: none;
-            background: rgba(28,28,42,0.6);
+            background: rgba(28,28,42,0.95);
             border: 1px solid rgba(255,255,255,0.12);
             border-left: 3px solid var(--accent);
             border-radius: 7px;
-            padding: 6px 10px;
+            padding: 0;
             font-family: var(--mono);
             font-size: 11px;
             line-height: 1.6;
             color: #e8e8f0;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.5);
-            white-space: nowrap;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.6);
+            white-space: normal;
             z-index: 200;
             display: none;
             backdrop-filter: blur(1px);
@@ -1351,6 +1356,7 @@
 <button id="sidebar-collapse-btn" title="Collapse to legend" style="display:none">‹</button>
 
 <div id="elevation-tooltip"></div>
+<div id="elev-chart-corner" style="display:none;position:fixed;bottom:16px;right:16px;z-index:210;pointer-events:auto;background:rgba(28,28,42,0.95);border:1px solid rgba(255,255,255,0.12);border-left:3px solid var(--accent);border-radius:7px;box-shadow:0 2px 16px rgba(0,0,0,0.6)"></div>
 <div id="sidebar">
     <!-- Legend card — shown in legend mode instead of full explorer -->
     <div id="legend-card">
@@ -1500,10 +1506,44 @@
 
 
 <!-- Settings panels wrapper — capped so property list always has room -->
+        <div id="working-panel" style="display:none;flex-direction:column;flex:1;overflow:hidden;min-height:0">
+        <!-- Header row — amber-accented to distinguish from File tab -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px 4px;flex-shrink:0;border-bottom:2px solid #f59e0b;background:rgba(245,158,11,0.07)">
+            <h2>Properties</h2>
+            <div style="display:flex;gap:4px;flex-shrink:0">
+                <button class="sort-btn" id="w-sort-keys" title="Sort by feature count">Count</button>
+                <button class="sort-btn active" id="w-sort-vals" title="Sort by value count">Values</button>
+                <button class="sort-btn" id="w-sort-alpha" title="Sort alphabetically">A–Z</button>
+            </div>
+        </div>
+        <!-- Subtitle row: source count/title + stats, mirrors File subtitle structure -->
+        <p id="working-subtitle">
+            <span id="working-title">Working Layer</span><br><span id="working-header-count" style="font-size:11px">0 features</span>
+        </p>
+        <!-- Search box -->
+        <div id="working-search-wrap" style="padding:4px 12px 4px;flex-shrink:0">
+            <div class="prop-search-wrap" style="position:relative">
+                <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:17px;pointer-events:none">⌕</span>
+                <input type="text" id="working-prop-search" placeholder="Search properties and values…"
+                    style="width:100%;box-sizing:border-box;padding:5px 28px 5px 26px;font-family:var(--sans);font-size:11px;background:var(--surface2);border:1px solid rgba(245,158,11,0.4);border-radius:6px;color:var(--text)">
+                <button id="working-search-clear" class="search-clear-btn" title="Clear search">×</button>
+            </div>
+        </div>
+        <!-- Label hint — mirrors #label-hint in File tab -->
+        <div id="w-label-hint">
+            <span id="w-label-hint-text" title="Check the ✓ box next to a property name to show its values as map labels">Labels</span>
+            <div id="w-label-tags"><span style="color:var(--text-muted);font-size:11px">check ✓ to label features</span></div>
+        </div>
+        <!-- Props list — flex:1 fills available space; style panel is flex-shrink:0 below -->
+        <div id="working-props-list" style="flex:1;overflow-y:auto;padding:4px 0;min-height:0"></div>
+
+        <!-- Working Style Panel — below props list, mirrors File #style-panel with w- prefixed IDs -->
+    </div>
+
 <div id="settings-panels" style="flex-shrink:0;overflow-y:auto;display:flex;flex-direction:column;max-height:55vh;min-height:0">
 
 <!-- Elevation panel — collapsible, sits below Basemap -->
-    <div id="elevation-panel-wrap" style="background:var(--surface);z-index:5;flex-shrink:0;border-top:3px solid rgba(45,212,191,0.5);box-shadow:0 -4px 12px rgba(0,0,0,0.25)">
+    <div id="elevation-panel-wrap" style="background:var(--surface);z-index:5;flex-shrink:0">
         <button id="elevation-panel-toggle" onclick="toggleElevationPanel()" style="width:100%;display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--surface2);border:none;cursor:pointer;font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent)">
             <span class="ep-arrow" style="font-size:9px;transition:transform .2s">▶</span> Elevation
         </button>
@@ -1511,14 +1551,26 @@
 
             <!-- Elevation data -->
             <div class="style-section" style="gap:6px;flex-wrap:wrap" id="elevation-section">
-                <span class="style-section-label">Elevation data</span>
+                <div style="display:flex;align-items:center;width:100%;gap:6px">
+                    <span class="style-section-label" style="flex:1">Elevation data</span>
+                    <div id="elev-unit-pill" class="style-pill" style="flex-shrink:0">
+                        <button class="style-opt active" data-val="m">m</button>
+                        <button class="style-opt" data-val="ft">ft</button>
+                    </div>
+                </div>
                 <div style="display:flex;align-items:center;gap:6px;width:100%">
                     <label class="basemap-check" id="lbl-elevation-cursor" title="Show elevation at cursor; show slope on line hover" style="flex:1">
                         <input type="checkbox" id="chk-elevation-cursor"> Inspect on hover
                     </label>
-                    <div id="elev-unit-pill" class="style-pill" style="flex-shrink:0">
-                        <button class="style-opt active" data-val="m">m</button>
-                        <button class="style-opt" data-val="ft">ft</button>
+                    <label class="basemap-check" title="Show elevation profile in fixed bottom-right corner while hovering lines" style="flex-shrink:0">
+                        <input type="checkbox" id="chk-elev-chart-pinned" checked> Pin chart
+                    </label>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;width:100%;margin-top:2px">
+                    <span style="font-size:10px;color:var(--text-muted);flex-shrink:0">Chart order</span>
+                    <div id="elev-profile-order-pill" class="style-pill" style="flex:1">
+                        <button class="style-opt" data-val="drawn">As drawn</button>
+                        <button class="style-opt active" data-val="lowhigh">Low → High</button>
                     </div>
                 </div>
                 <div style="display:flex;gap:4px;margin-top:4px;width:100%">
@@ -1532,6 +1584,17 @@
                         onclick="showElevationStats()">Stats ▸</button>
                 </div>
                 <div id="calc-elevation-status" style="font-size:10px;color:var(--text-muted);width:100%;display:none"></div>
+                <!-- Visualize pill — shown after elevation is calculated -->
+                <div id="elev-visualize-row" style="display:none;width:100%;margin-top:2px">
+                    <span class="style-section-label" style="margin-bottom:3px">Visualize</span>
+                    <div id="elev-visualize-pill" class="style-pill" style="flex-wrap:wrap">
+                        <button class="style-opt active" data-val="off" title="No elevation coloring">Off</button>
+                        <button class="style-opt" data-val="slope_net" title="Color lines by net slope (start→end)">Net slope</button>
+                        <button class="style-opt" data-val="slope_max" title="Color lines by steepest segment">Max slope</button>
+                        <button class="style-opt" data-val="elev_mid" title="Color lines by midpoint elevation — best for short similar-length segments">Mid elev</button>
+                        <button class="style-opt" data-val="elev_pts" title="Show elevation sample points along all lines that have been calculated">Elev points</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Terrain mirror -->
@@ -2049,40 +2112,8 @@
         </div>
     </div>
     </div>
-    <!-- Working Layer panel — visually distinct from File panel via amber accent -->
-        <div id="working-panel" style="display:none;flex-direction:column;flex:1;overflow:hidden;min-height:0">
-        <!-- Header row — amber-accented to distinguish from File tab -->
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px 4px;flex-shrink:0;border-bottom:2px solid #f59e0b;background:rgba(245,158,11,0.07)">
-            <h2>Properties</h2>
-            <div style="display:flex;gap:4px;flex-shrink:0">
-                <button class="sort-btn" id="w-sort-keys" title="Sort by feature count">Count</button>
-                <button class="sort-btn active" id="w-sort-vals" title="Sort by value count">Values</button>
-                <button class="sort-btn" id="w-sort-alpha" title="Sort alphabetically">A–Z</button>
-            </div>
-        </div>
-        <!-- Subtitle row: source count/title + stats, mirrors File subtitle structure -->
-        <p id="working-subtitle">
-            <span id="working-title">Working Layer</span><br><span id="working-header-count" style="font-size:11px">0 features</span>
-        </p>
-        <!-- Search box -->
-        <div id="working-search-wrap" style="padding:4px 12px 4px;flex-shrink:0">
-            <div class="prop-search-wrap" style="position:relative">
-                <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:17px;pointer-events:none">⌕</span>
-                <input type="text" id="working-prop-search" placeholder="Search properties and values…"
-                    style="width:100%;box-sizing:border-box;padding:5px 28px 5px 26px;font-family:var(--sans);font-size:11px;background:var(--surface2);border:1px solid rgba(245,158,11,0.4);border-radius:6px;color:var(--text)">
-                <button id="working-search-clear" class="search-clear-btn" title="Clear search">×</button>
-            </div>
-        </div>
-        <!-- Label hint — mirrors #label-hint in File tab -->
-        <div id="w-label-hint">
-            <span id="w-label-hint-text" title="Check the ✓ box next to a property name to show its values as map labels">Labels</span>
-            <div id="w-label-tags"><span style="color:var(--text-muted);font-size:11px">check ✓ to label features</span></div>
-        </div>
-        <!-- Props list — flex:1 fills available space; style panel is flex-shrink:0 below -->
-        <div id="working-props-list" style="flex:1;overflow-y:auto;padding:4px 0;min-height:0"></div>
 
-        <!-- Working Style Panel — below props list, mirrors File #style-panel with w- prefixed IDs -->
-        <div id="w-style-panel">
+        <div id="w-style-panel" style="display:none">
             <button id="w-style-panel-toggle" class="">
                 <span class="sp-arrow">▶</span> Style
             </button>
@@ -2103,9 +2134,18 @@
                         </div>
                         <div class="style-section">
                             <span class="style-section-label">Size</span>
-                            <div id="w-point-radius-pill" class="style-pill">
-                                <button class="style-opt active" data-val="density" title="Scale by visible count">Density</button>
-                                <button class="style-opt" data-val="zoom" title="Scale by zoom level">Zoom</button>
+                            <div style="display:flex;flex-direction:column;gap:4px;width:100%">
+                                <div id="w-point-radius-pill" class="style-pill">
+                                    <button class="style-opt active" data-val="density" title="Scale by visible count">Auto</button>
+                                    <button class="style-opt" data-val="zoom" title="Scale by zoom level">Zoom</button>
+                                </div>
+                                <div id="w-point-fixed-size-pill" class="style-pill" style="flex-wrap:wrap">
+                                    <button class="style-opt" data-val="tiny">Tiny</button>
+                                    <button class="style-opt" data-val="small">Small</button>
+                                    <button class="style-opt" data-val="medium">Medium</button>
+                                    <button class="style-opt" data-val="large">Large</button>
+                                    <button class="style-opt" data-val="huge">Huge</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2295,8 +2335,7 @@
                 </div>
             </div>
         </div>
-    </div>
-
+</div>
 
     <div id="bg-layer-list">
         <button id="bg-panel-toggle" onclick="toggleBgPanel()">
@@ -2326,7 +2365,7 @@
             </div>
         </div>
     </div>
-</div><!-- /settings-panels -->
+<!-- /settings-panels -->
 </div><!-- /file-panel --> style="display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);z-index:1100;max-height:240px;overflow-y:auto;text-align:left"></div>
 
 <!-- Histogram popout panel — fixed bottom center -->
@@ -2454,6 +2493,7 @@
             <button class="bar-btn" id="add-to-layer-btn" title="Add chosen tile features to File layer" style="display:none">✚ Files</button>
             <button class="bar-btn" id="tile-to-working-btn" title="Move chosen tile features to Working Layer" style="display:none;color:#f87171;border-color:rgba(248,113,113,0.4)" onclick="_moveToWorking()">📌</button>
             <button class="bar-btn" id="to-working-btn" title="Move to Working Layer" style="color:#f87171;border-color:rgba(248,113,113,0.4)">📌</button>
+            <button class="bar-btn" id="explode-btn" title="Explode selected lines into per-segment features in Working" style="display:none;color:#fb923c;border-color:rgba(251,146,60,0.4)">💥</button>
             <button class="bar-btn" id="save-btn" title="💾 Save selected as GeoJSON · Shift+click to export IDs for sharing">💾</button>
         </div>
     </div>
@@ -2542,7 +2582,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </script>
 
 <script type="text/javascript">
-const _BUILD_VERSION = 'v775';
+const _BUILD_VERSION = 'v829';
 
 // Global unhandled-rejection logger. Without this, an async function called
 // without await/catch (the exact bug class that caused the progress overlay to
@@ -2571,7 +2611,7 @@ function _decodeProtomapsId(featureId) {
         return { osmId: osmId.toString(), osmType };
     } catch { return null; }
 }
-const _BUILD_TIMESTAMP = '2026-08-31T16:54:06Z';
+const _BUILD_TIMESTAMP = '2026-09-03T17:02:17Z';
 const _loadedAt = Date.now(); // session start — use to confirm tab didn't silently reload
 
 // Detect silent reloads: write a heartbeat to sessionStorage on load,
@@ -3016,10 +3056,28 @@ map.once('load', () => {
         const btn = e.target.closest('.style-opt'); if (!btn) return;
         _elevUnit = btn.dataset.val;
         document.querySelectorAll('#elev-unit-pill .style-opt').forEach(b => b.classList.toggle('active', b === btn));
-        // Only affects hover tooltip — stats table has its own m/ft pills
-        // But do refresh labels if any elevation props are labeled
         if ([...(labelProps || [])].some(p => p.startsWith('_selecter_elev') || p === '_selecter_rise' || p === '_selecter_run')) {
             updateLabels();
+        }
+    });
+
+    document.getElementById('elev-profile-order-pill').addEventListener('click', e => {
+        const btn = e.target.closest('.style-opt'); if (!btn) return;
+        _elevProfileOrder = btn.dataset.val;
+        document.querySelectorAll('#elev-profile-order-pill .style-opt').forEach(b => b.classList.toggle('active', b === btn));
+    });
+
+    document.getElementById('elev-visualize-pill').addEventListener('click', e => {
+        const btn = e.target.closest('.style-opt'); if (!btn) return;
+        document.querySelectorAll('#elev-visualize-pill .style-opt').forEach(b => b.classList.toggle('active', b === btn));
+        _applyElevVisualize(btn.dataset.val);
+    });
+
+    document.getElementById('chk-elev-chart-pinned').addEventListener('change', function() {
+        _elevChartPinned = this.checked;
+        if (!_elevChartPinned) {
+            const corner = document.getElementById('elev-chart-corner');
+            if (corner) corner.style.display = 'none';
         }
     });
 
@@ -3221,7 +3279,7 @@ let lineOffsetValues = [];      // [{value, offset}] assignment per prop value
 let lineDirectionMode = 'off';  // 'off' | 'draw' | 'compass'
 let lineDirectionProp = null;   // property for compass mode
 let lineRadiusMode = 'zoom';  // 'zoom' | 'fixed' | 'density'
-let lineOutlineMode = 'none'; // 'none' | 'light' | 'grey' | 'dark'
+let lineOutlineMode = 'grey'; // 'none' | 'light' | 'grey' | 'dark'
 let lineOutlineWidth = 'hairline'; // 'hairline' | 'thin' | 'medium' | 'thick'
 let lineStyleMode   = 'solid'; // 'solid' | 'ghost'
 let lineOpacProp    = null;    // property driving data-driven opacity
@@ -4662,7 +4720,8 @@ function switchTab(tab) {
     if (_wp) _wp.style.display = tab === 'working' ? 'flex' : 'none';
     // filter-status-row and style-panel only relevant on the file tab
     document.getElementById('filter-status-row').style.display = tab === 'file' ? '' : 'none';
-    document.getElementById('style-panel').style.display = tab === 'file' ? '' : 'none';
+    document.getElementById('style-panel').style.display   = tab === 'file'    ? '' : 'none';
+    document.getElementById('w-style-panel').style.display = tab === 'working' ? '' : 'none';
     // Layer visibility by tab — prevent bleed between tabs
     const _tabGvLayers = ['gv-fill','gv-outline','gv-outline-interact','gv-line','gv-line-casing',
         'gv-line-dashed','gv-point','gv-arrows','gv-endpoints'];
@@ -4759,12 +4818,15 @@ function switchTab(tab) {
         }
     }
 
-    // Clear tile hover overlay when switching away from map tab
-    if (tab === 'file' && map.getSource('tile-hover-overlay')) {
+    // Clear tile overlay sources when switching away from map tab
+    if (tab !== 'map' && map.getSource('tile-hover-overlay')) {
         map.getSource('tile-hover-overlay').setData({ type: 'FeatureCollection', features: [] });
         if (map.getSource('tile-highlight-overlay')) {
             map.getSource('tile-highlight-overlay').setData({ type: 'FeatureCollection', features: [] });
             try { map.setPaintProperty('tile-highlight-line', 'line-color', '#2dd4bf'); } catch {}
+        }
+        if (map.getSource('tile-select-overlay')) {
+            map.getSource('tile-select-overlay').setData({ type: 'FeatureCollection', features: [] });
         }
         if (map.getSource('tile-dots-overlay')) {
             map.getSource('tile-dots-overlay').setData({ type: 'FeatureCollection', features: [] });
@@ -4807,6 +4869,14 @@ function switchTab(tab) {
         if (_vl) _vl.textContent = tab === 'map' ? 'in viewport' : 'visible';
     }
     if (legendMode) updateLegendCard();
+    // Elevation panel — hide on Tiles tab
+    const _epWrap = document.getElementById('elevation-panel-wrap');
+    if (_epWrap) _epWrap.style.display = tab === 'map' ? 'none' : '';
+    // Always hide elevation hover tooltip and corner chart when switching tabs
+    const _elevTT = document.getElementById('elevation-tooltip');
+    if (_elevTT) _elevTT.style.display = 'none';
+    const _elevCorner = document.getElementById('elev-chart-corner');
+    if (_elevCorner) _elevCorner.style.display = 'none';
     requestAnimationFrame(positionSidebar);
 }
 
@@ -6951,6 +7021,10 @@ function restoreBgLayers() {
         _shapeSpritesLoaded = false;
         _scheduleShapeApply();
     }
+    // Restore elevation gradient layer
+    if (_elevVisualizeMode && _elevVisualizeMode !== 'off') {
+        setTimeout(() => _applyElevVisualize(_elevVisualizeMode), 100);
+    }
 }
 
 document.getElementById('screenshot-btn').addEventListener('click', e => {
@@ -7628,7 +7702,7 @@ if (_bgFileInput) _bgFileInput.addEventListener('change', e => {
 // ── LAYER SETUP FUNCTIONS — called on first load and after basemap style swap ──
 
 function setupGeoJsonLayers(fc) {
-    map.addSource('geojson-data', { type: 'geojson', data: fc, promoteId: '_gvid' });
+    map.addSource('geojson-data', { type: 'geojson', data: fc, promoteId: '_gvid', lineMetrics: true });
 
     // Find the first basemap symbol layer (place/road labels) so we can insert
     // our data layers BELOW it — basemap labels stay readable above our fills/lines.
@@ -7739,6 +7813,49 @@ function setupGeoJsonLayers(fc) {
         map.on('mousemove', 'gv-dots', onMouseMove);
         map.on('mouseleave', 'gv-dots', onMouseLeave);
         map.on('click', 'gv-dots', e => { if (!splitModeActive) onFeatureClick(e); });
+    }
+
+    // Elevation sample point layer — shown when elevation inspect or "show all" is active
+    if (!map.getSource('geojson-elev-points')) {
+        map.addSource('geojson-elev-points', { type: 'geojson', data: emptyFC });
+        addBeforeLabel({ id: 'gv-elev-points', type: 'circle', source: 'geojson-elev-points',
+            layout: { 'visibility': 'none' },
+            paint: {
+                'circle-color': ['interpolate', ['linear'], ['get', '_elev_t'],
+                    0, '#313695', 0.25, '#4575b4', 0.5, '#ffffbf', 0.75, '#f46d43', 1, '#a50026'],
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 3, 14, 5, 18, 7],
+                'circle-stroke-color': 'rgba(0,0,0,0.4)',
+                'circle-stroke-width': 1,
+                'circle-opacity': 0.85,
+            }
+        });
+        // Elevation labels — only visible at z13+
+        map.addLayer({ id: 'gv-elev-point-labels', type: 'symbol', source: 'geojson-elev-points',
+            layout: {
+                'visibility': 'none',
+                'text-field': ['concat',
+                    ['to-string', ['round', ['get', '_elev']]],
+                    'm'
+                ],
+                'text-font': ['Noto Sans Regular'],
+                'text-size': ['interpolate', ['linear'], ['zoom'], 13, 9, 16, 11, 18, 13],
+                'text-offset': [0, -1.2],
+                'text-anchor': 'bottom',
+                'text-allow-overlap': false,
+                'text-ignore-placement': false,
+                'symbol-sort-key': ['get', '_elev'],  // higher elevation labels on top
+                'text-max-angle': 90,
+            },
+            minzoom: 13,
+            paint: {
+                'text-color': '#000000',
+                'text-halo-color': 'rgba(255,255,255,0.9)',
+                'text-halo-width': 1.5,
+                'text-opacity': ['interpolate', ['linear'], ['zoom'], 13, 0, 13.5, 1],
+            }
+        });
+    } else {
+        map.getSource('geojson-elev-points').setData(emptyFC);
     }
 
     // gv-point added last so it's topmost — ensures point clicks are never intercepted
@@ -10072,6 +10189,31 @@ function applyWorkingLineStyle() {
 
     applyWorkingLineOpacity();
     applyWorkingLineOffset();
+    applyWorkingLineCasing();
+}
+
+function applyWorkingLineCasing() {
+    if (!map.getLayer('working-line-casing')) return;
+    const mode  = wStyle.lineOutlineMode  || 'none';
+    const width = wStyle.lineOutlineWidth || 'hairline';
+    const casingColors = {
+        none:  'rgba(0,0,0,0)',
+        light: 'rgba(255,255,255,0.25)',
+        grey:  'rgba(128,128,128,0.5)',
+        dark:  'rgba(0,0,0,0.85)'
+    };
+    const casingWidths = { hairline: 1, thin: 1.5, medium: 2.5 };
+    const lineBaseW = wStyle.lineWidthMode === 'thick' ? 3 : wStyle.lineWidthMode === 'thin' ? 1 : 2;
+    const casingW = casingWidths[width] ?? 1;
+
+    if (mode === 'none') {
+        map.setPaintProperty('working-line-casing', 'line-opacity', 0);
+        return;
+    }
+    map.setPaintProperty('working-line-casing', 'line-color', casingColors[mode]);
+    map.setPaintProperty('working-line-casing', 'line-width', lineBaseW + casingW * 2);
+    map.setPaintProperty('working-line-casing', 'line-opacity',
+        ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1]);
 }
 
 function applyLineCasing() {
@@ -10747,13 +10889,13 @@ function applyGeomFilters() {
         updateDotsLayer();
     }
     updateLayerFilters();
-    // Tile mode — hide line overlay when Lines unchecked
-    if (map.getLayer('tile-highlight-line')) {
+    // Tile mode — hide line overlay when Lines unchecked (only on Tiles tab)
+    if (activeTab === 'map' && map.getLayer('tile-highlight-line')) {
         const lineVis = geomVisible.line ? 'visible' : 'none';
         map.setLayoutProperty('tile-highlight-line', 'visibility', lineVis);
         map.setLayoutProperty('tile-labels-line',   'visibility', lineVis);
     }
-    if (map.getLayer('tile-select-line')) {
+    if (activeTab === 'map' && map.getLayer('tile-select-line')) {
         map.setLayoutProperty('tile-select-line', 'visibility', geomVisible.line ? 'visible' : 'none');
     }
 }
@@ -10926,6 +11068,9 @@ function updateLabels() {
     const layers = isWorking
         ? ['working-labels', 'working-labels-line']
         : ['gv-labels', 'gv-labels-line'];
+    // Hide the other tab's label layers to prevent cross-tab leaks
+    const otherLayers = isWorking ? ['gv-labels', 'gv-labels-line'] : ['working-labels', 'working-labels-line'];
+    otherLayers.forEach(l => { try { if (map.getLayer(l)) map.setLayoutProperty(l, 'visibility', 'none'); } catch {} });
     if (labelProps.size === 0) {
         layers.forEach(l => { if (map.getLayer(l)) map.setLayoutProperty(l, 'text-field', ''); });
         updateLabelHint(); return;
@@ -12940,7 +13085,8 @@ function onMouseMove(e) {
     }
 
     // Show hover popup when no frozen popup
-    if (!frozenPopup) {
+    // Suppress property hover popup when elevation cursor is active — elevation tooltip takes over
+    if (!frozenPopup && !_elevationCursorActive) {
         if (fid !== lastHoveredId) {
             lastHoveredId = fid;
             const props = cleanProps(f.properties);
@@ -13829,16 +13975,28 @@ function onFeatureClick(e) {
     const _fullF = allFeatures.find(af => af.properties._gvid === f.properties._gvid);
     showFlagMarker(_fullF || f);
 
-    frozenFeatureProps = f.properties;
-    _stackAnchorProps = { ...f.properties }; // set immediately so first cycle shows diffs
+    frozenFeatureProps = _fullF ? _fullF.properties : f.properties;
+    _stackAnchorProps = { ...frozenFeatureProps };
     hoverPopup.remove(); lastHoveredId = null;
-    frozenPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12, maxWidth: '300px' });
+
+    // Choose anchor based on screen quadrant so popup doesn't cover the clicked feature
+    const _clickPx = map.project(e.lngLat);
+    const _mW = map.getContainer().clientWidth;
+    const _mH = map.getContainer().clientHeight;
+    const _inRight  = _clickPx.x > _mW * 0.5;
+    const _inBottom = _clickPx.y > _mH * 0.55; // slightly below center since sidebar is on left
+    const _anchor = _inBottom
+        ? (_inRight ? 'bottom-right' : 'bottom-left')
+        : (_inRight ? 'top-right'    : 'top-left');
+    const _offset = { 'top-left': [8,-4], 'top-right': [-8,-4], 'bottom-left': [8,4], 'bottom-right': [-8,4] }[_anchor] || [0,-12];
+
+    frozenPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, anchor: _anchor, offset: _offset, maxWidth: '300px' });
     frozenPopup.setLngLat(e.lngLat).setHTML(buildFrozenHTML()).addTo(map);
-    // Start dismiss timer — cancelled if cursor moves onto the popup within the window
+    // Start dismiss timer — when elevation cursor active, extend timeout so user can read the chart
     clearTimeout(_pinDismissTimer);
     _pinDismissTimer = setTimeout(() => {
         if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
-    }, 800);
+    }, _elevationCursorActive ? 8000 : 800);
     setTimeout(() => { attachFrozenEvents(); }, 50);
 }
 
@@ -13852,6 +14010,9 @@ function cleanProps(raw) {
 // palette prop: 0, label prop: 1, active filter on this key: 2, otherwise: 3
 function propActivityPriority(key) {
     if (paletteProp === key || _shapeProp === key) return 0;
+    // When elevation cursor is active, promote elevation/slope fields to top
+    if (_elevationCursorActive && key.startsWith('_selecter_') &&
+        (key.includes('elev') || key.includes('slope') || key.includes('rise') || key.includes('run') || key.includes('bearing'))) return 0;
     if (labelProps.has(key)) return 1;
     if (activeFilter && activeFilter.prop === key) return 2;
     if (numericRangeFilter && numericRangeFilter.prop === key) return 2;
@@ -13979,6 +14140,23 @@ function buildFrozenHTML() {
     const p = frozenFeatureProps || {};
     const isFlagged = !!p._selecter_flag;
     const hasFormat = p._selecter_color != null || p._selecter_width != null;
+
+    // Elevation profile — shown when inspect cursor is active and data exists
+    let elevProfileHTML = '';
+    const rawElevPoints = p._selecter_elevations;
+    let elevPoints = null;
+    if (rawElevPoints != null) {
+        try {
+            elevPoints = Array.isArray(rawElevPoints) ? rawElevPoints : JSON.parse(rawElevPoints);
+        } catch {}
+    }
+    if (_elevationCursorActive && Array.isArray(elevPoints) && elevPoints.length >= 2) {
+        const _isTunnelFeature = /tunnel/i.test(String(p.name||'')) || /tunnel/i.test(String(p.type||'')) || String(p.tunnel) === 'yes';
+        const _tunnelWarnFrozen = _isTunnelFeature
+            ? `<div style="padding:2px 8px 3px;font-size:9px;color:#f97316;background:rgba(249,115,22,0.08);border-bottom:1px solid rgba(249,115,22,0.2)">⚠ Tunnel: only surface elevation shown</div>`
+            : '';
+        elevProfileHTML = _tunnelWarnFrozen + _buildElevProfileSVG(elevPoints, p);
+    }
     return `
         <div class="popup-header">
             <span class="popup-header-label">📌 ${isFlagged ? '🚩 ' : ''}Pinned Feature</span>
@@ -13989,7 +14167,7 @@ function buildFrozenHTML() {
             <span style="font-size:10px;color:#fbbf24;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🚩 ${escHtml(String(p._selecter_note||'Flagged')).slice(0,50)}</span>
             <button class="popup-tool-btn active" id="popup-flag-btn" title="Edit flag" style="flex-shrink:0">Edit</button>
         </div>` : ''}
-        <div class="popup-inner">${rows}</div>
+        <div class="popup-inner">${elevProfileHTML}${rows}</div>
         ${(frozenFeatureProps?._selecter_format || (frozenFeatureProps?._selecter_sourcecrs && frozenFeatureProps._selecter_sourcecrs !== 'EPSG:4326')) ? `
         <div style="padding:3px 10px;border-top:1px solid var(--border);font-size:9px;color:var(--text-muted);font-family:var(--mono);display:flex;gap:8px;flex-wrap:wrap;line-height:1.6">
             ${frozenFeatureProps._selecter_format ? `<span title="Source format">⌸ ${escHtml(frozenFeatureProps._selecter_format)}</span>` : ''}
@@ -14826,7 +15004,8 @@ function syncWorkingPillUI() {
         pill.querySelectorAll('.style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === val));
     };
     _set('w-point-style-pill',  wStyle.pointStyle);
-    _set('w-point-radius-pill', wStyle.pointRadiusMode);
+    _set('w-point-radius-pill',     wStyle.pointRadiusMode);
+    _set('w-point-fixed-size-pill', wStyle.pointRadiusMode);
     _set('w-line-style-pill',   wStyle.lineStyleMode);
     _set('w-line-width-pill',   wStyle.lineWidthMode);
     _set('w-line-radius-pill',  wStyle.lineRadiusMode);
@@ -14890,6 +15069,14 @@ function updateWorkingPointRadius() {
                     16, ['case', hl, ['+', sizeExpr, 3], sizeExpr]]);
             return;
         }
+    }
+
+    const fixedRadii = { tiny: 2, small: 4, medium: 6, large: 9, huge: 13 };
+    if (fixedRadii[s.pointRadiusMode]) {
+        const r = fixedRadii[s.pointRadiusMode];
+        map.setPaintProperty('working-point', 'circle-radius',
+            ['case', hl, r + 2, r]);
+        return;
     }
 
     if (s.pointRadiusMode === 'zoom') {
@@ -14966,8 +15153,9 @@ document.getElementById('w-line-dir-pill')?.addEventListener('click', e => {
 });
 
 // Point pills
-_wPill('w-point-style-pill',  'pointStyle',      _wApplyPoint);
-_wPill('w-point-radius-pill', 'pointRadiusMode', _wApplyPoint);
+_wPill('w-point-style-pill',       'pointStyle',      _wApplyPoint);
+_wPill('w-point-radius-pill',      'pointRadiusMode', _wApplyPoint);
+_wPill('w-point-fixed-size-pill',  'pointRadiusMode', _wApplyPoint);
 
 // Polygon pills
 _wPill('w-poly-outline-pill', 'polyOutlineMode', _wApplyPoly);
@@ -15521,7 +15709,11 @@ function _cancelDwell() {
     clearTimeout(_dwellTimer); _dwellTimer = null;
     clearInterval(_dwellBlinkTimer); _dwellBlinkTimer = null;
     if (_dwellFeatureId != null) {
-        try { map.setFeatureState({ source: 'geojson-data', id: _dwellFeatureId }, { hovered: false }); } catch {}
+        try {
+            if (map.getSource('geojson-data')) {
+                map.setFeatureState({ source: 'geojson-data', id: _dwellFeatureId }, { hovered: false });
+            }
+        } catch {}
         _dwellFeatureId = null;
     }
 }
@@ -15592,7 +15784,232 @@ function toggleMapFly() {
     if (_rotateActive || _flyActive) _startAnimation(); else _stopAnimation();
 }
 
-// ── CONTOUR LINES ─────────────────────────────────────────────────────────────
+// ── ELEVATION PROFILE SVG ──────────────────────────────────────────────────
+function _buildElevProfileSVG(elevations, props) {
+    let pts = elevations.map(v => v == null ? null : Number(v));
+    const validPts = pts.filter(v => v !== null);
+    if (validPts.length < 2) return '';
+
+    // Low→High mode: flip if start is higher than end
+    let flipped = false;
+    if (_elevProfileOrder === 'lowhigh') {
+        const first = pts.find(v => v !== null);
+        const last  = [...pts].reverse().find(v => v !== null);
+        if (first !== null && last !== null && first > last) {
+            pts = [...pts].reverse();
+            flipped = true;
+        }
+    }
+    // Also flip the slopes array when flipped
+    let slopesRaw = (() => {
+        try { const r = props._selecter_slopes; return r == null ? null : Array.isArray(r) ? r : JSON.parse(r); } catch { return null; }
+    })();
+    if (flipped && Array.isArray(slopesRaw)) {
+        slopesRaw = [...slopesRaw].reverse().map(s => s == null ? null : -s); // reverse segments, negate signs
+    }
+
+    const isFt = _elevUnit === 'ft';
+    const toUnit = v => isFt ? v * 3.28084 : v;
+    const fmtE   = v => isFt ? `${toUnit(v).toFixed(0)}ft` : `${v.toFixed(0)}m`;
+    const fmtS   = v => v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
+
+    // Fixed outer width — chart is centered and bottom-aligned within it
+    const FIXED_W   = 306;
+    const PAD_L     = 46;  // y-axis labels + room for rotated vertical text
+    const PAD_R     = 8;
+    const CHART_MAX = FIXED_W - PAD_L - PAD_R; // 260px — full width
+
+    // Bucketed chart inner width — wider buckets so 5-point labels fit comfortably
+    const runM_raw  = typeof props._selecter_run  === 'number' ? props._selecter_run  : parseFloat(props._selecter_run)  || 0;
+    const riseM_raw = typeof props._selecter_rise === 'number' ? props._selecter_rise : parseFloat(props._selecter_rise) || 0;
+    const chartW   = runM_raw  <  50 ? 160   // narrow  < 50m   (~32px/label)
+                   : runM_raw  < 500 ? 210   // medium  50–500m (~42px/label)
+                   :                   260;  // wide    > 500m   (~52px/label)
+    const chartH   = riseM_raw <   3 ? 28    // flat    < 3m
+                   : riseM_raw <  20 ? 52    // medium  3–20m
+                   :                   80;   // tall    > 20m
+
+    // Fixed total chart height — bottom-aligned so all charts share the same baseline
+    const CHART_H_MAX = 80;
+    const PAD_T_base  = 14;
+    const PAD_T   = PAD_T_base + (CHART_H_MAX - chartH); // extra top pad for short charts
+    const PAD_B   = 76;
+    const W       = FIXED_W;
+    const H       = PAD_T_base + CHART_H_MAX + PAD_B; // fixed total height
+
+    // Center chart horizontally
+    const chartOffsetX = PAD_L + Math.round((CHART_MAX - chartW) / 2);
+    const bottom = PAD_T + chartH;
+
+    // Bucket boundary lines — faint dotted verticals showing scale context
+    const _bucketLines = (() => {
+        let lines = '';
+        const narrowW = 160, mediumW = 210; // bucket widths
+        const bxNarrow = chartOffsetX + narrowW;   // where narrow→medium boundary falls
+        const bxMedium = chartOffsetX + mediumW;   // where medium→wide boundary falls
+        const rightEdge = chartOffsetX + CHART_MAX;
+        // 50m boundary line — show when chart is narrower than narrow bucket
+        if (chartW <= narrowW) {
+            lines += `<line x1="${bxNarrow}" y1="${PAD_T}" x2="${bxNarrow}" y2="${bottom}" stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="3,4"/>`;
+            lines += `<text x="${bxNarrow+3}" y="${PAD_T+8}" fill="rgba(255,255,255,0.2)" font-size="7" font-family="var(--sans)">50m</text>`;
+        }
+        // 500m boundary line — show when chart is narrower than wide bucket
+        if (chartW < mediumW) {
+            lines += `<line x1="${bxMedium}" y1="${PAD_T}" x2="${bxMedium}" y2="${bottom}" stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="3,4"/>`;
+            lines += `<text x="${bxMedium+3}" y="${PAD_T+8}" fill="rgba(255,255,255,0.2)" font-size="7" font-family="var(--sans)">500m</text>`;
+        }
+        // Right edge of full area when chart doesn't fill it
+        if (chartW < CHART_MAX) {
+            lines += `<line x1="${rightEdge}" y1="${PAD_T}" x2="${rightEdge}" y2="${bottom}" stroke="rgba(255,255,255,0.07)" stroke-width="1" stroke-dasharray="2,5"/>`;
+        }
+        return lines;
+    })();
+
+    const dispPts = pts.map(v => v == null ? null : toUnit(v));
+    const minE = Math.min(...dispPts.filter(v => v !== null));
+    const maxE = Math.max(...dispPts.filter(v => v !== null));
+    const rangeE = maxE - minE || 1;
+
+    const n = pts.length;
+    const xs = pts.map((_, i) => chartOffsetX + (i / (n - 1)) * chartW);
+    const ys = dispPts.map(v => v == null ? null
+        : PAD_T + chartH - ((v - minE) / rangeE) * chartH);
+
+    let path = '', inLine = false;
+    for (let i = 0; i < n; i++) {
+        if (ys[i] === null) { inLine = false; continue; }
+        path += inLine ? `L ${xs[i].toFixed(1)} ${ys[i].toFixed(1)} `
+                       : `M ${xs[i].toFixed(1)} ${ys[i].toFixed(1)} `;
+        inLine = true;
+    }
+    const firstV = pts.findIndex(v => v !== null);
+    const lastVi = n - 1 - [...pts].reverse().findIndex(v => v !== null);
+    const fillPath = path + `L ${xs[lastVi].toFixed(1)} ${bottom} L ${xs[firstV].toFixed(1)} ${bottom} Z`;
+
+    const slopes = slopesRaw;
+
+    const runM = props._selecter_run;
+    const runLabel = runM == null ? '' : isFt
+        ? runM < 1609 ? `${(runM*3.28084).toFixed(0)}ft` : `${(runM/1609.34).toFixed(2)}mi`
+        : runM < 1000 ? `${runM.toFixed(0)}m` : `${(runM/1000).toFixed(2)}km`;
+    const riseM = props._selecter_rise;
+    const netSlope = props._selecter_slope_pct;
+    const maxSlope = props._selecter_slope_max_pct;
+
+    // Net rise: signed end−start. Max rise: full elevation range traversed
+    const netRise = riseM;
+    // Max rise = highest − lowest point in the elevation array
+    const validElev = pts.filter(v => v !== null);
+    const maxRiseM = validElev.length >= 2
+        ? Math.max(...validElev) - Math.min(...validElev)
+        : null;
+    // Show on y-axis: net rise (compact), and max rise if it differs meaningfully from net
+    const netRiseLabel  = netRise  != null ? `net ${fmtE(netRise)} rise` : '';
+    const maxRiseLabel  = maxRiseM != null && netRise != null && Math.abs(maxRiseM - Math.abs(netRise)) > 1
+        ? `max ${fmtE(maxRiseM)}` : '';
+
+    const PT_LABEL_Y  = bottom + 14;
+    const ELEV_LABEL_Y = PT_LABEL_Y + 12;
+    const SLOPE_Y     = ELEV_LABEL_Y + 14;
+    const DELTA_Y     = SLOPE_Y + 12;
+
+    let segBars = '', segLines = '', slopeLabels = '', deltaLabels = '', ptLabels = '';
+
+    // Tick marks at sample points
+    for (let i = 0; i < n; i++) {
+        if (ys[i] === null) continue;
+        segLines += `<line x1="${xs[i].toFixed(1)}" y1="${bottom}" x2="${xs[i].toFixed(1)}" y2="${bottom+4}" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>`;
+    }
+
+    // Point name + elevation labels
+    // For 5 points: fractional labels. For N points: label start/end + quarter marks only
+    const _ptLabel = (i, total) => {
+        if (i === 0) return '0';
+        if (i === total - 1) return '1';
+        const q = i / (total - 1);
+        const tol = 0.6 / total;
+        if (Math.abs(q - 0.25) < tol) return '¼';
+        if (Math.abs(q - 0.5)  < tol) return '½';
+        if (Math.abs(q - 0.75) < tol) return '¾';
+        return '';
+    };
+    for (let i = 0; i < n; i++) {
+        const label = n <= 5
+            ? ['0','1/4','1/2','3/4','1'][i] || ''
+            : _ptLabel(i, n);
+        if (!label) continue; // skip unlabeled points for dense arrays
+        const elv = dispPts[i];
+        const x = xs[i].toFixed(1);
+        const anchor = i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle';
+        ptLabels += `<text x="${x}" y="${PT_LABEL_Y}" text-anchor="${anchor}" fill="#c8c8e0" font-size="9.5" font-family="var(--sans)" font-weight="600">${label}</text>`;
+        if (elv !== null) {
+            ptLabels += `<text x="${x}" y="${ELEV_LABEL_Y}" text-anchor="${anchor}" fill="var(--accent)" font-size="9" font-family="var(--sans)">${fmtE(elv)}</text>`;
+        }
+    }
+
+    // Segment bars + slope + delta labels
+    // For dense arrays (>5 points), only label at quarter-segment positions
+    const _showSegLabel = (i, total) => total <= 5 || i % Math.max(1, Math.floor(total / 4)) === 0;
+    if (slopes && slopes.length >= n - 1) {
+        for (let i = 0; i < n - 1; i++) {
+            const s = slopes[i];
+            const x1 = xs[i], x2 = xs[i+1];
+            const mx = ((x1+x2)/2).toFixed(1);
+            const intensity = s == null ? 0 : Math.min(Math.abs(s)/15, 1);
+            const col = s == null ? 'transparent'
+                : s > 0 ? `rgba(239,68,68,${(0.12+intensity*0.45).toFixed(2)})`
+                :          `rgba(59,130,246,${(0.10+intensity*0.38).toFixed(2)})`;
+            segBars += `<rect x="${x1.toFixed(1)}" y="${PAD_T}" width="${(x2-x1).toFixed(1)}" height="${chartH}" fill="${col}"/>`;
+            if (i > 0 && n <= 10) segLines += `<line x1="${x1.toFixed(1)}" y1="${PAD_T}" x2="${x1.toFixed(1)}" y2="${bottom}" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="3,2"/>`;
+            if (_showSegLabel(i, n - 1)) {
+                const sCol = s == null ? '#888' : Math.abs(s)>8 ? '#f97316' : Math.abs(s)>3 ? '#fbbf24' : '#c8c8e0';
+                slopeLabels += `<text x="${mx}" y="${SLOPE_Y}" text-anchor="middle" fill="${sCol}" font-size="9" font-family="var(--sans)" font-weight="600">${fmtS(s)}</text>`;
+                const e1 = dispPts[i], e2 = dispPts[i+1];
+                if (e1 !== null && e2 !== null) {
+                    const delta = e2 - e1;
+                    const sign = delta >= 0 ? '+' : '';
+                    const dCol = delta > 0 ? 'rgba(239,100,100,0.9)' : delta < 0 ? 'rgba(100,160,240,0.9)' : '#888';
+                    deltaLabels += `<text x="${mx}" y="${DELTA_Y}" text-anchor="middle" fill="${dCol}" font-size="10.5" font-family="var(--sans)" font-weight="600">${sign}${fmtE(delta)}</text>`;
+                }
+            }
+        }
+    }
+
+    // Combined vertical label on y-axis: "net Xm rise  max Ym" rotated 90°
+    const riseStr = [netRiseLabel, maxRiseLabel].filter(Boolean).join(' • ');
+    const riseLabelX = 10; // x position for rotated text (distance from left edge)
+    const riseLabelY = PAD_T + chartH / 2; // vertical center of chart
+    const yAxis = `
+        <text x="${PAD_L-3}" y="${PAD_T+5}" text-anchor="end" fill="#c8c8e0" font-size="8.5" font-family="var(--sans)">${fmtE(maxE)}</text>
+        <text x="${PAD_L-3}" y="${bottom}" text-anchor="end" fill="#c8c8e0" font-size="8.5" font-family="var(--sans)">${fmtE(minE)}</text>
+        ${riseStr ? `<text x="${riseLabelX}" y="${riseLabelY.toFixed(1)}" text-anchor="middle" fill="#e8e8f0" font-size="8.5" font-family="var(--sans)" font-weight="600" transform="rotate(-90,${riseLabelX},${riseLabelY.toFixed(1)})">${riseStr}</text>` : ''}`;
+
+    const xAxisCx = (chartOffsetX + chartW/2).toFixed(1);
+    const slopeStr = netSlope != null
+        ? `net slope ${Math.abs(netSlope).toFixed(1)}%${maxSlope != null && maxSlope > Math.abs(netSlope) + 1 ? ` · max ${maxSlope.toFixed(1)}%` : ''}`
+        : '';
+    const xAxis = `<text x="${xAxisCx}" y="${H}" text-anchor="middle" fill="#e8e8f0" font-size="9.5" font-family="var(--sans)" font-weight="600">${runLabel}${slopeStr ? ` · ${slopeStr}` : ''}</text>`;
+
+    const dots = n <= 5 ? xs.map((x, i) => ys[i] !== null
+        ? `<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="3" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"/>`
+        : '').join('') : '';
+
+    return `<div style="padding:8px 8px 4px;border-bottom:1px solid var(--border);background:rgba(0,0,0,0.2)">
+        <svg width="${W}" height="${H}" style="display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg">
+            <defs><linearGradient id="elvFill" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.4"/>
+                <stop offset="100%" stop-color="var(--accent)" stop-opacity="0.05"/>
+            </linearGradient></defs>
+            ${_bucketLines}
+            ${segBars}${segLines}
+            <line x1="${PAD_L}" y1="${bottom}" x2="${W-PAD_R}" y2="${bottom}" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>
+            <line x1="${PAD_L}" y1="${PAD_T}" x2="${PAD_L}" y2="${bottom}" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+            <path d="${fillPath}" fill="url(#elvFill)"/>
+            <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+            ${dots}${yAxis}${ptLabels}${slopeLabels}${deltaLabels}${xAxis}
+        </svg></div>`;
+}
+// ── END ELEVATION PROFILE ──────────────────────────────────────────────────
 // Two sources available:
 //   'terrain' — generated on-the-fly from DEM tiles via maplibre-contour (worker:false)
 //   'osmUS'   — pre-generated vector tiles from OSM.us (feet only, no API key)
@@ -15709,6 +16126,197 @@ function _initContourDemSource() {
     }
     _contourInitialized = true;
     return true;
+}
+
+let _elevVisualizeMode = 'off'; // 'off' | 'slope_net' | 'slope_max' | 'grad_slope' | 'grad_elev'
+const _ELEV_GRAD_LAYER = 'gv-line-elev-gradient';
+
+function _slopePctToColor(pct) {
+    const abs = Math.abs(pct ?? 0);
+    if (abs < 2)  return '#ffffb2';
+    if (abs < 4)  return '#fed976';
+    if (abs < 6)  return '#feb24c';
+    if (abs < 8)  return '#fd8d3c';
+    if (abs < 12) return '#f03b20';
+    return '#bd0026';
+}
+
+function _buildNetworkGradientExpr(mode) {
+    const features = allFeatures.filter(f =>
+        f.geometry?.type === 'LineString' || f.geometry?.type === 'MultiLineString');
+    if (!features.length) return null;
+
+    const isSlope = mode === 'grad_slope';
+    const propKey = isSlope ? '_selecter_slopes' : '_selecter_elevations';
+    const positions = [0, 0.25, 0.5, 0.75, 1];
+    const valsByPos = positions.map(() => []);
+
+    features.forEach(f => {
+        const raw = f.properties[propKey];
+        if (!raw) return;
+        let arr;
+        try { arr = Array.isArray(raw) ? raw : JSON.parse(raw); } catch { return; }
+        if (!Array.isArray(arr) || arr.length < 2) return;
+        positions.forEach((p, pi) => {
+            const idx = Math.round(p * (arr.length - 1));
+            const v = arr[idx];
+            if (v != null) valsByPos[pi].push(Number(v));
+        });
+    });
+
+    const median = arr => {
+        if (!arr.length) return 0;
+        const s = [...arr].sort((a,b) => a-b);
+        const m = Math.floor(s.length / 2);
+        return s.length % 2 === 0 ? (s[m-1]+s[m])/2 : s[m];
+    };
+
+    if (isSlope) {
+        const expr = ['interpolate', ['linear'], ['line-progress']];
+        positions.forEach((p, i) => { expr.push(p, _slopePctToColor(median(valsByPos[i]))); });
+        return expr;
+    } else {
+        const allVals = valsByPos.flat().filter(v => !isNaN(v));
+        if (!allVals.length) return null;
+        const minV = Math.min(...allVals), maxV = Math.max(...allVals), range = maxV - minV || 1;
+        const elevToColor = v => {
+            const t = (v - minV) / range;
+            if (t < 0.2) return '#313695';
+            if (t < 0.4) return '#4575b4';
+            if (t < 0.6) return '#ffffbf';
+            if (t < 0.8) return '#f46d43';
+            return '#a50026';
+        };
+        const expr = ['interpolate', ['linear'], ['line-progress']];
+        positions.forEach((p, i) => { expr.push(p, elevToColor(median(valsByPos[i]))); });
+        return expr;
+    }
+}
+
+function _applyElevVisualize(mode) {
+    _elevVisualizeMode = mode;
+    try { if (map.getLayer(_ELEV_GRAD_LAYER)) map.removeLayer(_ELEV_GRAD_LAYER); } catch {}
+    if (map.getLayer('gv-line')) map.setLayoutProperty('gv-line', 'visibility', 'visible');
+
+    const _warn = document.getElementById('elev-visualize-warn');
+    if (_warn) _warn.style.display = mode === 'elev_mid' ? '' : 'none';
+
+    // Hide elevation points layer when switching away from elev_pts mode
+    try {
+        const vis = mode === 'elev_pts' ? 'visible' : 'none';
+        if (map.getLayer('gv-elev-points')) map.setLayoutProperty('gv-elev-points', 'visibility', vis);
+        if (map.getLayer('gv-elev-point-labels')) map.setLayoutProperty('gv-elev-point-labels', 'visibility', vis);
+    } catch {}
+
+    if (mode === 'off') { applyPaletteToLayers(); return; }
+
+    if (mode === 'elev_pts') {
+        _updateElevPointsLayer();
+        applyPaletteToLayers(); // keep line coloring from previous mode or default
+        showToast('📍 Showing elevation sample points');
+        return;
+    }
+
+    const propMap = {
+        slope_net: '_selecter_slope_pct',
+        slope_max: '_selecter_slope_max_pct',
+        elev_mid:  '_selecter_elev_mid',
+    };
+    const prop = propMap[mode];
+    if (!prop) { applyPaletteToLayers(); return; }
+
+    const isElev = mode === 'elev_mid';
+    paletteProp        = prop;
+    paletteScheme      = 'linear';
+    paletteQuantScheme = isElev ? 'RdYlBu' : 'YlOrRd';
+    paletteReversed    = isElev;
+    paletteNumStops    = 7;
+    paletteLogScale    = false;
+    paletteClampLow    = 2;
+    paletteClampHigh   = 98;
+    lineOutlineMode  = 'grey'; lineOutlineWidth = 'hairline';
+    document.querySelectorAll('#line-outline-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'grey'));
+    document.getElementById('line-outline-width-pill').style.display = '';
+    document.querySelectorAll('#line-outline-width-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'hairline'));
+    buildPropData(); applyPaletteToLayers(); renderSidebar();
+    const labels = { slope_net: 'net slope', slope_max: 'max slope', elev_mid: 'mid elevation' };
+    showToast('\ud83c\udfa8 Visualizing ' + (labels[mode] || mode));
+}
+
+// Build elevation point features from stored _selecter_elevations arrays
+function _updateElevPointsLayer(hoverFeature) {
+    if (!map.getSource('geojson-elev-points')) return;
+    const pts = [];
+    const features = hoverFeature ? [hoverFeature] : allFeatures;
+
+    features.forEach(f => {
+        if (f.geometry?.type !== 'LineString' && f.geometry?.type !== 'MultiLineString') return;
+        const p = f.properties;
+        let elevArr;
+        try {
+            const r = p._selecter_elevations;
+            if (!r) return;
+            elevArr = Array.isArray(r) ? r : JSON.parse(r);
+        } catch { return; }
+        if (!elevArr || elevArr.length < 2) return;
+
+        const allCoords = f.geometry.type === 'LineString' ? f.geometry.coordinates : f.geometry.coordinates.flat();
+        const n = elevArr.length;
+        const validElev = elevArr.filter(v => v != null);
+        const minE = Math.min(...validElev), maxE = Math.max(...validElev), rangeE = maxE - minE || 1;
+
+        // Compute cumulative chord length for position interpolation
+        let totalM = 0;
+        const segLens = [];
+        for (let i = 1; i < allCoords.length; i++) {
+            const d = _haversineM(allCoords[i-1], allCoords[i]);
+            segLens.push(d); totalM += d;
+        }
+
+        function interpCoord(t) {
+            if (t <= 0) return allCoords[0];
+            if (t >= 1) return allCoords[allCoords.length - 1];
+            const target = t * totalM; let acc = 0;
+            for (let i = 0; i < segLens.length; i++) {
+                if (acc + segLens[i] >= target) {
+                    const fr = segLens[i] > 0 ? (target - acc) / segLens[i] : 0;
+                    return [allCoords[i][0] + fr*(allCoords[i+1][0]-allCoords[i][0]),
+                            allCoords[i][1] + fr*(allCoords[i+1][1]-allCoords[i][1])];
+                }
+                acc += segLens[i];
+            }
+            return allCoords[allCoords.length - 1];
+        }
+
+        for (let i = 0; i < n; i++) {
+            const elev = elevArr[i];
+            if (elev == null) continue;
+            const t = i / (n - 1);
+            const coord = interpCoord(t);
+            const elevT = (elev - minE) / rangeE; // 0–1 for color mapping
+            pts.push({
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: coord },
+                properties: {
+                    _elev: elev,
+                    _elev_t: elevT,
+                    _dist_m: Math.round(t * totalM),
+                    name: p.name || p.street || p.streetname || '',
+                }
+            });
+        }
+    });
+
+    map.getSource('geojson-elev-points').setData({ type: 'FeatureCollection', features: pts });
+    if (map.getLayer('gv-elev-points')) {
+        const vis = pts.length ? 'visible' : 'none';
+        map.setLayoutProperty('gv-elev-points', 'visibility', vis);
+        if (map.getLayer('gv-elev-point-labels')) map.setLayoutProperty('gv-elev-point-labels', 'visibility', vis);
+    }
+}
+function _clearElevGradient() {
+    try { if (map.getLayer(_ELEV_GRAD_LAYER)) map.removeLayer(_ELEV_GRAD_LAYER); } catch {}
+    if (map.getLayer('gv-line')) map.setLayoutProperty('gv-line', 'visibility', 'visible');
 }
 
 let _contourApplyTimer = null;
@@ -15849,6 +16457,8 @@ function _removeContours() {
 // ── ELEVATION CURSOR ─────────────────────────────────────────────────────────
 let _elevationCursorActive = false;
 let _elevUnit = 'm'; // 'm' | 'ft' — display unit for elevation tooltip and stats table
+let _elevProfileOrder = 'lowhigh'; // 'drawn' | 'lowhigh' — chart x-axis order
+let _elevChartPinned = true; // show elevation profile in fixed bottom-right corner
 let _elevTileCache = new Map();
 const _ELEV_TILE_CACHE_MAX = 128;
 
@@ -15857,22 +16467,27 @@ function _terrariumElevMeters(r, g, b) { return (r * 256 + g + b / 256) - 32768;
 async function _fetchElevTile(z, x, y) {
     const key = `${z}/${x}/${y}`;
     if (_elevTileCache.has(key)) return _elevTileCache.get(key);
-    return new Promise(resolve => {
+    // Cache the Promise immediately so concurrent requests share one fetch.
+    // Use a separate URL namespace (?src=selecter) to avoid the browser serving
+    // our crossOrigin=anonymous request from a non-CORS cache entry that MapLibre
+    // may have stored when loading the same Terrarium tile for terrain rendering.
+    const promise = new Promise(resolve => {
         const img = new Image(); img.crossOrigin = 'anonymous';
-        const timeout = setTimeout(() => { resolve(null); }, 8000); // 8s timeout
+        const timeout = setTimeout(() => { resolve(null); }, 8000);
         img.onload = () => {
             clearTimeout(timeout);
             const canvas = document.createElement('canvas');
             canvas.width = canvas.height = 256;
             canvas.getContext('2d').drawImage(img, 0, 0);
-            if (_elevTileCache.size >= _ELEV_TILE_CACHE_MAX)
-                _elevTileCache.delete(_elevTileCache.keys().next().value);
-            _elevTileCache.set(key, canvas);
             resolve(canvas);
         };
         img.onerror = () => { clearTimeout(timeout); resolve(null); };
-        img.src = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
+        img.src = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png?src=selecter`;
     });
+    if (_elevTileCache.size >= _ELEV_TILE_CACHE_MAX)
+        _elevTileCache.delete(_elevTileCache.keys().next().value);
+    _elevTileCache.set(key, promise);
+    return promise;
 }
 
 async function _getElevationAt(lat, lng) {
@@ -15922,6 +16537,94 @@ async function getElevation(lat, lng) {
     return { meters: m, feet: m * 3.28084 };
 }
 
+// Debug: compare stored _selecter_elevations vs live re-fetch for a selected feature
+// Usage: debugElevation() — uses the first selected/highlighted feature
+// Usage: debugElevation(featureId) — uses a specific _gvid
+window.debugElevation = async function(gvid) {
+    const f = gvid != null
+        ? allFeatures.find(f => f.properties._gvid === gvid)
+        : allFeatures.find(f => selectedIds.has(f.properties._gvid) || highlightedIds.has(f.properties._gvid));
+    if (!f) { console.warn('[debugElev] No feature found — select or highlight a line first'); return; }
+
+    const p = f.properties;
+    const name = p.name || p.street || p.lineabbr || p._gvid;
+    console.log(`[debugElev] Feature: ${name} (gvid=${p._gvid})`);
+
+    // Get stored array
+    let stored;
+    try {
+        const r = p._selecter_elevations;
+        stored = r == null ? null : Array.isArray(r) ? r : JSON.parse(r);
+    } catch { stored = null; }
+
+    if (!stored) { console.warn('[debugElev] No stored _selecter_elevations — run Calculate elevation first'); return; }
+    console.log(`[debugElev] Stored (${stored.length} pts):`, stored.map(v => v?.toFixed(1)).join(', '));
+
+    // Re-fetch live from scratch (clear tile cache first so we get fresh reads)
+    console.log('[debugElev] Re-fetching live (clearing tile cache)...');
+    _elevTileCache.clear();
+
+    const allCoords = f.geometry.type === 'LineString' ? f.geometry.coordinates : f.geometry.coordinates.flat();
+    let totalM = 0;
+    const segLens = [];
+    for (let i = 1; i < allCoords.length; i++) {
+        const d = _haversineM(allCoords[i-1], allCoords[i]);
+        segLens.push(d); totalM += d;
+    }
+    function interp(t) {
+        if (t <= 0) return allCoords[0];
+        if (t >= 1) return allCoords[allCoords.length - 1];
+        const target = t * totalM; let acc = 0;
+        for (let i = 0; i < segLens.length; i++) {
+            if (acc + segLens[i] >= target) {
+                const fr = segLens[i] > 0 ? (target - acc) / segLens[i] : 0;
+                return [allCoords[i][0]+fr*(allCoords[i+1][0]-allCoords[i][0]),
+                        allCoords[i][1]+fr*(allCoords[i+1][1]-allCoords[i][1])];
+            }
+            acc += segLens[i];
+        }
+        return allCoords[allCoords.length - 1];
+    }
+
+    const n = stored.length;
+    // Reconstruct the same sample fractions _computeElevationForFeature used
+    const INTERVAL_M = totalM <= 200 ? null : totalM <= 2000 ? 50 : 100;
+    let sampleTs;
+    if (INTERVAL_M === null) {
+        sampleTs = [0, 0.25, 0.5, 0.75, 1];
+    } else {
+        const numSamples = Math.ceil(totalM / INTERVAL_M) + 1;
+        sampleTs = Array.from({ length: numSamples }, (_, i) =>
+            i === numSamples - 1 ? 1 : Math.min(1, (i * INTERVAL_M) / totalM));
+    }
+    console.log(`[debugElev] totalM=${totalM.toFixed(0)}m INTERVAL=${INTERVAL_M}m samples=${sampleTs.length}`);
+    const live = [];
+    for (let i = 0; i < sampleTs.length; i++) {
+        const c = interp(sampleTs[i]);
+        const elev = await _getElevationAt(c[1], c[0]);
+        live.push(elev);
+    }
+    console.log(`[debugElev] Live   (${live.length} pts):`, live.map(v => v?.toFixed(1)).join(', '));
+
+    // Diff
+    const diffs = stored.map((s, i) => s != null && live[i] != null ? (live[i] - s).toFixed(1) : 'null');
+    console.log(`[debugElev] Diff live-stored:`, diffs.join(', '));
+
+    // Also log tile coords for each sample to see if same tile
+    console.log('[debugElev] Tile coords per sample:');
+    const zoom = 12, nTiles = Math.pow(2, zoom);
+    for (let i = 0; i < sampleTs.length; i++) {
+        const t = sampleTs[i];
+        const c = interp(t);
+        const tx = Math.floor((c[0] + 180) / 360 * nTiles);
+        const latRad = c[1] * Math.PI / 180;
+        const ty = Math.floor((1 - Math.log(Math.tan(latRad) + 1/Math.cos(latRad)) / Math.PI) / 2 * nTiles);
+        const px = Math.min(Math.floor(((c[0]+180)/360*nTiles-tx)*256), 255);
+        const py = Math.min(Math.floor(((1-Math.log(Math.tan(latRad)+1/Math.cos(latRad))/Math.PI)/2*nTiles-ty)*256), 255);
+        console.log(`  [${i}] t=${t.toFixed(3)} tile=${tx},${ty} px=${px},${py} stored=${stored[i]?.toFixed(1)} live=${live[i]?.toFixed(1)}`);
+    }
+};
+
 // Position tooltip near cursor, flipping left/up when near screen edges,
 // and also shifting away from the property popup if it would overlap.
 function _positionTooltip(tooltip, cx, cy) {
@@ -15932,11 +16635,11 @@ function _positionTooltip(tooltip, cx, cy) {
     const th = tooltip.offsetHeight || 70;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const gap = 14;
+    const gap = 22; // larger gap to avoid covering the line feature
 
-    // Base position — prefer right of cursor, flip left if near right edge
+    // Prefer above the cursor (less likely to cover the line), flip below if near top
     let x = (cx + gap + tw > vw) ? cx - tw - gap : cx + gap;
-    let y = (cy - 10 + th > vh) ? cy - th + 10   : cy - 10;
+    let y = (cy - th - gap < 0) ? cy + gap : cy - th - gap;
 
     // Shift away from the frozen property popup if it exists and would overlap
     const popupEl = document.querySelector('.maplibregl-popup');
@@ -16039,8 +16742,10 @@ function _startElevationCursor() {
 
         const { lat, lng } = e.lngLat;
 
-        // Check if cursor is over a GeoJSON line feature
-        const lineLayers = ['gv-line', 'gv-line-dashed', 'gv-outline-interact'];
+        // Check if cursor is over a GeoJSON line feature (file or working tab)
+        const lineLayers = activeTab === 'working'
+            ? ['working-line', 'working-line-dashed']
+            : ['gv-line', 'gv-line-dashed', 'gv-outline-interact'];
         const hitFeatures = map.queryRenderedFeatures(e.point, { layers: lineLayers.filter(l => map.getLayer(l)) });
 
         if (hitFeatures.length > 0) {
@@ -16060,88 +16765,249 @@ function _startElevationCursor() {
                 const endpoints = _lineEndpoints(geom);
 
 
-                // Midpoint: middle vertex if >2 coords, else interpolate geographically
+                // Five sample points along the line using chord-length interpolation
                 const allCoords = geom.type === 'LineString'
                     ? geom.coordinates
                     : geom.coordinates.flat();
-                let midCoord = null;
-                if (allCoords.length === 2) {
-                    // Two-point line — interpolate geographic midpoint (on straight line, no deviation possible)
-                    midCoord = [
-                        (allCoords[0][0] + allCoords[1][0]) / 2,
-                        (allCoords[0][1] + allCoords[1][1]) / 2
+
+                function _hoverInterpCoord(coords, t) {
+                    if (t <= 0) return coords[0];
+                    if (t >= 1) return coords[coords.length - 1];
+                    if (coords.length === 2) return [
+                        coords[0][0] + t * (coords[1][0] - coords[0][0]),
+                        coords[0][1] + t * (coords[1][1] - coords[0][1])
                     ];
-                } else if (allCoords.length > 2) {
-                    midCoord = allCoords[Math.floor(allCoords.length / 2)];
+                    const segs = []; let total = 0;
+                    for (let i = 1; i < coords.length; i++) {
+                        const d = _haversineM(coords[i-1], coords[i]);
+                        segs.push(d); total += d;
+                    }
+                    const target = t * total; let acc = 0;
+                    for (let i = 0; i < segs.length; i++) {
+                        if (acc + segs[i] >= target) {
+                            const fr = segs[i] > 0 ? (target - acc) / segs[i] : 0;
+                            return [coords[i][0] + fr*(coords[i+1][0]-coords[i][0]),
+                                    coords[i][1] + fr*(coords[i+1][1]-coords[i][1])];
+                        }
+                        acc += segs[i];
+                    }
+                    return coords[coords.length - 1];
                 }
 
+                const c0   = allCoords[0];
+                const c25  = _hoverInterpCoord(allCoords, 0.25);
+                const midCoord = _hoverInterpCoord(allCoords, 0.5);
+                const c75  = _hoverInterpCoord(allCoords, 0.75);
+                const c100 = allCoords[allCoords.length - 1];
+
                 if (endpoints) {
-                    const fetches = [
-                        _getElevationAt(endpoints.start[1], endpoints.start[0]),
-                        _getElevationAt(endpoints.end[1],   endpoints.end[0]),
-                        midCoord ? _getElevationAt(midCoord[1], midCoord[0]) : Promise.resolve(null)
-                    ];
-                    const [elevStart, elevEnd, elevMid] = await Promise.all(fetches);
+                    const [elevStart, elev25, elevMid, elev75, elevEnd] = await Promise.all([
+                        _getElevationAt(c0[1],       c0[0]),
+                        _getElevationAt(c25[1],      c25[0]),
+                        _getElevationAt(midCoord[1], midCoord[0]),
+                        _getElevationAt(c75[1],      c75[0]),
+                        _getElevationAt(c100[1],     c100[0])
+                    ]);
                     _pending = false;
                     if (!_elevationCursorActive) { tooltip.style.display = 'none'; return; }
 
                     if (elevStart === null || elevEnd === null) {
                         tooltip.innerHTML = 'Elevation data unavailable';
                     } else {
-                        const horizM   = _haversineM(endpoints.start, endpoints.end);
+                        const horizM   = _haversineM(c0, c100);
                         const deltaM   = Math.abs(elevEnd - elevStart);
                         const slopePct = horizM > 0 ? (deltaM / horizM * 100) : 0;
                         const slopeDeg = horizM > 0 ? Math.atan(deltaM / horizM) * 180 / Math.PI : 0;
 
-                        const fmt     = m => _elevUnit === 'ft'
-                            ? `${(m * 3.28084).toFixed(0)}′`
+                        const fmt = m => _elevUnit === 'ft'
+                            ? `${(m * 3.28084).toFixed(0)}ft`
                             : `${m.toFixed(0)}m`;
                         const fmtDist = m => {
                             if (_elevUnit === 'ft') {
-                                return m < 1609 ? `${(m * 3.28084).toFixed(0)}′` : `${(m * 3.28084 / 5280).toFixed(2)}mi`;
+                                return m < 1609 ? `${(m * 3.28084).toFixed(0)}ft` : `${(m * 3.28084 / 5280).toFixed(2)}mi`;
                             }
                             return m < 1000 ? `${m.toFixed(0)}m` : `${(m/1000).toFixed(2)}km`;
                         };
+                        const fmtS = v => v !== null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '—';
 
-                        // Two-segment breakdown via midpoint.
-                        // Works for both 2-coord lines (interpolated midpoint) and multi-vertex lines —
-                        // terrain is independent of vertex count, so a flat-then-steep block
-                        // will show different segment slopes even with just two endpoint coords.
-                        let midLine = '';
-                        if (elevMid !== null) {
-                            const midPt = allCoords.length === 2
-                                ? [(allCoords[0][0] + allCoords[1][0]) / 2, (allCoords[0][1] + allCoords[1][1]) / 2]
-                                : allCoords[Math.floor(allCoords.length / 2)];
-                            const h1 = _haversineM(endpoints.start, midPt);
-                            const h2 = _haversineM(midPt, endpoints.end);
-                            const s1 = h1 > 0 ? Math.abs(elevMid - elevStart) / h1 * 100 : 0;
-                            const s2 = h2 > 0 ? Math.abs(elevEnd  - elevMid)  / h2 * 100 : 0;
-                            const diff = Math.abs(s1 - s2);
-                            const warnColor = diff > 3 ? '#f97316' : '#c8c8e0';
-                            const warn = diff > 3 ? ' ⚠' : '';
-                            midLine = `<br><span style="color:${warnColor};font-size:10px">` +
-                                `seg A ${s1.toFixed(1)}% • seg B ${s2.toFixed(1)}%${warn}</span>`;
+                        const hA = _haversineM(c0,      c25);
+                        const hB = _haversineM(c25,     midCoord);
+                        const hC = _haversineM(midCoord, c75);
+                        const hD = _haversineM(c75,     c100);
+                        const sA = hA>0 && elev25!==null  ? (elev25 -elevStart)/hA*100 : null;
+                        const sB = hB>0 && elevMid!==null ? (elevMid-elev25)   /hB*100 : null;
+                        const sC = hC>0 && elev75!==null  ? (elev75 -elevMid)  /hC*100 : null;
+                        const sD = hD>0 && elev75!==null  ? (elevEnd-elev75)   /hD*100 : null;
+
+                        const segs = [sA,sB,sC,sD].filter(s => s !== null);
+                        const maxSeg = segs.length ? Math.max(...segs.map(Math.abs)) : 0;
+                        const maxSegStr = maxSeg > Math.abs(slopePct) + 1 ? ` · max ${maxSeg.toFixed(1)}%` : '';
+                        const dim = '#c8c8e0';
+
+                        // Build feature header: name fields + active palette/label prop values
+                        const _fprops = origFeature.properties || {};
+                        const _headerParts = [];
+                        const _headerSeen = new Set(); // track values already shown
+
+                        // Name/street fields first
+                        const _nameKeys = ['name','street','streetname','street_name','fullname','full_name','road','route','ref'];
+                        for (const nk of _nameKeys) {
+                            const v = _fprops[nk] || _fprops[nk.toUpperCase()];
+                            if (v && String(v).trim()) {
+                                const vs = String(v).trim();
+                                if (!_headerSeen.has(vs.toLowerCase())) {
+                                    _headerSeen.add(vs.toLowerCase());
+                                    _headerParts.push(vs);
+                                }
+                                break;
+                            }
+                        }
+                        // Active palette/label/shape prop values — skip if already shown or is a name key
+                        const _activePropKeys = [...new Set([...labelProps, paletteProp, _shapeProp].filter(Boolean))];
+                        for (const pk of _activePropKeys) {
+                            if (pk.startsWith('_selecter_')) continue; // elevation props shown in chart
+                            if (_nameKeys.includes(pk.toLowerCase())) continue; // already shown as name
+                            const v = _fprops[pk];
+                            if (v == null || !String(v).trim()) continue;
+                            const vs = String(v).trim();
+                            const display = _displayPropValue(pk, typeof v === 'number' ? v : null) || vs;
+                            const key = `${pk}:${vs}`.toLowerCase();
+                            if (_headerSeen.has(key) || _headerSeen.has(vs.toLowerCase())) continue;
+                            _headerSeen.add(key);
+                            _headerParts.push(`${_displayPropName(pk)}: ${escHtml(display)}`);
                         }
 
-                        const dim = '#c8c8e0';
-                        const midElevLine = elevMid !== null
-                            ? `Mid: &nbsp;&nbsp;${fmt(elevMid)}<br>`
+                        // Build props-like object for the chart
+                        // Use pre-computed elevations if available (may have N>5 points)
+                        const _storedElev = (() => {
+                            const raw = origFeature.properties?._selecter_elevations;
+                            if (!raw) return null;
+                            try {
+                                const arr = Array.isArray(raw) ? raw : JSON.parse(raw);
+                                return Array.isArray(arr) && arr.length >= 2 ? arr : null;
+                            } catch { return null; }
+                        })();
+                        const _storedSlopes = (() => {
+                            const raw = origFeature.properties?._selecter_slopes;
+                            if (!raw) return null;
+                            try {
+                                const arr = Array.isArray(raw) ? raw : JSON.parse(raw);
+                                return Array.isArray(arr) ? arr : null;
+                            } catch { return null; }
+                        })();
+
+                        const _hoverProps = {
+                            _selecter_elevations: _storedElev || [elevStart, elev25, elevMid, elev75, elevEnd],
+                            _selecter_slopes: _storedSlopes || [sA, sB, sC, sD],
+                            _selecter_slope_pct: origFeature.properties?._selecter_slope_pct ?? slopePct,
+                            _selecter_slope_max_pct: origFeature.properties?._selecter_slope_max_pct ?? maxSeg,
+                            _selecter_run: origFeature.properties?._selecter_run ?? horizM,
+                            _selecter_rise: origFeature.properties?._selecter_rise ?? deltaM,
+                        };
+                        const _displaySlope = _hoverProps._selecter_slope_pct ?? slopePct;
+                        const _displayMaxSeg = _hoverProps._selecter_slope_max_pct ?? maxSeg;
+                        const _maxSegStr = _displayMaxSeg > Math.abs(_displaySlope) + 1 ? ` · max ${_displayMaxSeg.toFixed(1)}%` : '';
+                        // Tunnel warning
+                        const _featureName = _headerParts[0] || '';
+                        const _isTunnel = /tunnel/i.test(_featureName) ||
+                            /tunnel/i.test(String(_fprops.tunnel || '')) ||
+                            /tunnel/i.test(String(_fprops.type || '')) ||
+                            String(_fprops.tunnel) === 'yes';
+                        const _tunnelWarning = _isTunnel
+                            ? `<div style="padding:2px 8px 3px;font-size:9px;color:#f97316;background:rgba(249,115,22,0.08);border-bottom:1px solid rgba(249,115,22,0.2)">⚠ Tunnel: only surface elevation shown</div>`
                             : '';
 
-                        tooltip.innerHTML =
-                            `<span style="color:var(--accent);font-size:12px"><b>${slopePct.toFixed(1)}%</b></span>` +
-                            `<span style="color:${dim};font-size:10px"> (${slopeDeg.toFixed(1)}°)</span><br>` +
-                            `<span style="color:${dim};font-size:10px">` +
-                            `Start: ${fmt(elevStart)}<br>` +
-                            midElevLine +
-                            `End: &nbsp;&nbsp;${fmt(elevEnd)}<br>` +
-                            `Rise: &nbsp;${fmt(deltaM)}<br>` +
-                            `Run: &nbsp;&nbsp;${fmtDist(horizM)}` +
-                            `</span>${midLine}`;
-                    }
+                        const _ttW = 306; // fixed tooltip width
+                        const _headerHTML = _headerParts.length
+                            ? `<div style="padding:4px 8px 2px;font-size:10px;color:#e8e8f0;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:${_ttW}px">${_headerParts.join('<span style="color:var(--text-muted)"> · </span>')}</div>`
+                            : '';
+                        const _chartHTML = _buildElevProfileSVG(_hoverProps._selecter_elevations, _hoverProps);
 
+                        // Safe filename from street name
+                        const _exportName = (_featureName || 'elevation-profile')
+                            .replace(/[^a-zA-Z0-9_\- ]/g, '').replace(/\s+/g, '-').slice(0, 40) || 'elevation-profile';
+
+                        // Export controls — SVG and PNG, plus dismiss X
+                        const _cornerControls = `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 6px 4px;gap:4px">
+                            <div style="display:flex;gap:4px">
+                                <button id="_ec_svg" style="font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer">⬇ SVG</button>
+                                <button id="_ec_png" style="font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer">⬇ PNG</button>
+                            </div>
+                            <button id="_ec_close" style="font-size:13px;line-height:1;padding:1px 5px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer">×</button>
+                        </div>`;
+
+                        // When pinned to corner: tooltip shows only the summary line, corner shows chart
+                        // When not pinned: tooltip shows chart + summary
+                        const _corner = document.getElementById('elev-chart-corner');
+                        if (_elevChartPinned && _corner) {
+                            _corner.style.display = '';
+                            _corner.innerHTML = _headerHTML + _tunnelWarning + _chartHTML + _cornerControls;
+
+                            // Wire export buttons (must be done after innerHTML)
+                            const _svgEl = _corner.querySelector('svg');
+                            // Inject street name as SVG <title>
+                            if (_svgEl && _featureName) {
+                                const _title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                                _title.textContent = _featureName;
+                                _svgEl.insertBefore(_title, _svgEl.firstChild);
+                            }
+                            _corner.querySelector('#_ec_close')?.addEventListener('click', () => { _corner.style.display = 'none'; });
+                            _corner.querySelector('#_ec_svg')?.addEventListener('click', () => {
+                                if (!_svgEl) return;
+                                const xml = new XMLSerializer().serializeToString(_svgEl);
+                                const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+                                const a = document.createElement('a');
+                                a.href = url; a.download = _exportName + '.svg'; a.click();
+                            });
+                            _corner.querySelector('#_ec_png')?.addEventListener('click', () => {
+                                if (!_svgEl) return;
+                                const scale = 2;
+                                const sw = _svgEl.viewBox?.baseVal?.width || _svgEl.getBoundingClientRect().width;
+                                const sh = _svgEl.viewBox?.baseVal?.height || _svgEl.getBoundingClientRect().height;
+                                const xml = new XMLSerializer().serializeToString(_svgEl);
+                                const blob = new Blob([xml], {type: 'image/svg+xml'});
+                                const url = URL.createObjectURL(blob);
+                                const img = new Image();
+                                img.onload = () => {
+                                    const canvas = document.createElement('canvas');
+                                    canvas.width = sw * scale; canvas.height = sh * scale;
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.scale(scale, scale);
+                                    ctx.fillStyle = 'rgba(28,28,42,1)';
+                                    ctx.fillRect(0, 0, sw, sh);
+                                    ctx.drawImage(img, 0, 0);
+                                    URL.revokeObjectURL(url);
+                                    const a = document.createElement('a');
+                                    a.download = _exportName + '.png';
+                                    a.href = canvas.toDataURL('image/png');
+                                    a.click();
+                                };
+                                img.src = url;
+                            });
+
+                            tooltip.innerHTML = _headerHTML + _tunnelWarning +
+                                `<div style="padding:4px 10px 6px;font-size:10px;color:${dim}">` +
+                                `<span style="color:var(--accent);font-size:12px"><b>${_displaySlope.toFixed(1)}%</b></span>` +
+                                `<span style="color:${dim}"> net slope${_maxSegStr} · ${slopeDeg.toFixed(1)}°</span>` +
+                                `</div>`;
+                        } else {
+                            if (_corner) _corner.style.display = 'none';
+                            tooltip.innerHTML = _headerHTML + _tunnelWarning + _chartHTML +
+                                `<div style="padding:4px 8px 6px;font-size:10px;color:${dim}">` +
+                                `<span style="color:var(--accent);font-size:12px"><b>${_displaySlope.toFixed(1)}%</b></span>` +
+                                `<span style="color:${dim}"> net slope${_maxSegStr} · ${slopeDeg.toFixed(1)}°</span>` +
+                                `</div>`;
+                        }
+                    }
                     _positionTooltip(tooltip, cx, cy);
                     _showMidMarker(midCoord, endpoints, elevStart, elevEnd);
+                    // Show elevation sample points — only if feature is not hidden
+                    const _fid = origFeature.properties?._gvid;
+                    const _isHidden = _fid != null && (hiddenIds.has(_fid) ||
+                        map.getFeatureState({ source: 'geojson-data', id: origFeature.id ?? _fid })?.hidden);
+                    if (!_isHidden && origFeature.properties?._selecter_elevations) {
+                        _updateElevPointsLayer(origFeature);
+                    }
                     return;
                 }
             }
@@ -16155,22 +17021,46 @@ function _startElevationCursor() {
         _positionTooltip(tooltip, cx, cy);
 
         if (elev === null) {
-            tooltip.textContent = 'No elevation data';
+            tooltip.innerHTML = `<div style="padding:6px 10px">No elevation data</div>`;
         } else {
             const elevDisplay = _elevUnit === 'ft'
-                ? `<span style="color:var(--accent)">${(elev * 3.28084).toFixed(0)}′</span>`
+                ? `<span style="color:var(--accent)">${(elev * 3.28084).toFixed(0)}ft</span>`
                 : `<span style="color:var(--accent)">${elev.toFixed(0)}m</span>`;
-            tooltip.innerHTML =
+            tooltip.innerHTML = `<div style="padding:6px 10px">` +
                 elevDisplay + `<br>` +
-                `<span style="color:#c8c8e0;font-size:10px">${lat.toFixed(5)}, ${lng.toFixed(5)}</span>`;
+                `<span style="color:#c8c8e0;font-size:10px">${lat.toFixed(5)}, ${lng.toFixed(5)}</span>` +
+                `</div>`;
         }
     };
 
     map.on('mousemove', _elevMoveHandler);
-    // Reset _pending if cursor leaves the map — prevents permanent stuck state
-    const _elevLeaveHandler = () => { _pending = false; };
+    // Hide tooltip and reset when cursor leaves the map canvas or enters the sidebar
+    const _elevLeaveHandler = () => {
+        _pending = false;
+        _hideMidMarker();
+        const tt = document.getElementById('elevation-tooltip');
+        if (tt) tt.style.display = 'none';
+        const corner = document.getElementById('elev-chart-corner');
+        if (corner && !_elevChartPinned) corner.style.display = 'none';
+        // Clear hover elevation points (unless elev_pts mode shows all)
+        if (_elevVisualizeMode !== 'elev_pts') {
+            try { if (map.getSource('geojson-elev-points'))
+                map.getSource('geojson-elev-points').setData({ type: 'FeatureCollection', features: [] });
+            } catch {}
+            try { if (map.getLayer('gv-elev-points'))
+                map.setLayoutProperty('gv-elev-points', 'visibility', 'none');
+            } catch {}
+            try { if (map.getLayer('gv-elev-point-labels'))
+                map.setLayoutProperty('gv-elev-point-labels', 'visibility', 'none');
+            } catch {}
+        }
+    };
     map.getCanvas().addEventListener('mouseleave', _elevLeaveHandler);
-    map.getCanvas()._elevLeaveHandler = _elevLeaveHandler; // store for cleanup
+    map.getCanvas()._elevLeaveHandler = _elevLeaveHandler;
+    // Also hide when cursor moves over sidebar (sidebar sits over map edge)
+    const _sidebarElevHide = () => _elevLeaveHandler();
+    document.getElementById('sidebar')?.addEventListener('pointerenter', _sidebarElevHide);
+    map.getCanvas()._sidebarElevHide = _sidebarElevHide;
     map.getCanvas().style.cursor = 'crosshair';
 }
 
@@ -16181,9 +17071,15 @@ function _stopElevationCursor() {
         canvas.removeEventListener('mouseleave', canvas._elevLeaveHandler);
         delete canvas._elevLeaveHandler;
     }
+    if (canvas._sidebarElevHide) {
+        document.getElementById('sidebar')?.removeEventListener('pointerenter', canvas._sidebarElevHide);
+        delete canvas._sidebarElevHide;
+    }
     _hideMidMarker();
     const tooltip = document.getElementById('elevation-tooltip');
     if (tooltip) tooltip.style.display = 'none';
+    const corner = document.getElementById('elev-chart-corner');
+    if (corner) corner.style.display = 'none';
     canvas.style.cursor = '';
 }
 
@@ -16889,7 +17785,7 @@ function renderShapePanel() {
     }
 }
 
-const _BATCH_CONCURRENCY = 20;
+const _BATCH_CONCURRENCY = 8;  // Safe with ?src=selecter CORS fix — no cache poisoning risk
 const _BATCH_PROGRESS_INTERVAL = 10;
 
 async function calculateElevationBatch() {
@@ -16926,31 +17822,50 @@ async function calculateElevationBatch() {
 
     const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
     const ts = new Date().toISOString().slice(0, 10);
-    btn.textContent = `Recalculate elevation (${ts})`;
     btn.disabled = false;
-    status.textContent = `Done \u00b7 ${total} features \u00b7 ${elapsed}s \u00b7 zoom-12 DEM`;
+    status.textContent = `Done · ${total} features · ${elapsed}s · zoom-12 DEM`;
 
+    const _calledFromWorking = _activeStore === _workingStore;
+
+    if (_calledFromWorking) {
+        // Elevation was run on Working features — update working source and propData
+        if (map.getSource('working-data')) {
+            map.getSource('working-data').setData({ type: 'FeatureCollection', features: _workingStore.features });
+        }
+        buildPropData();
+        _workingStore.propData = propData;
+        renderWorkingPanel();
+        // Don't touch file store button timestamp or palette
+        showToast(`⚡ Elevation calculated for ${total} Working features`);
+        _logElevationStats(features, Date.now() - t0);
+        console.log(`[elevation] batch done (working): ${total} features in ${elapsed}s`);
+        return;
+    }
+
+    // Called from File tab — update file source and button
+    btn.textContent = `Recalculate elevation (${ts})`;
     if (map.getSource('geojson-data')) {
-        map.getSource('geojson-data').setData({ type: 'FeatureCollection', features: allFeatures });
+        map.getSource('geojson-data').setData({ type: 'FeatureCollection', features: _fileStore.features });
     }
     buildPropData();
     renderSidebar();
 
-    const hasSlope = allFeatures.some(f => f.properties._selecter_slope_pct != null);
-    const hasPointElev = allFeatures.some(f =>
+    const hasSlope = _fileStore.features.some(f => f.properties._selecter_slope_pct != null);
+    const hasPointElev = _fileStore.features.some(f =>
         ['Point','MultiPoint'].includes(f.geometry?.type) && f.properties._selecter_elev != null);
 
     if (hasSlope) {
-        _applyElevationPalette(); // RdBu on _selecter_slope_pct for lines
+        _applyElevationPalette();
     } else if (hasPointElev) {
-        _applyPointElevationPalette(); // RdBu on _selecter_elev for points
+        _applyPointElevationPalette();
     }
 
     if (hasSlope || hasPointElev) {
         const statsBtn = document.getElementById('elev-stats-btn');
-        if (statsBtn) {
-            statsBtn.style.opacity = '';
-            statsBtn.style.pointerEvents = '';
+        if (statsBtn) { statsBtn.style.opacity = ''; statsBtn.style.pointerEvents = ''; }
+        if (hasSlope) {
+            const vizRow = document.getElementById('elev-visualize-row');
+            if (vizRow) vizRow.style.display = '';
         }
     }
 
@@ -16979,52 +17894,133 @@ async function _computeElevationForFeature(f) {
         const elev = await _getElevationAt(lat, lng);
         props._selecter_elev = r2(elev);
         props._selecter_elev_computed = ts;
-        return;
         props._selecter_units = { elev: 'm' };
+        return;
     }
 
     // ── Lines ─────────────────────────────────────────────────────────────────
     const endpoints = _lineEndpoints(geom);
     if (!endpoints) return;
 
-    const allCoords = geom.type === 'LineString' ? geom.coordinates : geom.coordinates.flat();
-    const midCoord = allCoords.length === 2
-        ? [(allCoords[0][0]+allCoords[1][0])/2, (allCoords[0][1]+allCoords[1][1])/2]
-        : allCoords[Math.floor(allCoords.length / 2)];
+    // Copy coordinates defensively — geom.coordinates is a live reference that
+    // could be mutated by MapLibre's setData normalization or concurrent processing
+    const allCoords = geom.type === 'LineString'
+        ? geom.coordinates.map(c => [c[0], c[1]])
+        : geom.coordinates.flat().map(c => [c[0], c[1]]);
 
-    const [elevStart, elevMid, elevEnd] = await Promise.all([
-        _getElevationAt(endpoints.start[1], endpoints.start[0]),
-        _getElevationAt(midCoord[1], midCoord[0]),
-        _getElevationAt(endpoints.end[1],   endpoints.end[0])
-    ]);
+    // Compute total chord length
+    let totalM = 0;
+    const segLengths = [];
+    for (let i = 1; i < allCoords.length; i++) {
+        const d = _haversineM(allCoords[i-1], allCoords[i]);
+        segLengths.push(d);
+        totalM += d;
+    }
 
-    props._selecter_elev_start = r2(elevStart);
-    props._selecter_elev_mid   = r2(elevMid);
-    props._selecter_elev_end   = r2(elevEnd);
-    props._selecter_elevations = [r2(elevStart), r2(elevMid), r2(elevEnd)];
+    // Interpolate a point at fraction t (0–1) along the coordinate array
+    // Uses cumulative chord length for accurate fractional positioning
+    function _interpCoord(coords, t) {
+        if (t <= 0) return coords[0];
+        if (t >= 1) return coords[coords.length - 1];
+        if (coords.length === 2) return [
+            coords[0][0] + t * (coords[1][0] - coords[0][0]),
+            coords[0][1] + t * (coords[1][1] - coords[0][1])
+        ];
+        const target = t * totalM;
+        let acc = 0;
+        for (let i = 0; i < segLengths.length; i++) {
+            if (acc + segLengths[i] >= target) {
+                const frac = segLengths[i] > 0 ? (target - acc) / segLengths[i] : 0;
+                return [
+                    coords[i][0] + frac * (coords[i+1][0] - coords[i][0]),
+                    coords[i][1] + frac * (coords[i+1][1] - coords[i][1])
+                ];
+            }
+            acc += segLengths[i];
+        }
+        return coords[coords.length - 1];
+    }
+
+    // Choose sampling interval based on line length
+    // DEM resolution ~38m at zoom 12 — sampling finer than that just hits the same pixel
+    const INTERVAL_M = totalM <= 200  ? null    // short: use 5-point system
+                     : totalM <= 2000 ? 50      // medium: every 50m
+                     :                  100;    // long: every 100m, no cap
+
+    let sampleCoords;
+    if (INTERVAL_M === null) {
+        // Short lines: classic 5-point system (start, ¼, mid, ¾, end)
+        sampleCoords = [0, 0.25, 0.5, 0.75, 1].map(t => _interpCoord(allCoords, t));
+    } else {
+        // Fixed-interval sampling — no artificial cap, always cover the full route
+        const numSamples = Math.ceil(totalM / INTERVAL_M) + 1;
+        sampleCoords = Array.from({ length: numSamples }, (_, i) => {
+            const t = i === numSamples - 1 ? 1 : Math.min(1, (i * INTERVAL_M) / totalM);
+            return _interpCoord(allCoords, t);
+        });
+    }
+
+    // Fetch all elevations in parallel — safe now that _fetchElevTile caches the Promise
+    // so concurrent requests for the same tile share one fetch instead of racing
+    const elevations = await Promise.all(
+        sampleCoords.map(c => _getElevationAt(c[1], c[0]))
+    );
+
+    // Store the full elevation array (used by profile chart)
+    props._selecter_elevations = elevations.map(r2);
+    props._selecter_elev_start = r2(elevations[0]);
+    props._selecter_elev_mid   = r2(elevations[Math.floor(elevations.length / 2)]);
+    props._selecter_elev_end   = r2(elevations[elevations.length - 1]);
+
+    // Also store ¼ and ¾ for 5-point display in hover tooltip
+    if (INTERVAL_M === null) {
+        props._selecter_elev_q1 = r2(elevations[1]);
+        props._selecter_elev_q3 = r2(elevations[3]);
+    } else {
+        const q1i = Math.round((elevations.length - 1) * 0.25);
+        const q3i = Math.round((elevations.length - 1) * 0.75);
+        props._selecter_elev_q1 = r2(elevations[q1i]);
+        props._selecter_elev_q3 = r2(elevations[q3i]);
+    }
+
     props._selecter_elev_computed = ts;
-    props._selecter_units = { elev_start:'m', elev_mid:'m', elev_end:'m', rise:'m', run:'m', slope_pct:'%', slope_deg:'°', slope_a_pct:'%', slope_b_pct:'%', slope_max_pct:'%', bearing:'°' };
+    props._selecter_units = {
+        elev_start:'m', elev_q1:'m', elev_mid:'m', elev_q3:'m', elev_end:'m',
+        rise:'m', run:'m', slope_pct:'%', slope_deg:'°',
+        slope_a_pct:'%', slope_b_pct:'%', slope_c_pct:'%', slope_d_pct:'%',
+        slope_max_pct:'%', bearing:'°'
+    };
+
+    const elevStart = elevations[0];
+    const elevEnd   = elevations[elevations.length - 1];
+    const elev25    = props._selecter_elev_q1;
+    const elev75    = props._selecter_elev_q3;
+    const elevMid   = props._selecter_elev_mid;
+
+    const c0   = sampleCoords[0];
+    const c100 = sampleCoords[sampleCoords.length - 1];
 
     if (elevStart === null || elevEnd === null) {
         props._selecter_rise = null; props._selecter_run = null;
         props._selecter_slope_pct = null; props._selecter_slope_deg = null;
         props._selecter_slope_a_pct = null; props._selecter_slope_b_pct = null;
+        props._selecter_slope_c_pct = null; props._selecter_slope_d_pct = null;
         props._selecter_slope_max_pct = null; props._selecter_bearing = null;
         props._selecter_slopes = null;
         return;
     }
 
-    const horizM = _haversineM(endpoints.start, endpoints.end);
+    const horizM = totalM; // use actual line length, not straight-line distance
     const rise   = Math.abs(elevEnd - elevStart);
     props._selecter_rise = r2(rise);
     props._selecter_run  = r2(horizM);
 
-    // Zero-length line
     if (horizM < 0.1) {
         props._selecter_slope_pct = 0; props._selecter_slope_deg = 0;
         props._selecter_slope_a_pct = 0; props._selecter_slope_b_pct = 0;
+        props._selecter_slope_c_pct = 0; props._selecter_slope_d_pct = 0;
         props._selecter_slope_max_pct = 0; props._selecter_bearing = null;
-        props._selecter_slopes = [0, 0];
+        props._selecter_slopes = Array(sampleCoords.length - 1).fill(0);
         return;
     }
 
@@ -17033,20 +18029,35 @@ async function _computeElevationForFeature(f) {
     props._selecter_slope_pct = r1(slopePct);
     props._selecter_slope_deg = r1(slopeDeg);
 
-    // Segment slopes (signed)
-    let slopeA = null, slopeB = null;
-    if (elevMid !== null) {
-        const hA = _haversineM(endpoints.start, midCoord);
-        const hB = _haversineM(midCoord, endpoints.end);
-        slopeA = hA > 0 ? (elevMid - elevStart) / hA * 100 : 0;
-        slopeB = hB > 0 ? (elevEnd  - elevMid)  / hB * 100 : 0;
+    // Per-segment slopes (signed: positive = uphill in draw direction)
+    const segSlopes = [];
+    for (let i = 0; i < sampleCoords.length - 1; i++) {
+        const h = _haversineM(sampleCoords[i], sampleCoords[i + 1]);
+        const dE = elevations[i + 1] !== null && elevations[i] !== null
+            ? elevations[i + 1] - elevations[i] : null;
+        segSlopes.push(h > 0 && dE !== null ? r1(dE / h * 100) : null);
     }
-    props._selecter_slope_a_pct   = slopeA !== null ? r1(slopeA) : null;
-    props._selecter_slope_b_pct   = slopeB !== null ? r1(slopeB) : null;
-    props._selecter_slope_max_pct = slopeA !== null
-        ? r1(Math.max(Math.abs(slopeA), Math.abs(slopeB)))
+    props._selecter_slopes = segSlopes;
+
+    // Keep named A/B/C/D for 5-point backwards compat (first 4 segs, or quarter-point segs)
+    if (INTERVAL_M === null) {
+        props._selecter_slope_a_pct = segSlopes[0];
+        props._selecter_slope_b_pct = segSlopes[1];
+        props._selecter_slope_c_pct = segSlopes[2];
+        props._selecter_slope_d_pct = segSlopes[3];
+    } else {
+        // For multi-point: map to quarters of the full route
+        const q = (i) => segSlopes[Math.round(i * (segSlopes.length - 1) / 3)] ?? null;
+        props._selecter_slope_a_pct = q(0);
+        props._selecter_slope_b_pct = q(1);
+        props._selecter_slope_c_pct = q(2);
+        props._selecter_slope_d_pct = q(3);
+    }
+
+    const validSegs = segSlopes.filter(s => s !== null);
+    props._selecter_slope_max_pct = validSegs.length
+        ? r1(Math.max(...validSegs.map(Math.abs)))
         : r1(slopePct);
-    props._selecter_slopes = slopeA !== null ? [r1(slopeA), r1(slopeB)] : null;
 
     // Bearing: uphill if slope >= 0.5%, else draw direction
     if (slopePct >= 0.5) {
@@ -17157,17 +18168,23 @@ function _applyContourColorPalette(mode) {
 
 function _applyElevationPalette() {
     paletteProp        = '_selecter_slope_pct';
-    paletteScheme      = 'quantile';
-    paletteQuantScheme = 'RdBu';
-    paletteReversed    = true;
+    paletteScheme      = 'linear';
+    paletteQuantScheme = 'YlOrRd';
+    paletteReversed    = false;
     paletteNumStops    = 7;
     paletteLogScale    = false;
     paletteClampLow    = 2;
     paletteClampHigh   = 98;
+    // Apply grey hairline casing so slope colors read against the basemap
+    lineOutlineMode  = 'grey';
+    lineOutlineWidth = 'hairline';
+    document.querySelectorAll('#line-outline-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'grey'));
+    document.getElementById('line-outline-width-pill').style.display = '';
+    document.querySelectorAll('#line-outline-width-pill .style-opt').forEach(o => o.classList.toggle('active', o.dataset.val === 'hairline'));
     buildPropData();
     applyPaletteToLayers();
     renderSidebar();
-    showToast('\ud83c\udfa8 Slope coloring applied \u2014 RdBu on _slope %');
+    showToast('\ud83c\udfa8 Slope coloring applied \u2014 YlOrRd on _slope %');
 }
 
 function _applyPointElevationPalette() {
@@ -17191,14 +18208,15 @@ function _syncElevationButtonState() {
     const statsBtn = document.getElementById('elev-stats-btn');
     if (!calcBtn || !statsBtn) return;
 
-    const hasSlope    = allFeatures.some(f => f.properties._selecter_slope_pct != null);
-    const hasPointElev = allFeatures.some(f =>
+    // Always check file store for button state — Working elevation is independent
+    const fileFeatures = _fileStore.features;
+    const hasSlope    = fileFeatures.some(f => f.properties._selecter_slope_pct != null);
+    const hasPointElev = fileFeatures.some(f =>
         ['Point','MultiPoint'].includes(f.geometry?.type) && f.properties._selecter_elev != null);
     const hasAny = hasSlope || hasPointElev;
 
     if (hasAny) {
-        // Find the date from the most recent _selecter_elev_computed
-        const ts = allFeatures.reduce((best, f) => {
+        const ts = fileFeatures.reduce((best, f) => {
             const t = f.properties._selecter_elev_computed;
             return t && t > best ? t : best;
         }, '');
@@ -17206,6 +18224,10 @@ function _syncElevationButtonState() {
         calcBtn.textContent = dateStr ? `Recalculate elevation (${dateStr})` : 'Recalculate elevation';
         statsBtn.style.opacity = '';
         statsBtn.style.pointerEvents = '';
+        const vizRow = document.getElementById('elev-visualize-row');
+        if (vizRow && hasSlope) vizRow.style.display = '';
+    } else {
+        calcBtn.textContent = 'Calculate elevation';
     }
 }
 
@@ -17264,7 +18286,7 @@ function _renderElevationStatTable(mode) {
     const eqcEl   = document.getElementById('elev-stats-eq-count');
     const eqvEl   = document.getElementById('elev-stats-eq-val');
     if (!stats) {
-        summEl.textContent = 'No data — run Calculate elevation first';
+        summEl.innerHTML = `No data — <button onclick="calculateElevationBatch()" style="background:var(--accent);border:none;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer;color:#000;font-weight:600">Calculate elevation</button>`;
         eqcEl.innerHTML = ''; eqvEl.innerHTML = '';
         return;
     }
@@ -17949,6 +18971,18 @@ function updateSelectionBar() {
     const hidBadge = document.getElementById('hid-badge');
     if (hidBadge) hidBadge.style.display = numHidden > 0 ? '' : 'none';
     updateSplitButton();
+
+    // Explode button — show when line features are selected/highlighted on File tab
+    const _explodeBtn = document.getElementById('explode-btn');
+    if (_explodeBtn && activeTab === 'file') {
+        const _chosenIds = selectedIds.size > 0 ? selectedIds : highlightedIds;
+        const _hasLines = allFeatures.some(f =>
+            _chosenIds.has(f.properties._gvid) &&
+            (f.geometry?.type === 'LineString' || f.geometry?.type === 'MultiLineString'));
+        _explodeBtn.style.display = (hasChosen && _hasLines) ? '' : 'none';
+    } else if (_explodeBtn) {
+        _explodeBtn.style.display = 'none';
+    }
 
     // Bar is always visible once file data is loaded
     const barVisible = _fileStore.features.length > 0;
@@ -18640,12 +19674,47 @@ async function _applyStyleState(state, opts = {}) {
         .filter(p => p && p.startsWith('_selecter_'));
     const missingSelecter = selecterProps.filter(p => !allFeatures.some(f => p in f.properties));
     if (missingSelecter.length && !silent) {
-        const ok = await _styledConfirm(
-            'Missing computed properties',
-            `This style uses computed properties (${missingSelecter.join(', ')}) not found in the current data. Apply anyway? You may need to run "Calculate elevation" to restore coloring.`,
-            'Apply anyway', 'Skip'
-        );
-        if (!ok) return false;
+        const proceed = await new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center';
+            overlay.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:380px;width:90%;font-family:var(--sans);box-shadow:0 16px 48px rgba(0,0,0,0.7)">
+                <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text)">Missing computed properties</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;line-height:1.5">
+                    This style uses computed properties (<code>${missingSelecter.join(', ')}</code>) not found in the current data.
+                </div>
+                <div id="_mcp_progress" style="display:none;font-size:10px;color:var(--accent);margin-bottom:10px;min-height:16px"></div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+                    <button id="_mcp_calc" style="font-size:11px;font-family:var(--sans);padding:6px 14px;border-radius:6px;border:none;background:var(--accent);color:#000;cursor:pointer;font-weight:600;margin-right:auto">⚡ Calculate elevation</button>
+                    <button id="_mcp_skip" style="font-size:11px;font-family:var(--sans);padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer">Skip</button>
+                    <button id="_mcp_apply" style="font-size:11px;font-family:var(--sans);padding:6px 14px;border-radius:6px;border:none;background:var(--accent);color:white;cursor:pointer;font-weight:600">Apply anyway</button>
+                </div>
+            </div>`;
+            document.body.appendChild(overlay);
+            overlay.querySelector('#_mcp_skip').onclick  = () => { overlay.remove(); resolve(false); };
+            overlay.querySelector('#_mcp_apply').onclick = () => { overlay.remove(); resolve(true); };
+            overlay.querySelector('#_mcp_calc').onclick  = async () => {
+                const progEl = overlay.querySelector('#_mcp_progress');
+                const calcBtn = overlay.querySelector('#_mcp_calc');
+                calcBtn.disabled = true; calcBtn.textContent = 'Calculating…';
+                progEl.style.display = '';
+                // Hook into the global progress element to show status in dialog
+                const _origStatus = document.getElementById('calc-elevation-status');
+                const _origBtn = document.getElementById('calc-elevation-btn');
+                const _observer = new MutationObserver(() => {
+                    progEl.textContent = _origStatus?.textContent || _origBtn?.textContent || '';
+                });
+                if (_origStatus) _observer.observe(_origStatus, { childList: true, characterData: true, subtree: true });
+                if (_origBtn) _observer.observe(_origBtn, { childList: true, characterData: true, subtree: true });
+                try {
+                    await calculateElevationBatch();
+                } finally {
+                    _observer.disconnect();
+                }
+                overlay.remove();
+                resolve(true); // apply style now that data exists
+            };
+        });
+        if (!proceed) return false;
     }
 
     // Apply all state
@@ -19679,7 +20748,7 @@ function takeScreenshot() {
 let _workingHandlersRegistered = false;
 function setupWorkingLayer() {
     // Remove old source/layers if they exist (e.g. after basemap style reload)
-    ['working-fill','working-outline','working-line','working-line-dashed','working-point','working-labels','working-labels-line','working-endpoints','working-arrows']
+    ['working-fill','working-outline','working-line-casing','working-line','working-line-dashed','working-point','working-labels','working-labels-line','working-endpoints','working-arrows']
         .forEach(id => { try { if (map.getLayer(id)) map.removeLayer(id); } catch {} });    try { if (map.getSource('working-data')) map.removeSource('working-data'); } catch {}
 
     map.addSource('working-data', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, generateId: false });
@@ -19691,11 +20760,14 @@ function setupWorkingLayer() {
     map.addLayer({ id: 'working-fill', type: 'fill', source: 'working-data',
         filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
         paint: { 'fill-color': wColor, 'fill-opacity': 0.3 } });
-    // Separate outline layer for polygons (mirrors gv-outline)
     map.addLayer({ id: 'working-outline', type: 'line', source: 'working-data',
         filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
         paint: { 'line-color': wColor, 'line-width': 1, 'line-opacity': wOpacity } });
     const wWidth = ['case', ['has', '_selecter_width'], ['to-number', ['get', '_selecter_width'], 2.5], 2.5];
+    // Casing layer sits below working-line — drawn first = underneath
+    map.addLayer({ id: 'working-line-casing', type: 'line', source: 'working-data',
+        filter: ['all', ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]], ['!', ['has', '_selecter_dash']]],
+        paint: { 'line-color': 'rgba(0,0,0,0)', 'line-width': 0, 'line-opacity': 0 } });
     map.addLayer({ id: 'working-line', type: 'line', source: 'working-data',
         filter: ['all', ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]], ['!', ['has', '_selecter_dash']]],
         paint: { 'line-color': wColor, 'line-width': wWidth, 'line-opacity': wOpacity } });
@@ -19929,14 +21001,21 @@ function addToWorkingLayer(features, removeFromSource) {
     if (!features.length) return;
     // ────────────────────────────────────────────────────────────────────
 
+    // Generate a batch timestamp for this pin operation — allows distinguishing
+    // features added at different times (e.g. "streets·2026-09-02 14:23")
+    const _pinTs = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const newFeats = features.map(f => {
         const wid = _workingIdCounter++;
+        const srcBase = f.properties._selecter_source || 'file';
+        // Append time if not already timestamped (avoid double-stamping)
+        const srcWithTs = srcBase.includes('·') && srcBase.match(/\d{2}:\d{2}$/)
+            ? srcBase : `${srcBase}·${_pinTs}`;
         return {
             type: 'Feature',
             id: wid,
             geometry: f.geometry,
             properties: { ...f.properties, _wgvid: wid,
-                _selecter_source: f.properties._selecter_source || 'file' }
+                _selecter_source: srcWithTs }
         };
     });
     _workingStore.features.push(...newFeats);
@@ -19974,6 +21053,280 @@ function addToWorkingLayer(features, removeFromSource) {
     });
     showToast(`📌 ${newFeats.length} feature${newFeats.length===1?'':'s'} added to Working Layer`, 2500);
     _saveWorkingSession();
+}
+
+// ── EXPLODE TO SEGMENTS ────────────────────────────────────────────────────
+async function _explodeSelectedToWorking() {
+    const _activeIds = selectedIds.size > 0 ? selectedIds : highlightedIds;
+    const selFeatures = allFeatures.filter(f =>
+        _activeIds.has(f.properties._gvid) &&
+        (f.geometry?.type === 'LineString' || f.geometry?.type === 'MultiLineString')
+    );
+    if (!selFeatures.length) { showToast('No line features selected'); return; }
+
+    // Guard: already exploded?
+    if (selFeatures.some(f => f.properties._selecter_seg_index != null)) {
+        showToast('⚠ Already exploded — these are already per-segment features', 4000);
+        return;
+    }
+
+    // Guard: no elevation data — ask user
+    const hasElev = selFeatures.some(f => f.properties._selecter_elevations != null);
+    if (!hasElev) {
+        const choice = await new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center';
+            overlay.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:360px;width:90%;font-family:var(--sans);box-shadow:0 16px 48px rgba(0,0,0,0.7)">
+                <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text)">No elevation data</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">
+                    Exploding without elevation will create geometry-only segments with no slope values.<br><br>
+                    Calculate elevation first to get slope coloring on the segments.
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end">
+                    <button id="_eg_cancel" style="font-size:11px;padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer">Cancel</button>
+                    <button id="_eg_explode" style="font-size:11px;padding:6px 14px;border-radius:6px;border:none;background:var(--surface2);color:var(--text-muted);cursor:pointer;border:1px solid var(--border)">Explode anyway</button>
+                    <button id="_eg_calc" style="font-size:11px;padding:6px 14px;border-radius:6px;border:none;background:var(--accent);color:#000;cursor:pointer;font-weight:600">⚡ Calculate first</button>
+                </div>
+            </div>`;
+            document.body.appendChild(overlay);
+            overlay.querySelector('#_eg_cancel').onclick  = () => { overlay.remove(); resolve('cancel'); };
+            overlay.querySelector('#_eg_explode').onclick = () => { overlay.remove(); resolve('explode'); };
+            overlay.querySelector('#_eg_calc').onclick    = () => { overlay.remove(); resolve('calc'); };
+        });
+        if (choice === 'cancel') return;
+        if (choice === 'calc') {
+            await calculateElevationBatch();
+            // Re-check — if elevation still not available, bail
+            if (!selFeatures.some(f => f.properties._selecter_elevations != null)) {
+                showToast('Elevation calculation did not produce data for selected features');
+                return;
+            }
+        }
+        // 'explode' falls through with no elevation
+    }
+
+    // Always show the explode options dialog
+    // Compute advisory info
+    const maxVertexCount = Math.max(...selFeatures.map(f => {
+        const c = f.geometry.type === 'LineString' ? f.geometry.coordinates : f.geometry.coordinates.flat();
+        return c.length - 1;
+    }));
+    const maxLen = Math.max(...selFeatures.map(f => {
+        const c = f.geometry.type === 'LineString' ? f.geometry.coordinates : f.geometry.coordinates.flat();
+        let d = 0;
+        for (let i = 1; i < c.length; i++) d += _haversineM(c[i-1], c[i]);
+        return d;
+    }));
+    const ptInterval = maxLen > 2000 ? 100 : 50;
+    const estPts = Math.round(maxLen / ptInterval);
+    const isDense = maxVertexCount > 200;
+    const denseNote = isDense ? `<div style="font-size:10px;color:#f97316;margin-bottom:10px;padding:6px 8px;background:rgba(249,115,22,0.08);border-radius:6px;border:1px solid rgba(249,115,22,0.2)">⚠ Dense geometry detected (${maxVertexCount.toLocaleString()} segments). DEM resolution is ~38m — point sampling is recommended.</div>` : '';
+    const noElevNote = !hasElev ? `<div style="font-size:10px;color:var(--text-muted);margin-bottom:10px;padding:6px 8px;background:rgba(0,0,0,0.1);border-radius:6px">No elevation data — slope coloring won't be available. <b>Calculate elevation first</b> for better results.</div>` : '';
+
+    const { mode: _explodeMode, copyLine } = await new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center';
+        overlay.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:420px;width:90%;font-family:var(--sans);box-shadow:0 16px 48px rgba(0,0,0,0.7)">
+            <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text)">💥 Explode ${selFeatures.length} line${selFeatures.length > 1 ? 's' : ''} to Working</div>
+            ${noElevNote}${denseNote}
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+                <div style="padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2)">
+                    <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:2px">📍 Sample points every ${ptInterval}m</div>
+                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">~${estPts} points per feature · elevation at each point · good for GPS tracks and long routes</div>
+                    <button id="_ex_pts" style="font-size:11px;padding:5px 12px;border-radius:5px;border:none;background:var(--accent);color:#000;cursor:pointer;font-weight:600;width:100%">Use point sampling</button>
+                </div>
+                <div style="padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2)">
+                    <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:2px">📏 Explode into ${maxVertexCount.toLocaleString()} line segments</div>
+                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">One segment per vertex pair · slope per segment${isDense ? ' · may be noisy' : ''}</div>
+                    <button id="_ex_segs" style="font-size:11px;padding:5px 12px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;width:100%">Explode to segments</button>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:0 2px">
+                <input type="checkbox" id="_ex_copy_line" style="cursor:pointer">
+                <label for="_ex_copy_line" style="font-size:11px;color:var(--text-muted);cursor:pointer">Also copy original line${selFeatures.length > 1 ? 's' : ''} to Working</label>
+            </div>
+            <div style="display:flex;justify-content:flex-end">
+                <button id="_ex_cancel" style="font-size:11px;padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer">Cancel</button>
+            </div>
+        </div>`;
+        document.body.appendChild(overlay);
+        const getCopyLine = () => overlay.querySelector('#_ex_copy_line').checked;
+        overlay.querySelector('#_ex_pts').onclick    = () => { const cl = getCopyLine(); overlay.remove(); resolve({ mode: 'points',   copyLine: cl }); };
+        overlay.querySelector('#_ex_segs').onclick   = () => { const cl = getCopyLine(); overlay.remove(); resolve({ mode: 'segments', copyLine: cl }); };
+        overlay.querySelector('#_ex_cancel').onclick = () => { overlay.remove(); resolve({ mode: 'cancel', copyLine: false }); };
+    });
+
+    if (_explodeMode === 'cancel') return;
+
+    // Copy original lines to Working if requested
+    if (copyLine) {
+        addToWorkingLayer([...selFeatures], false);
+    }
+
+    // Point sampling mode
+    if (_explodeMode === 'points') {
+        await _samplePointsToWorking(selFeatures);
+        return;
+    }
+
+    // Segment mode: fall through to segment loop below
+
+    const segments = [];
+    for (const f of selFeatures) {
+        const p = f.properties;
+        const allCoords = f.geometry.type === 'LineString' ? f.geometry.coordinates : f.geometry.coordinates.flat();
+        if (allCoords.length < 2) continue;
+
+        let elevArr = null, slopeArr = null;
+        try { const r = p._selecter_elevations; elevArr = r == null ? null : Array.isArray(r) ? r : JSON.parse(r); } catch {}
+        try { const r = p._selecter_slopes;     slopeArr = r == null ? null : Array.isArray(r) ? r : JSON.parse(r); } catch {}
+
+        const vertexCount = allCoords.length;
+        const nSamples = elevArr ? elevArr.length : 0;
+        const cumDists = [0]; let totalM = 0;
+        for (let i = 1; i < vertexCount; i++) {
+            totalM += _haversineM(allCoords[i-1], allCoords[i]);
+            cumDists.push(totalM);
+        }
+
+        for (let i = 0; i < vertexCount - 1; i++) {
+            const c0 = allCoords[i], c1 = allCoords[i + 1];
+            const segLen = _haversineM(c0, c1);
+            let elevStart = null, elevEnd = null, slope = null;
+            if (nSamples >= 2 && totalM > 0) {
+                const t0 = cumDists[i] / totalM, t1 = cumDists[i+1] / totalM;
+                const idx0 = Math.round(t0 * (nSamples - 1)), idx1 = Math.round(t1 * (nSamples - 1));
+                elevStart = elevArr[idx0] ?? null; elevEnd = elevArr[idx1] ?? null;
+                if (slopeArr?.length >= 1) {
+                    const sIdx = Math.min(Math.round(((t0+t1)/2) * slopeArr.length), slopeArr.length - 1);
+                    slope = slopeArr[sIdx] ?? null;
+                } else if (elevStart !== null && elevEnd !== null && segLen > 0) {
+                    slope = (elevEnd - elevStart) / segLen * 100;
+                }
+            }
+            segments.push({
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: [c0, c1] },
+                properties: {
+                    ...p,
+                    _selecter_seg_index: i, _selecter_seg_total: vertexCount - 1,
+                    _selecter_seg_run: parseFloat(segLen.toFixed(1)),
+                    _selecter_elev_start: elevStart != null ? parseFloat(Number(elevStart).toFixed(1)) : null,
+                    _selecter_elev_end:   elevEnd   != null ? parseFloat(Number(elevEnd).toFixed(1))   : null,
+                    _selecter_slope_pct:  slope     != null ? parseFloat(Number(slope).toFixed(1))     : null,
+                    _selecter_slope_max_pct: slope  != null ? parseFloat(Math.abs(Number(slope)).toFixed(1)) : null,
+                    _selecter_elevations: null, _selecter_slopes: null,
+                }
+            });
+        }
+    }
+
+    if (!segments.length) { showToast('No segments generated'); return; }
+    addToWorkingLayer(segments, false);
+    map.once('idle', () => {
+        if (activeTab !== 'working') return;
+        if (segments.some(s => s.properties._selecter_slope_pct != null)) {
+            _workingStore.paletteProp = '_selecter_slope_pct';
+            paletteProp = '_selecter_slope_pct';
+            paletteScheme = 'linear'; paletteQuantScheme = 'YlOrRd';
+            paletteReversed = false; paletteNumStops = 7;
+            paletteLogScale = false; paletteClampLow = 2; paletteClampHigh = 98;
+            buildPropData(); applyPaletteToLayers(); renderWorkingPanel();
+            showToast(`💥 ${segments.length} segments · YlOrRd slope coloring applied`);
+        } else {
+            showToast(`💥 ${segments.length} segments added to Working`);
+        }
+    });
+}
+// ── END EXPLODE ────────────────────────────────────────────────────────────
+
+// Sample elevation points along lines at fixed intervals → Working layer
+async function _samplePointsToWorking(selFeatures) {
+    showToast('⚡ Sampling points…');
+    const points = [];
+
+    for (const f of selFeatures) {
+        const p = f.properties;
+        const allCoords = f.geometry.type === 'LineString' ? f.geometry.coordinates : f.geometry.coordinates.flat();
+        if (allCoords.length < 2) continue;
+
+        // Compute total length and interval
+        let totalM = 0;
+        const segLens = [];
+        for (let i = 1; i < allCoords.length; i++) {
+            const d = _haversineM(allCoords[i-1], allCoords[i]);
+            segLens.push(d); totalM += d;
+        }
+        const interval = totalM > 2000 ? 100 : 50;
+        const nSamples = Math.ceil(totalM / interval) + 1;
+
+        function interpCoord(t) {
+            if (t <= 0) return allCoords[0];
+            if (t >= 1) return allCoords[allCoords.length - 1];
+            const target = t * totalM; let acc = 0;
+            for (let i = 0; i < segLens.length; i++) {
+                if (acc + segLens[i] >= target) {
+                    const fr = segLens[i] > 0 ? (target - acc) / segLens[i] : 0;
+                    return [allCoords[i][0] + fr*(allCoords[i+1][0]-allCoords[i][0]),
+                            allCoords[i][1] + fr*(allCoords[i+1][1]-allCoords[i][1])];
+                }
+                acc += segLens[i];
+            }
+            return allCoords[allCoords.length - 1];
+        }
+
+        // Pre-compute all sample coordinates
+        const sampleCoords = Array.from({ length: nSamples }, (_, i) => {
+            const t = i === nSamples - 1 ? 1 : Math.min(1, (i * interval) / totalM);
+            return { coord: interpCoord(t), t, distM: Math.round(t * totalM) };
+        });
+
+        // Fetch all elevations in parallel batches of 10 to avoid rate limits
+        const BATCH = 10;
+        const elevations = [];
+        for (let b = 0; b < sampleCoords.length; b += BATCH) {
+            const batch = sampleCoords.slice(b, b + BATCH);
+            const results = await Promise.all(batch.map(s => _getElevationAt(s.coord[1], s.coord[0])));
+            elevations.push(...results);
+        }
+
+        sampleCoords.forEach(({ coord, distM }, i) => {
+            const elev = elevations[i];
+            points.push({
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: coord },
+                properties: {
+                    ...p,
+                    _selecter_pt_index: i,
+                    _selecter_pt_total: sampleCoords.length,
+                    _selecter_pt_dist_m: distM,
+                    _selecter_elev: elev != null ? parseFloat(elev.toFixed(1)) : null,
+                    _selecter_elev_computed: new Date().toISOString(),
+                    _selecter_source: (p._selecter_source || '') + '·pts',
+                    _gvid: null,
+                    _selecter_elevations: null, _selecter_slopes: null,
+                    _selecter_slope_pct: null, _selecter_slope_max_pct: null,
+                }
+            });
+        });
+    }
+
+    if (!points.length) { showToast('No points generated'); return; }
+    addToWorkingLayer(points, false);
+    map.once('idle', () => {
+        if (activeTab !== 'working') return;
+        if (points.some(pt => pt.properties._selecter_elev != null)) {
+            _workingStore.paletteProp = '_selecter_elev';
+            paletteProp = '_selecter_elev';
+            paletteScheme = 'linear'; paletteQuantScheme = 'RdYlBu';
+            paletteReversed = true; paletteNumStops = 7;
+            paletteLogScale = false; paletteClampLow = 2; paletteClampHigh = 98;
+            buildPropData(); applyPaletteToLayers(); renderWorkingPanel();
+            showToast(`📍 ${points.length} elevation points · RdYlBu coloring applied`);
+        } else {
+            showToast(`📍 ${points.length} points added to Working`);
+        }
+    });
 }
 
 function renderWorkingPanel() {
@@ -20440,6 +21793,7 @@ function _moveToWorking() {
     addToWorkingLayer(feats, false);
 }
 document.getElementById('to-working-btn')?.addEventListener('click', _moveToWorking);
+document.getElementById('explode-btn')?.addEventListener('click', _explodeSelectedToWorking);
 document.getElementById('stack-row')?.addEventListener('click', highlightStackedFeatures);
 document.getElementById('sel-format-btn')?.addEventListener('click', (e) => {
     e.stopPropagation();
