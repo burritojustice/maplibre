@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: v829 -->
+<!-- build: v840 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -2405,7 +2405,7 @@
     </div>
 </div>
 
-<input type="file" id="file-input" accept=".geojson,.json,.geojsonl,.shp,.dbf,.prj,.shx,.zip" multiple style="display:none">
+<input type="file" id="file-input" accept=".geojson,.json,.geojsonl,.shp,.dbf,.prj,.shx,.zip,.csv" multiple style="display:none">
 <input type="file" id="folder-input" webkitdirectory multiple style="display:none">
     <input type="file" id="bg-file-input" accept=".geojson,.json,.geojsonl" style="display:none">
 
@@ -2582,7 +2582,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </script>
 
 <script type="text/javascript">
-const _BUILD_VERSION = 'v829';
+const _BUILD_VERSION = 'v840';
 
 // Global unhandled-rejection logger. Without this, an async function called
 // without await/catch (the exact bug class that caused the progress overlay to
@@ -2611,7 +2611,7 @@ function _decodeProtomapsId(featureId) {
         return { osmId: osmId.toString(), osmType };
     } catch { return null; }
 }
-const _BUILD_TIMESTAMP = '2026-09-03T17:02:17Z';
+const _BUILD_TIMESTAMP = '2026-09-09T19:40:07Z';
 const _loadedAt = Date.now(); // session start — use to confirm tab didn't silently reload
 
 // Detect silent reloads: write a heartbeat to sessionStorage on load,
@@ -4447,18 +4447,30 @@ geojsonBtn.addEventListener('click', () => {
 function wireSidebarSamplesBtn() {
     const btn = document.getElementById('sidebar-samples-btn');
     if (!btn) return;
-    btn.addEventListener('click', e => {
+
+    // Create the floating menu element if it doesn't exist yet
+    let menu = document.getElementById('sidebar-samples-menu');
+    if (!menu) {
+        menu = document.createElement('div');
+        menu.id = 'sidebar-samples-menu';
+        menu.className = 'geojson-dropdown-menu';
+        menu.style.cssText = 'display:none;position:fixed;z-index:1200;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);max-height:240px;overflow-y:auto;min-width:200px';
+        document.body.appendChild(menu);
+    }
+
+    // Remove any previously attached listener to avoid stacking on re-wire
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+
+    newBtn.addEventListener('click', e => {
         e.stopPropagation();
-        const menu = document.getElementById('sidebar-samples-menu');
         const isOpen = menu.style.display === 'block';
         if (isOpen) { menu.style.display = 'none'; return; }
 
-        // Use fixed positioning to escape overflow:hidden on #sidebar
-        const btnRect = btn.getBoundingClientRect();
+        const btnRect = newBtn.getBoundingClientRect();
         menu.style.position = 'fixed';
         menu.style.left = btnRect.left + 'px';
         menu.style.width = Math.max(btnRect.width, 200) + 'px';
-        // Open downward if space below, otherwise upward
         const spaceBelow = window.innerHeight - btnRect.bottom;
         const menuH = Math.min(240, window.innerHeight * 0.4);
         if (spaceBelow >= menuH || spaceBelow > btnRect.top) {
@@ -4470,7 +4482,6 @@ function wireSidebarSamplesBtn() {
         }
         menu.style.display = 'block';
 
-        // Populate if not yet done
         if (!menu.querySelector('[data-name]') && !menu.querySelector('.geojson-menu-item')) {
             populateSamplesMenu(menu, url => {
                 menu.style.display = 'none';
@@ -4494,32 +4505,46 @@ document.addEventListener('click', () => {
     if (drop) drop.style.display = 'none';
 });
 
-// Samples button (inside open menu dropdown — delegates to sidebar-samples-btn logic)
+// Samples button inside open menu dropdown
 document.getElementById('bar-samples-btn-inner')?.addEventListener('click', (e) => {
     e.stopPropagation();
     document.getElementById('open-menu-dropdown').style.display = 'none';
-    document.getElementById('sidebar-samples-btn')?.click();
+    // If sidebar samples btn exists, delegate to it (it manages the shared menu)
+    const sidebarBtn = document.getElementById('sidebar-samples-btn');
+    if (sidebarBtn) { sidebarBtn.click(); return; }
+    // Otherwise trigger the bar-samples-btn fallback
+    document.getElementById('bar-samples-btn')?.click();
 });
 
 // Legacy bar-samples-btn alias (may be referenced elsewhere)
 const _barSamplesBtn = document.getElementById('bar-samples-btn');
 if (_barSamplesBtn) _barSamplesBtn.addEventListener('click', e => {
     e.stopPropagation();
-    const menu = document.getElementById('sidebar-samples-menu');
+    // Reuse the shared sidebar-samples-menu (created by wireSidebarSamplesBtn)
+    // If it doesn't exist yet, trigger the sidebar button which creates it
+    const sidebarBtn = document.getElementById('sidebar-samples-btn');
+    if (sidebarBtn) { sidebarBtn.click(); return; }
+
+    // Fallback: create menu directly
+    let menu = document.getElementById('sidebar-samples-menu');
+    if (!menu) {
+        menu = document.createElement('div');
+        menu.id = 'sidebar-samples-menu';
+        menu.className = 'geojson-dropdown-menu';
+        menu.style.cssText = 'display:none;position:fixed;z-index:1200;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);max-height:240px;overflow-y:auto;min-width:200px';
+        document.body.appendChild(menu);
+    }
     const isOpen = menu.style.display === 'block';
     if (isOpen) { menu.style.display = 'none'; return; }
     const btnRect = e.currentTarget.getBoundingClientRect();
-    menu.style.position = 'fixed';
     menu.style.left = btnRect.left + 'px';
     menu.style.width = '220px';
     const spaceBelow = window.innerHeight - btnRect.bottom;
     const menuH = Math.min(240, window.innerHeight * 0.4);
     if (spaceBelow >= menuH || spaceBelow > btnRect.top) {
-        menu.style.top = (btnRect.bottom + 4) + 'px';
-        menu.style.bottom = '';
+        menu.style.top = (btnRect.bottom + 4) + 'px'; menu.style.bottom = '';
     } else {
-        menu.style.bottom = (window.innerHeight - btnRect.top + 4) + 'px';
-        menu.style.top = '';
+        menu.style.bottom = (window.innerHeight - btnRect.top + 4) + 'px'; menu.style.top = '';
     }
     menu.style.display = 'block';
     if (!menu.querySelector('[data-name]') && !menu.querySelector('.geojson-menu-item')) {
@@ -8065,6 +8090,11 @@ function loadFile(file) {
     // Intercept .style.json files — apply style to current data
     if (file.name.endsWith('.style.json')) {
         importStyleJSON(file);
+        return;
+    }
+    // Intercept CSV files (includes selecter CSV exports)
+    if (file.name.toLowerCase().endsWith('.csv')) {
+        _loadCSV(file);
         return;
     }
     const fmtMB = b => b >= 1e6 ? (b/1e6).toFixed(1)+'MB' : b >= 1e3 ? (b/1e3).toFixed(0)+'KB' : b+'B';
@@ -16459,6 +16489,16 @@ let _elevationCursorActive = false;
 let _elevUnit = 'm'; // 'm' | 'ft' — display unit for elevation tooltip and stats table
 let _elevProfileOrder = 'lowhigh'; // 'drawn' | 'lowhigh' — chart x-axis order
 let _elevChartPinned = true; // show elevation profile in fixed bottom-right corner
+// ── ELEVATION TILE CACHE ──────────────────────────────────────────────────
+// IMPORTANT: Tile URLs use ?src=selecter to create a separate browser cache
+// namespace from MapLibre's terrain tile fetches. MapLibre loads Terrarium
+// tiles WITHOUT crossOrigin='anonymous' (for performance), which causes the
+// browser to cache the response without CORS headers. If our code requests
+// the same URL WITH crossOrigin='anonymous', Safari serves it from the
+// non-CORS cache entry and getImageData() on the resulting canvas returns
+// wrong pixel values (not zeroed — just garbled) WITHOUT throwing an error.
+// The ?src=selecter suffix forces a separate HTTP cache entry so we always
+// get a properly CORS-headered response. Do not remove this suffix.
 let _elevTileCache = new Map();
 const _ELEV_TILE_CACHE_MAX = 128;
 
@@ -20031,6 +20071,749 @@ function exportStyleJSON(baseName) {
 }
 
 // Import a .style.json file — can be generic (no sourceName) or file-specific
+// ── CSV IMPORT ─────────────────────────────────────────────────────────────
+// Priority order matters — more specific/unambiguous names first
+const _LAT_COLS_PRI  = ['latitude','lat'];  // high confidence
+const _LAT_COLS_SEC  = ['y','ycoord','ycoordinate','coordy','coordinatey','y_coord','y_coordinate','ylat','geo_lat','point_lat','decimallatitude'];
+const _LON_COLS_PRI  = ['longitude','lon','lng'];  // high confidence
+const _LON_COLS_SEC  = ['x','xcoord','xcoordinate','coordx','coordinatex','x_coord','x_coordinate','xlong','geo_lon','geo_lng','point_lon','point_lng','long','longitud','decimallongitude'];
+const _LAT2_COLS = ['lat2','latitude2','end_lat','dest_lat','to_lat','y2','end_y','tolat','destlat'];
+const _LON2_COLS = ['lon2','lng2','long2','longitude2','end_lon','end_lng','dest_lon','to_lon','x2','end_x','tolon','destlon'];
+
+// Patterns for single-column geometry
+const _WKT_POINT_RE     = /^POINT\s*\(\s*(-?\d+\.?\d*)\s+(-?\d+\.?\d*)\s*\)/i;
+const _WKT_ANY_RE       = /^(POINT|LINESTRING|MULTILINESTRING|POLYGON|MULTIPOLYGON|MULTIPOINT|GEOMETRYCOLLECTION)\s*[ZM]*\s*\(/i;
+// Coord pair: two decimal numbers separated by comma/semicolon/space
+// Requires at least one to have a decimal point OR be in plausible lat/lon range
+// to avoid matching thousands-separated integers like "1,291" or "3,495"
+const _COORD_PAIR_RE    = /^(-?\d+\.\d+)\s*[,;\s]\s*(-?\d+\.?\d*)$|^(-?\d+\.?\d*)\s*[,;\s]\s*(-?\d+\.\d+)$/;
+
+// Column names that typically contain WKT geometry
+const _WKT_COL_NAMES = ['shape','geometry','geom','wkt','geo','location','the_geom','geom_wkt','shape_wkt'];
+
+// Start/end column prefixes for line detection
+const _START_PREFIXES = ['start','from','origin','depart','begin','source','o_','s_'];
+const _END_PREFIXES   = ['end','to','dest','destination','arrive','target','d_','e_'];
+const _LAT_SUFFIXES   = ['lat','latitude','y','ycoord'];
+const _LON_SUFFIXES   = ['lon','lng','long','longitude','x','xcoord'];
+
+// Parse full WKT into a GeoJSON geometry object, or null if not WKT
+function _parseWKT(val) {
+    if (!val || !_WKT_ANY_RE.test(val.trim())) return null;
+    const v = val.trim();
+
+    // Parse coordinate pair string like "lon lat, lon lat, ..."
+    function parseCoordList(s) {
+        return s.trim().split(',').map(pair => {
+            const parts = pair.trim().split(/\s+/).map(Number);
+            return [parts[0], parts[1]]; // WKT is lon lat
+        });
+    }
+
+    // Parse a ring list like "(c1,c2),(c3,c4)"
+    function parseRings(s) {
+        const rings = [];
+        let depth = 0, start = 0;
+        for (let i = 0; i < s.length; i++) {
+            if (s[i] === '(') { if (depth === 0) start = i+1; depth++; }
+            else if (s[i] === ')') { depth--; if (depth === 0) rings.push(parseCoordList(s.slice(start, i))); }
+        }
+        return rings;
+    }
+
+    // Extract inner content of outermost parens
+    const inner = v.slice(v.indexOf('(') + 1, v.lastIndexOf(')'));
+    const type = v.match(_WKT_ANY_RE)?.[1]?.toUpperCase();
+
+    try {
+        if (type === 'POINT') {
+            const parts = inner.trim().split(/\s+/).map(Number);
+            const coords = [parts[0], parts[1]];
+            return { type: 'Point', coordinates: coords };
+        }
+        if (type === 'LINESTRING') {
+            return { type: 'LineString', coordinates: parseCoordList(inner) };
+        }
+        if (type === 'MULTILINESTRING') {
+            return { type: 'MultiLineString', coordinates: parseRings(inner) };
+        }
+        if (type === 'POLYGON') {
+            return { type: 'Polygon', coordinates: parseRings(inner) };
+        }
+        if (type === 'MULTIPOLYGON') {
+            // Parse nested rings: ((...),(...)),((...))
+            const polys = [];
+            let depth = 0, start = 0;
+            for (let i = 0; i < inner.length; i++) {
+                if (inner[i] === '(') { if (depth === 0) start = i+1; depth++; }
+                else if (inner[i] === ')') { depth--; if (depth === 0) polys.push(parseRings(inner.slice(start, i))); }
+            }
+            return { type: 'MultiPolygon', coordinates: polys };
+        }
+        if (type === 'MULTIPOINT') {
+            return { type: 'MultiPoint', coordinates: parseCoordList(inner.replace(/[()]/g, ' ')) };
+        }
+    } catch { return null; }
+    return null;
+}
+
+// Parse a coordinate pair string → GeoJSON Point geometry or null
+function _parseCoordPair(val) {
+    const pair = _COORD_PAIR_RE.exec(val?.trim() ?? '');
+    if (!pair) return null;
+    const a = parseFloat(pair[1]), b = parseFloat(pair[2]);
+    const r = _deduceLonLat(a, b);
+    return r ? { type: 'Point', coordinates: [r.lon, r.lat] } : null;
+}
+
+// Parse any single-column geometry value → GeoJSON geometry or null
+function _parseGeomValue(val) {
+    if (!val) return null;
+    const wkt = _parseWKT(val.trim());
+    if (wkt) return wkt;
+    return _parseCoordPair(val);
+}
+
+function _parseCSVText(text) {
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return null;
+    const sample = lines[0];
+    const delim = [',', '\t', ';', '|'].reduce((best, d) =>
+        (sample.split(d).length > sample.split(best).length ? d : best), ',');
+    function parseLine(line) {
+        const fields = []; let cur = ''; let inQ = false;
+        for (let i = 0; i < line.length; i++) {
+            const c = line[i];
+            if (c === '"' && inQ && line[i+1] === '"') { cur += '"'; i++; }
+            else if (c === '"') { inQ = !inQ; }
+            else if (c === delim && !inQ) { fields.push(cur); cur = ''; }
+            else { cur += c; }
+        }
+        fields.push(cur);
+        return fields;
+    }
+    const headers = parseLine(lines[0]).map(h => h.trim());
+    const rows = lines.slice(1).filter(l => l.trim()).map(l => {
+        const vals = parseLine(l);
+        const obj = {};
+        headers.forEach((h, i) => { obj[h] = vals[i]?.trim() ?? ''; });
+        return obj;
+    });
+    return { headers, rows, delim };
+}
+
+function _detectLatLon(headers, rows) {
+    const low = headers.map(h => h.toLowerCase().replace(/[^a-z0-9]/g,''));
+
+    function findCol(priList, secList) {
+        let idx = low.findIndex(h => priList.includes(h));
+        if (idx >= 0) return { col: headers[idx], confidence: 'high' };
+        idx = low.findIndex(h => secList.includes(h));
+        if (idx >= 0) return { col: headers[idx], confidence: 'medium' };
+        return null;
+    }
+
+    const latR = findCol(_LAT_COLS_PRI, _LAT_COLS_SEC);
+    const lonR = findCol(_LON_COLS_PRI, _LON_COLS_SEC);
+
+    // ── Single geometry column detection ────────────────────────────────────
+    // First: check column names known to hold WKT geometry (e.g. "shape", "geometry", "geom")
+    let geomCol = null, geomType = null;
+    for (const h of headers) {
+        if (_WKT_COL_NAMES.includes(h.toLowerCase().replace(/[^a-z0-9_]/g, ''))) {
+            const samples = rows.slice(0, 5).map(r => r[h]).filter(v => v && v.trim());
+            if (samples.some(v => _WKT_ANY_RE.test(v.trim()))) {
+                const types = samples.map(v => v.trim().match(_WKT_ANY_RE)?.[1]?.toUpperCase()).filter(Boolean);
+                geomType = types[0] || 'GEOMETRY';
+                geomCol = h; break;
+            }
+        }
+    }
+    // Second: scan all column values for WKT or coord pairs
+    if (!geomCol) {
+        for (const h of headers) {
+            const samples = rows.slice(0, 5).map(r => r[h]).filter(v => v && v.trim());
+            if (!samples.length) continue;
+            if (samples.some(v => _WKT_ANY_RE.test(v.trim()))) {
+                const types = samples.map(v => v.trim().match(_WKT_ANY_RE)?.[1]?.toUpperCase()).filter(Boolean);
+                geomType = types[0] || 'GEOMETRY';
+                geomCol = h; break;
+            }
+            // Coord pair: require at least one decimal point to avoid matching
+            // thousands-separated integers like "1,291" as coordinate pairs
+            if (samples.every(v => _COORD_PAIR_RE.test(v.trim()))) {
+                geomType = 'POINT_PAIR'; geomCol = h; break;
+            }
+        }
+    }
+
+    // ── Two WKT POINT columns → LineString ───────────────────────────────────
+    let pointCol1 = null, pointCol2 = null;
+    const pointCols = headers.filter(h => {
+        const samples = rows.slice(0, 5).map(r => r[h]).filter(v => v);
+        return samples.length >= 2 && samples.every(v => _WKT_POINT_RE.test(v.trim()));
+    });
+    if (pointCols.length >= 2) { pointCol1 = pointCols[0]; pointCol2 = pointCols[1]; }
+
+    // ── Start/end lat/lon prefix detection ───────────────────────────────────
+    let startLat = null, startLon = null, endLat = null, endLon = null;
+    for (const h of headers) {
+        const hl = h.toLowerCase().replace(/[^a-z0-9]/g,'');
+        for (const pfx of _START_PREFIXES) {
+            const rest = hl.startsWith(pfx) ? hl.slice(pfx.length) : null;
+            if (!rest) continue;
+            if (_LAT_SUFFIXES.includes(rest)) startLat = h;
+            if (_LON_SUFFIXES.includes(rest)) startLon = h;
+        }
+        for (const pfx of _END_PREFIXES) {
+            const rest = hl.startsWith(pfx) ? hl.slice(pfx.length) : null;
+            if (!rest) continue;
+            if (_LAT_SUFFIXES.includes(rest)) endLat = h;
+            if (_LON_SUFFIXES.includes(rest)) endLon = h;
+        }
+    }
+
+    // lat2/lon2 fallback
+    const lat2R = endLat ?? startLat ?? (() => { const idx = low.findIndex(h => _LAT2_COLS.includes(h)); return idx >= 0 ? headers[idx] : null; })();
+    const lon2R = endLon ?? startLon ?? (() => { const idx = low.findIndex(h => _LON2_COLS.includes(h)); return idx >= 0 ? headers[idx] : null; })();
+
+    // If start_ prefixed, use those as the primary lat/lon
+    const effectiveLat = startLat ? { col: startLat, confidence: 'high' } : latR;
+    const effectiveLon = startLon ? { col: startLon, confidence: 'high' } : lonR;
+
+    return {
+        lat: effectiveLat?.col ?? null, latConf: effectiveLat?.confidence,
+        lon: effectiveLon?.col ?? null, lonConf: effectiveLon?.confidence,
+        lat2: lat2R, lon2: lon2R,
+        geomCol, geomType,
+        pointCol1, pointCol2,
+    };
+}
+
+// Given two numbers, decide which is lat and which is lon by value ranges
+function _deduceLonLat(a, b) {
+    const aLat = Math.abs(a) <= 90, aLon = Math.abs(a) <= 180;
+    const bLat = Math.abs(b) <= 90, bLon = Math.abs(b) <= 180;
+    if (aLat && bLon && !bLat) return { lat: a, lon: b };
+    if (bLat && aLon && !aLat) return { lat: b, lon: a };
+    if (aLat && bLat) {
+        const aSfLon = Math.abs(a) > 90, bSfLon = Math.abs(b) > 90;
+        if (aSfLon && !bSfLon) return { lat: b, lon: a };
+        if (bSfLon && !aSfLon) return { lat: a, lon: b };
+    }
+    if (aLat && bLon) return { lat: a, lon: b };
+    if (bLat && aLon) return { lat: b, lon: a };
+    return null;
+}
+
+// Get sample values for a column (up to n non-empty)
+function _csvSamples(rows, col, n = 3) {
+    if (!col) return [];
+    return rows.map(r => r[col]).filter(v => v && v.trim()).slice(0, n);
+}
+
+async function _loadCSV(file) {
+    showProgress(`Loading ${file.name}`);
+    const text = await file.text();
+    hideProgress();
+
+    // Check if this is a selecter selection export (# _selecter_export=selection header)
+    if (text.startsWith('# _selecter_export=selection')) {
+        const payload = _tryApplySelectionExport(text, file.name);
+        if (payload) { await _applySelectionPayload(payload); return; }
+    }
+
+    const parsed = _parseCSVText(text);
+    if (!parsed) { alert('Could not parse CSV — file appears empty or malformed.'); return; }
+
+    const { headers, rows } = parsed;
+    const detected = _detectLatLon(headers, rows);
+
+    // ── ID-list detection ─────────────────────────────────────────────────
+    // No geometry found — check if this looks like a feature ID list to match against loaded GeoJSON
+    const hasAnyGeom = detected.lat || detected.lon || detected.geomCol;
+    if (!hasAnyGeom) {
+        if (!allFeatures.length) {
+            await new Promise(resolve => {
+                const overlay = document.createElement('div');
+                overlay.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center';
+                overlay.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:400px;width:90%;font-family:var(--sans);box-shadow:0 16px 48px rgba(0,0,0,0.7)">
+                    <div style="font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text)">No geometry — ${file.name}</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">This CSV has no coordinate columns.</div>
+                    <div style="font-size:11px;color:var(--text);margin-bottom:12px">Load a GeoJSON file first, then drag this CSV in to highlight matching features.</div>
+                    <div style="display:flex;justify-content:flex-end"><button id="_csv_ng_ok" style="font-size:11px;padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer">OK</button></div>
+                </div>`;
+                document.body.appendChild(overlay);
+                overlay.querySelector('#_csv_ng_ok').onclick = () => { overlay.remove(); resolve(); };
+            });
+            return;
+        }
+
+        // Normalize value: strip thousands-separator commas from numeric strings
+        // e.g. "3,495,000" -> "3495000" to match integer properties
+        function normVal(v) {
+            if (!v) return '';
+            const stripped = String(v).trim().replace(/,/g, '');
+            return isNaN(stripped) || stripped === '' ? String(v).trim() : stripped;
+        }
+
+        // Build GeoJSON property index: propKey -> Map(normalizedValue -> Set of _gvids)
+        const propIndex = {};
+        const geoJsonProps = Object.keys(allFeatures[0]?.properties || {}).filter(k => !k.startsWith('_'));
+        for (const f of allFeatures) {
+            for (const k of geoJsonProps) {
+                const v = f.properties[k];
+                if (v == null || v === '') continue;
+                const nv = normVal(String(v));
+                if (!propIndex[k]) propIndex[k] = new Map();
+                if (!propIndex[k].has(nv)) propIndex[k].set(nv, new Set());
+                propIndex[k].get(nv).add(f.properties._gvid);
+            }
+        }
+
+        // PRIORITY 1: column-name match — CSV column name matches GeoJSON property name (case-insensitive)
+        const namePriorityMatches = [];
+        for (const csvCol of headers) {
+            const csvLow = csvCol.toLowerCase();
+            for (const propKey of geoJsonProps) {
+                if (propKey.toLowerCase() === csvLow) {
+                    const csvVals = rows.map(r => normVal(r[csvCol])).filter(v => v);
+                    const csvSet = new Set(csvVals);
+                    const hits = [...csvSet].filter(v => propIndex[propKey]?.has(v));
+                    if (hits.length > 0) {
+                        const matchedGvids = new Set();
+                        for (const v of hits) propIndex[propKey].get(v)?.forEach(id => matchedGvids.add(id));
+                        namePriorityMatches.push({ csvCol, propKey, hits, csvMatchCount: hits.length,
+                            featureMatchCount: matchedGvids.size, matchedGvids,
+                            isOneToOne: hits.length === matchedGvids.size, byName: true });
+                    }
+                }
+            }
+        }
+
+        // PRIORITY 2: value-intersection match — only if no name match found
+        const valueMatches = [];
+        if (namePriorityMatches.length === 0) {
+            for (const csvCol of headers) {
+                const csvVals = rows.map(r => normVal(r[csvCol])).filter(v => v);
+                if (!csvVals.length) continue;
+                const csvSet = new Set(csvVals);
+                for (const [propKey, valMap] of Object.entries(propIndex)) {
+                    const hits = [...csvSet].filter(v => valMap.has(v));
+                    if (hits.length >= Math.min(3, csvVals.length * 0.5)) {
+                        const matchedGvids = new Set();
+                        for (const v of hits) valMap.get(v)?.forEach(id => matchedGvids.add(id));
+                        valueMatches.push({ csvCol, propKey, hits, csvMatchCount: hits.length,
+                            featureMatchCount: matchedGvids.size, matchedGvids,
+                            isOneToOne: hits.length === matchedGvids.size, byName: false });
+                    }
+                }
+            }
+            valueMatches.sort((a, b) => b.hits.length - a.hits.length);
+        }
+
+        const allMatches = namePriorityMatches.length > 0 ? namePriorityMatches : valueMatches;
+
+        if (!allMatches.length) {
+            await new Promise(resolve => {
+                const overlay = document.createElement('div');
+                overlay.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center';
+                overlay.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:420px;width:90%;font-family:var(--sans);box-shadow:0 16px 48px rgba(0,0,0,0.7)">
+                    <div style="font-size:13px;font-weight:600;margin-bottom:4px;color:var(--text)">No matches found</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">${file.name} · ${rows.length.toLocaleString()} rows</div>
+                    <div style="font-size:11px;color:var(--text);line-height:1.6;margin-bottom:8px">No CSV column values matched the properties in the loaded GeoJSON.</div>
+                    <div style="font-size:10px;color:var(--text-muted)">Load the matching GeoJSON first, then drag this CSV in.<br>Or add latitude/longitude columns to import as points.</div>
+                    <div style="display:flex;justify-content:flex-end;margin-top:14px"><button id="_csv_nm_ok" style="font-size:11px;padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer">OK</button></div>
+                </div>`;
+                document.body.appendChild(overlay);
+                overlay.querySelector('#_csv_nm_ok').onclick = () => { overlay.remove(); resolve(); };
+            });
+            return;
+        }
+
+        // Preferred join field names — sorted first within name matches
+        const _PREFERRED_JOIN_FIELDS = ['cnn','objectid','geoid','fips','zip','zipcode',
+            'tractce','tract','block','supdist','nhood','neighborhood'];
+
+        // Add match score (% of CSV unique values found in GeoJSON)
+        for (const m of allMatches) {
+            const csvUnique = new Set(rows.map(r => normVal(r[m.csvCol])).filter(v => v)).size;
+            m.score = csvUnique > 0 ? Math.round(m.csvMatchCount / csvUnique * 100) : 0;
+        }
+        allMatches.sort((a, b) => {
+            const aLow = a.csvCol.toLowerCase(), bLow = b.csvCol.toLowerCase();
+            const aPref = _PREFERRED_JOIN_FIELDS.indexOf(aLow), bPref = _PREFERRED_JOIN_FIELDS.indexOf(bLow);
+            if (aPref >= 0 || bPref >= 0) {
+                if (aPref < 0) return 1; if (bPref < 0) return -1; return aPref - bPref;
+            }
+            return b.score - a.score;
+        });
+
+        // Compute value-intersection matches for display even when name matches exist
+        let valueMatchesForDisplay = namePriorityMatches.length > 0 ? [] : [...valueMatches];
+        if (namePriorityMatches.length > 0) {
+            for (const csvCol of headers) {
+                const csvVals = rows.map(r => normVal(r[csvCol])).filter(v => v);
+                if (!csvVals.length) continue;
+                const csvSet = new Set(csvVals);
+                for (const [propKey, valMap] of Object.entries(propIndex)) {
+                    if (namePriorityMatches.some(m => m.csvCol === csvCol && m.propKey === propKey)) continue;
+                    const hits = [...csvSet].filter(v => valMap.has(v));
+                    if (hits.length >= Math.min(3, csvVals.length * 0.3)) {
+                        const matchedGvids = new Set();
+                        for (const v of hits) valMap.get(v)?.forEach(id => matchedGvids.add(id));
+                        const score = Math.round(hits.length / csvSet.size * 100);
+                        valueMatchesForDisplay.push({ csvCol, propKey, hits, csvMatchCount: hits.length,
+                            featureMatchCount: matchedGvids.size, byName: false, score });
+                    }
+                }
+            }
+            valueMatchesForDisplay.sort((a, b) => b.score - a.score);
+        }
+
+        const best = allMatches[0];
+        const csvColOpts = headers.map(h => `<option value="${h}"${h === best.csvCol ? ' selected' : ''}>${h}</option>`).join('');
+        const propOpts   = geoJsonProps.map(k => `<option value="${k}"${k === best.propKey ? ' selected' : ''}>${k}</option>`).join('');
+
+        function scoreBar(score, color) {
+            return `<span style="display:inline-block;width:${Math.max(4,score)}px;height:6px;border-radius:3px;background:${color};vertical-align:middle;margin-right:4px"></span>${score}%`;
+        }
+
+        const nameMatchRows = allMatches.filter(m => m.byName).map((m, i) => {
+            const pref = _PREFERRED_JOIN_FIELDS.includes(m.csvCol.toLowerCase());
+            return `<div class="_jf_row" data-csv="${m.csvCol}" data-prop="${m.propKey}"
+                style="display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;cursor:pointer;border:1px solid ${i===0?'var(--accent)':'transparent'};background:${i===0?'rgba(45,212,191,0.06)':'transparent'}">
+                <span style="font-size:10px;color:#4ade80;flex-shrink:0">\u2713</span>
+                <span style="font-size:11px;color:var(--text);flex:1;font-weight:${pref?'600':'400'}">${m.csvCol}</span>
+                <span style="font-size:10px;color:var(--text-muted)">\u2192</span>
+                <span style="font-size:11px;color:var(--text);flex:1">${m.propKey}</span>
+                <span style="font-size:10px;white-space:nowrap;color:var(--text-muted)">${scoreBar(m.score,'#4ade80')}</span>
+            </div>`;
+        }).join('');
+
+        const topValueMatches = valueMatchesForDisplay.slice(0, 5);
+        const valueMatchRows = topValueMatches.map(m =>
+            `<div class="_jf_row" data-csv="${m.csvCol}" data-prop="${m.propKey}"
+                style="display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;cursor:pointer;border:1px solid transparent">
+                <span style="font-size:10px;color:#facc15;flex-shrink:0">~</span>
+                <span style="font-size:11px;color:var(--text);flex:1">${m.csvCol}</span>
+                <span style="font-size:10px;color:var(--text-muted)">\u2192</span>
+                <span style="font-size:11px;color:var(--text);flex:1">${m.propKey}</span>
+                <span style="font-size:10px;white-space:nowrap;color:var(--text-muted)">${scoreBar(m.score,'#facc15')}</span>
+            </div>`
+        ).join('');
+
+        const choice = await new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center';
+            overlay.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:500px;width:90%;font-family:var(--sans);box-shadow:0 16px 48px rgba(0,0,0,0.7);max-height:90vh;overflow-y:auto">
+                <div style="font-size:13px;font-weight:600;margin-bottom:2px;color:var(--text)">Join: ${file.name}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px">${rows.length.toLocaleString()} rows \u00b7 ${headers.length} columns \u2014 click a row to select it as the join field</div>
+                ${nameMatchRows ? `<div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">\u2713 Column-name matches</div>
+                <div id="_jf_name_list" style="display:flex;flex-direction:column;gap:2px;margin-bottom:12px">${nameMatchRows}</div>` : ''}
+                ${valueMatchRows ? `<div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">~ Value matches (different column names)</div>
+                <div id="_jf_val_list" style="display:flex;flex-direction:column;gap:2px;margin-bottom:12px">${valueMatchRows}</div>` : ''}
+                <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;margin-top:4px;border-top:1px solid var(--border);padding-top:10px">Join fields</div>
+                <div style="display:grid;grid-template-columns:1fr 16px 1fr;gap:6px;align-items:center;margin-bottom:8px">
+                    <div>
+                        <label style="font-size:9px;color:var(--text-muted);display:block;margin-bottom:2px">CSV column</label>
+                        <select id="_jf_csv" style="width:100%;font-size:11px;padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text)">${csvColOpts}</select>
+                    </div>
+                    <div style="text-align:center;color:var(--text-muted);padding-top:14px">\u2192</div>
+                    <div>
+                        <label style="font-size:9px;color:var(--text-muted);display:block;margin-bottom:2px">GeoJSON property</label>
+                        <select id="_jf_prop" style="width:100%;font-size:11px;padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text)">${propOpts}</select>
+                    </div>
+                </div>
+                <div id="_jf_count" style="font-size:10px;color:var(--text-muted);margin-bottom:14px"></div>
+                <div style="display:flex;gap:8px;justify-content:flex-end">
+                    <button id="_jf_cancel" style="font-size:11px;padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer">Cancel</button>
+                    <button id="_jf_go" style="font-size:11px;padding:6px 14px;border-radius:6px;border:none;background:var(--accent);color:#000;cursor:pointer;font-weight:600">Highlight matching features</button>
+                </div>
+            </div>`;
+            document.body.appendChild(overlay);
+            const csvSel = overlay.querySelector('#_jf_csv');
+            const propSel = overlay.querySelector('#_jf_prop');
+            const countEl = overlay.querySelector('#_jf_count');
+            function recount() {
+                const cCol = csvSel.value, pKey = propSel.value;
+                if (!cCol || !pKey) return;
+                const cVals = new Set(rows.map(r => normVal(r[cCol])).filter(v => v));
+                const hits = [...cVals].filter(v => propIndex[pKey]?.has(v));
+                const gvids = new Set();
+                for (const v of hits) propIndex[pKey]?.get(v)?.forEach(id => gvids.add(id));
+                const pct = cVals.size > 0 ? Math.round(hits.length / cVals.size * 100) : 0;
+                countEl.textContent = `${hits.length} of ${cVals.size} CSV values match (${pct}%) \u00b7 ${gvids.size} features will be highlighted`;
+            }
+            function selectRow(csvCol, propKey) {
+                overlay.querySelectorAll('._jf_row').forEach(r => {
+                    const active = r.dataset.csv === csvCol && r.dataset.prop === propKey;
+                    r.style.border = active ? '1px solid var(--accent)' : '1px solid transparent';
+                    r.style.background = active ? 'rgba(45,212,191,0.06)' : 'transparent';
+                });
+                csvSel.value = csvCol; propSel.value = propKey; recount();
+            }
+            overlay.querySelectorAll('._jf_row').forEach(r => {
+                r.addEventListener('click', () => selectRow(r.dataset.csv, r.dataset.prop));
+            });
+            csvSel.onchange = recount; propSel.onchange = recount;
+            recount();
+            overlay.querySelector('#_jf_cancel').onclick = () => { overlay.remove(); resolve(null); };
+            overlay.querySelector('#_jf_go').onclick = () => {
+                overlay.remove(); resolve({ csvCol: csvSel.value, propKey: propSel.value });
+            };
+        });
+        if (!choice) return;
+
+        // Apply highlight using confirmed join fields
+        const { csvCol, propKey } = choice;
+        const csvVals = new Set(rows.map(r => normVal(r[csvCol])).filter(v => v));
+        selectedIds.forEach(id => { try { map.setFeatureState({ source: 'geojson-data', id }, { selected: false }); } catch {} });
+        selectedIds.clear();
+        highlightedIds.forEach(id => { try { map.setFeatureState({ source: 'geojson-data', id }, { highlighted: false }); } catch {} });
+        highlightedIds.clear();
+        let matchCount = 0;
+        for (const f of allFeatures) {
+            const fVal = normVal(String(f.properties[propKey] ?? ''));
+            if (!csvVals.has(fVal)) continue;
+            const id = f.id ?? f.properties._gvid;
+            if (id == null) continue;
+            selectedIds.add(id);
+            try { map.setFeatureState({ source: 'geojson-data', id }, { selected: true }); } catch {}
+            matchCount++;
+        }
+        const matched = allFeatures.filter(f => selectedIds.has(f.id ?? f.properties._gvid));
+        const lngs = [], lats = [];
+        for (const f of matched) {
+            const c = f.geometry?.coordinates; if (!c) continue;
+            const flat = [c].flat(Infinity);
+            for (let i = 0; i < flat.length; i += 2) { lngs.push(flat[i]); lats.push(flat[i+1]); }
+        }
+        if (lngs.length) map.fitBounds(
+            [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+            { padding: 80, maxZoom: 17 });
+        buildPropData(); updateSelectionBar(); renderSidebar();
+        showToast(`✓ Highlighted ${matchCount} features via ${csvCol} → ${propKey}`, 4000);
+        return;
+    }
+    // ── end ID-list detection ─────────────────────────────────────────────
+
+    const nullOpt = '<option value="">— none —</option>';
+    const colOpts = sel => headers.map(h =>
+        `<option value="${h}"${h === sel ? ' selected' : ''}>${h}</option>`).join('');
+
+    const hasTwoPoints = !!(detected.pointCol1 && detected.pointCol2);
+    const hasLine  = !!(detected.lat2 && detected.lon2) || hasTwoPoints;
+    const hasGeom  = !!detected.geomCol;
+    const hasCoords = detected.lat && detected.lon;
+    const needsManual = !hasCoords && !hasGeom;
+    const geomLabel = detected.geomType === 'POINT_PAIR' ? 'Coordinate pair' : detected.geomType || 'Geometry';
+
+    // Sample values helper (live, updates when select changes)
+    const sampleHTML = (samples) => samples.length
+        ? `<div style="font-size:9px;color:var(--text-muted);margin-top:3px;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${samples.map(v => `<span style="background:rgba(255,255,255,0.05);border-radius:3px;padding:1px 4px">${v}</span>`).join(' ')}</div>`
+        : '';
+
+    const geomType = await new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center';
+
+        overlay.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:460px;width:90%;font-family:var(--sans);box-shadow:0 16px 48px rgba(0,0,0,0.7);max-height:90vh;overflow-y:auto">
+            <div style="font-size:13px;font-weight:600;margin-bottom:2px;color:var(--text)">Import CSV: ${file.name}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px">${rows.length.toLocaleString()} rows · ${headers.length} columns</div>
+
+            ${needsManual ? `<div style="font-size:10px;color:#f97316;margin-bottom:10px;padding:6px 8px;background:rgba(249,115,22,0.08);border-radius:6px;border:1px solid rgba(249,115,22,0.2)">⚠ Could not auto-detect coordinate columns — please choose below</div>` : ''}
+
+            ${hasGeom ? `
+            <div style="margin-bottom:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2)">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                    <input type="radio" name="_csv_mode" id="_csv_mode_geom" value="geom" ${hasGeom && !hasCoords ? 'checked' : ''}>
+                    <div style="font-size:11px;font-weight:600;color:var(--text)">📍 ${geomLabel} column</div>
+                </div>
+                <select id="_csv_geom" style="width:100%;font-size:11px;padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text)">
+                    ${nullOpt}${colOpts(detected.geomCol)}
+                </select>
+                <div id="_csv_geom_samples">${sampleHTML(_csvSamples(rows, detected.geomCol))}</div>
+            </div>` : ''}
+
+            ${hasTwoPoints && !hasGeom ? `
+            <div style="margin-bottom:6px;padding:6px 10px;border-radius:6px;border:1px solid rgba(45,212,191,0.3);background:rgba(45,212,191,0.05);font-size:10px;color:var(--text-muted)">
+                📏 Two POINT columns detected (<b>${detected.pointCol1}</b>, <b>${detected.pointCol2}</b>) — enabling LineString mode below
+            </div>` : ''}
+
+            <div style="padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2)">
+                ${hasGeom ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                    <input type="radio" name="_csv_mode" id="_csv_mode_latlon" value="latlon" ${hasCoords ? 'checked' : ''}>
+                    <div style="font-size:11px;font-weight:600;color:var(--text)">Separate lat/lon columns</div>
+                </div>` : ''}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:3px">Latitude${detected.lat ? (detected.latConf === 'high' ? ' ✓' : ' ~') : ''}</label>
+                        <select id="_csv_lat" style="width:100%;font-size:11px;padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text)">
+                            ${nullOpt}${colOpts(detected.lat)}
+                        </select>
+                        <div id="_csv_lat_samples">${sampleHTML(_csvSamples(rows, detected.lat))}</div>
+                    </div>
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:3px">Longitude${detected.lon ? (detected.lonConf === 'high' ? ' ✓' : ' ~') : ''}</label>
+                        <select id="_csv_lon" style="width:100%;font-size:11px;padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text)">
+                            ${nullOpt}${colOpts(detected.lon)}
+                        </select>
+                        <div id="_csv_lon_samples">${sampleHTML(_csvSamples(rows, detected.lon))}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top:10px">
+                <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:3px">
+                    <input type="checkbox" id="_csv_show_line" ${hasLine ? 'checked' : ''} style="cursor:pointer">
+                    Has end-point columns (create LineStrings instead of Points)
+                </label>
+            </div>
+            <div id="_csv_line_wrap" style="margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);display:${hasLine ? '' : 'none'}">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:3px">End latitude</label>
+                        <select id="_csv_lat2" style="width:100%;font-size:11px;padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text)">
+                            ${nullOpt}${colOpts(detected.lat2)}
+                        </select>
+                        <div id="_csv_lat2_samples">${sampleHTML(_csvSamples(rows, detected.lat2))}</div>
+                    </div>
+                    <div>
+                        <label style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:3px">End longitude</label>
+                        <select id="_csv_lon2" style="width:100%;font-size:11px;padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text)">
+                            ${nullOpt}${colOpts(detected.lon2)}
+                        </select>
+                        <div id="_csv_lon2_samples">${sampleHTML(_csvSamples(rows, detected.lon2))}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+                <button id="_csv_cancel" style="font-size:11px;padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer">Cancel</button>
+                <button id="_csv_import" style="font-size:11px;padding:6px 14px;border-radius:6px;border:none;background:var(--accent);color:#000;cursor:pointer;font-weight:600">Import as GeoJSON</button>
+            </div>
+        </div>`;
+
+        document.body.appendChild(overlay);
+
+        // Update sample display when a select changes
+        function updateSamples(selId, samplesId) {
+            const sel = overlay.querySelector(selId);
+            const sampDiv = overlay.querySelector(samplesId);
+            if (!sel || !sampDiv) return;
+            sel.addEventListener('change', () => {
+                sampDiv.innerHTML = sampleHTML(_csvSamples(rows, sel.value));
+            });
+        }
+        updateSamples('#_csv_lat',  '#_csv_lat_samples');
+        updateSamples('#_csv_lon',  '#_csv_lon_samples');
+        updateSamples('#_csv_lat2', '#_csv_lat2_samples');
+        updateSamples('#_csv_lon2', '#_csv_lon2_samples');
+        if (detected.geomCol) updateSamples('#_csv_geom', '#_csv_geom_samples');
+
+        overlay.querySelector('#_csv_show_line')?.addEventListener('change', function() {
+            overlay.querySelector('#_csv_line_wrap').style.display = this.checked ? '' : 'none';
+        });
+
+        overlay.querySelector('#_csv_cancel').onclick  = () => { overlay.remove(); resolve(null); };
+        overlay.querySelector('#_csv_import').onclick  = () => {
+            const mode    = overlay.querySelector('input[name="_csv_mode"]:checked')?.value ?? 'latlon';
+            const geomC   = overlay.querySelector('#_csv_geom')?.value;
+            const lat     = overlay.querySelector('#_csv_lat').value;
+            const lon     = overlay.querySelector('#_csv_lon').value;
+            const lat2    = overlay.querySelector('#_csv_lat2')?.value;
+            const lon2    = overlay.querySelector('#_csv_lon2')?.value;
+            const wantLine= overlay.querySelector('#_csv_show_line').checked;
+            if (mode === 'geom' && !geomC) { alert('Please select a geometry column.'); return; }
+            if (mode !== 'geom' && (!lat || !lon)) { alert('Please select latitude and longitude columns.'); return; }
+            overlay.remove();
+            resolve({ mode, geomCol: geomC, lat, lon,
+                lat2: wantLine ? lat2 : null, lon2: wantLine ? lon2 : null });
+        };
+    });
+
+    if (!geomType) return;
+    const { mode, geomCol: geomC, lat: latCol, lon: lonCol, lat2: lat2Col, lon2: lon2Col } = geomType;
+    // Also pick up two-POINT-column detection result from the dialog's detected object
+    const useLine = !!(lat2Col && lon2Col);
+    const coordCols = new Set([latCol, lonCol, lat2Col, lon2Col, geomC].filter(Boolean));
+
+    const features = []; let skipped = 0; let nullIsland = 0; let flagged = 0;
+
+    for (const row of rows) {
+        let geometry = null, geomWarning = null;
+
+        if (mode === 'geom') {
+            // Single geometry column — full WKT or coord pair
+            geometry = _parseGeomValue(row[geomC] ?? '');
+            if (!geometry) { skipped++; continue; }
+
+            // WKT POINT: check for null island / out-of-range
+            if (geometry.type === 'Point') {
+                const [glon, glat] = geometry.coordinates;
+                if (glat === 0 && glon === 0) { nullIsland++; geomWarning = 'null_island'; }
+                else if (Math.abs(glat) > 90)  { flagged++; geomWarning = 'latitude_out_of_range'; }
+                else if (Math.abs(glon) > 180) { flagged++; geomWarning = 'longitude_out_of_range'; }
+            }
+        } else {
+            // Separate lat/lon columns
+            const lat = parseFloat(row[latCol]);
+            const lon = parseFloat(row[lonCol]);
+            if (isNaN(lat) || isNaN(lon)) { skipped++; continue; }
+
+            if (lat === 0 && lon === 0) { nullIsland++; geomWarning = 'null_island'; }
+            else if (Math.abs(lat) > 90)  { flagged++; geomWarning = 'latitude_out_of_range'; }
+            else if (Math.abs(lon) > 180) { flagged++; geomWarning = 'longitude_out_of_range'; }
+
+            if (useLine) {
+                const lat2 = parseFloat(row[lat2Col]);
+                const lon2 = parseFloat(row[lon2Col]);
+                if (!isNaN(lat2) && !isNaN(lon2)) {
+                    geometry = { type: 'LineString', coordinates: [[lon, lat], [lon2, lat2]] };
+                } else {
+                    geometry = { type: 'Point', coordinates: [lon, lat] };
+                }
+            } else {
+                geometry = { type: 'Point', coordinates: [lon, lat] };
+            }
+        }
+
+        if (!geometry) { skipped++; continue; }
+
+        // Build properties — exclude coord columns, coerce numbers
+        const props = {};
+        for (const [k, v] of Object.entries(row)) {
+            if (coordCols.has(k)) continue;
+            props[k] = v === '' ? null : (!isNaN(Number(v)) && v.trim() !== '') ? Number(v) : v;
+        }
+        if (geomWarning === 'null_island') props.null_island = true;
+        else if (geomWarning)             props.coord_warning = geomWarning;
+
+        features.push({ type: 'Feature', geometry, properties: props });
+    }
+
+    if (!features.length) {
+        alert(`No valid features found (${skipped} rows skipped — invalid or missing coordinates).`);
+        return;
+    }
+
+    const toasts = [];
+    if (skipped)    toasts.push(`${skipped} rows skipped (bad coords)`);
+    if (nullIsland) toasts.push(`${nullIsland} null island (0,0) rows — check for missing data`);
+    if (flagged)    toasts.push(`${flagged} rows with out-of-range coordinates`);
+    if (toasts.length) showToast(`⚠ ${toasts.join(' · ')}`, 6000);
+
+    const geojson = { type: 'FeatureCollection', features };
+    const sourceName = file.name.replace(/\.csv$/i, '');
+    currentSourceName = sourceName;
+    currentDataUrl = null; currentSourceUrl = '';
+    closeWelcome(); clearHashExceptMap();
+    await ingestGeoJSON(geojson, sourceName);
+    showToast(`✓ Imported ${features.length.toLocaleString()} features from ${file.name}`);
+}
+// ── END CSV IMPORT ──────────────────────────────────────────────────────────
+
 async function importStyleJSON(file) {
     try {
         const text = await file.text();
