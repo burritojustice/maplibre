@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: v840 -->
+<!-- build: v841 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -2582,7 +2582,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </script>
 
 <script type="text/javascript">
-const _BUILD_VERSION = 'v840';
+const _BUILD_VERSION = 'v841';
 
 // Global unhandled-rejection logger. Without this, an async function called
 // without await/catch (the exact bug class that caused the progress overlay to
@@ -2611,7 +2611,7 @@ function _decodeProtomapsId(featureId) {
         return { osmId: osmId.toString(), osmType };
     } catch { return null; }
 }
-const _BUILD_TIMESTAMP = '2026-09-09T19:40:07Z';
+const _BUILD_TIMESTAMP = '2026-09-09T19:52:44Z';
 const _loadedAt = Date.now(); // session start — use to confirm tab didn't silently reload
 
 // Detect silent reloads: write a heartbeat to sessionStorage on load,
@@ -4505,27 +4505,12 @@ document.addEventListener('click', () => {
     if (drop) drop.style.display = 'none';
 });
 
-// Samples button inside open menu dropdown
+// Samples button inside open menu dropdown — directly manages the shared floating menu
 document.getElementById('bar-samples-btn-inner')?.addEventListener('click', (e) => {
     e.stopPropagation();
     document.getElementById('open-menu-dropdown').style.display = 'none';
-    // If sidebar samples btn exists, delegate to it (it manages the shared menu)
-    const sidebarBtn = document.getElementById('sidebar-samples-btn');
-    if (sidebarBtn) { sidebarBtn.click(); return; }
-    // Otherwise trigger the bar-samples-btn fallback
-    document.getElementById('bar-samples-btn')?.click();
-});
 
-// Legacy bar-samples-btn alias (may be referenced elsewhere)
-const _barSamplesBtn = document.getElementById('bar-samples-btn');
-if (_barSamplesBtn) _barSamplesBtn.addEventListener('click', e => {
-    e.stopPropagation();
-    // Reuse the shared sidebar-samples-menu (created by wireSidebarSamplesBtn)
-    // If it doesn't exist yet, trigger the sidebar button which creates it
-    const sidebarBtn = document.getElementById('sidebar-samples-btn');
-    if (sidebarBtn) { sidebarBtn.click(); return; }
-
-    // Fallback: create menu directly
+    // Get or create the shared floating samples menu
     let menu = document.getElementById('sidebar-samples-menu');
     if (!menu) {
         menu = document.createElement('div');
@@ -4534,11 +4519,13 @@ if (_barSamplesBtn) _barSamplesBtn.addEventListener('click', e => {
         menu.style.cssText = 'display:none;position:fixed;z-index:1200;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);max-height:240px;overflow-y:auto;min-width:200px';
         document.body.appendChild(menu);
     }
+
     const isOpen = menu.style.display === 'block';
     if (isOpen) { menu.style.display = 'none'; return; }
+
     const btnRect = e.currentTarget.getBoundingClientRect();
     menu.style.left = btnRect.left + 'px';
-    menu.style.width = '220px';
+    menu.style.width = Math.max(btnRect.width, 220) + 'px';
     const spaceBelow = window.innerHeight - btnRect.bottom;
     const menuH = Math.min(240, window.innerHeight * 0.4);
     if (spaceBelow >= menuH || spaceBelow > btnRect.top) {
@@ -4547,6 +4534,7 @@ if (_barSamplesBtn) _barSamplesBtn.addEventListener('click', e => {
         menu.style.bottom = (window.innerHeight - btnRect.top + 4) + 'px'; menu.style.top = '';
     }
     menu.style.display = 'block';
+
     if (!menu.querySelector('[data-name]') && !menu.querySelector('.geojson-menu-item')) {
         populateSamplesMenu(menu, url => {
             menu.style.display = 'none';
@@ -4555,6 +4543,8 @@ if (_barSamplesBtn) _barSamplesBtn.addEventListener('click', e => {
         });
     }
 });
+
+// (bar-samples-btn removed — menu is now handled directly by bar-samples-btn-inner and wireSidebarSamplesBtn)
 
 // Close samples menu when clicking outside either button
 document.addEventListener('click', () => {
