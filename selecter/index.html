@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: v843 -->
+<!-- build: v844 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -2582,7 +2582,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </script>
 
 <script type="text/javascript">
-const _BUILD_VERSION = 'v843';
+const _BUILD_VERSION = 'v844';
 
 // Global unhandled-rejection logger. Without this, an async function called
 // without await/catch (the exact bug class that caused the progress overlay to
@@ -2611,7 +2611,7 @@ function _decodeProtomapsId(featureId) {
         return { osmId: osmId.toString(), osmType };
     } catch { return null; }
 }
-const _BUILD_TIMESTAMP = '2026-09-10T15:28:17Z';
+const _BUILD_TIMESTAMP = '2026-09-10T15:45:14Z';
 const _loadedAt = Date.now(); // session start — use to confirm tab didn't silently reload
 
 // Detect silent reloads: write a heartbeat to sessionStorage on load,
@@ -4439,14 +4439,10 @@ function populateSamplesMenu(menuEl, onSelect) {
             return;
         }
         let html = '';
-        // Root-level files first
-        files.forEach(name => {
-            html += `<div class="geojson-menu-item" data-url="${escHtml(geojsonBasePath + name)}">${escHtml(name)}</div>`;
-        });
-        // Subdirectories as collapsible groups
+        // Subdirectories first, then root-level files
         Object.entries(dirs).forEach(([dir, subFiles]) => {
-            html += `<div class="geojson-menu-dir" data-dir="${escHtml(dir)}" style="border-top:1px solid var(--border)">
-                <div class="geojson-menu-dir-header" style="display:flex;align-items:center;gap:6px;padding:6px 12px;cursor:pointer;font-size:11px;font-weight:500;color:var(--text-muted);user-select:none">
+            html += `<div class="geojson-menu-dir" data-dir="${escHtml(dir)}">
+                <div class="geojson-menu-dir-header" style="display:flex;align-items:center;gap:6px;padding:6px 12px;cursor:pointer;font-size:11px;font-weight:500;color:var(--text-muted);user-select:none;border-bottom:0.5px solid var(--border)">
                     <span class="_dir-arrow" style="font-size:10px;transition:transform 0.15s">▶</span>
                     <span>📁 ${escHtml(dir)}</span>
                     <span style="margin-left:auto;font-size:10px;color:var(--text-muted)">${subFiles.length}</span>
@@ -4457,6 +4453,13 @@ function populateSamplesMenu(menuEl, onSelect) {
                     ).join('')}
                 </div>
             </div>`;
+        });
+        // Root files after directories, with separator if both exist
+        if (Object.keys(dirs).length && files.length) {
+            html += `<div style="border-top:1px solid var(--border);margin:2px 0"></div>`;
+        }
+        files.forEach(name => {
+            html += `<div class="geojson-menu-item" data-url="${escHtml(geojsonBasePath + name)}">${escHtml(name)}</div>`;
         });
         menuEl.innerHTML = html;
 
@@ -4480,6 +4483,7 @@ function populateSamplesMenu(menuEl, onSelect) {
 
 // Shared samples modal — used by all three entry points
 function openSamplesModal() {
+    closeWelcome();  // dismiss intro screen so modal isn't behind it
     let overlay = document.getElementById('samples-modal-overlay');
     if (!overlay) {
         overlay = document.createElement('div');
@@ -4549,10 +4553,10 @@ document.addEventListener('click', () => {
     if (menu) menu.style.display = 'none';
 }, true);
 document.addEventListener('click', e => {
-    if (!geojsonBtn.contains(e.target)) { geojsonMenu.classList.remove('open'); welcomeMenuOpen = false; }
-    const ssBtn = document.getElementById('sidebar-samples-btn');
+    // Close samples modal if clicking outside (handled by overlay itself)
+    // Close sidebar samples menu if open (legacy - may still exist)
     const ssMenu = document.getElementById('sidebar-samples-menu');
-    if (ssMenu && ssBtn && !ssBtn.contains(e.target)) ssMenu.style.display = 'none';
+    if (ssMenu) ssMenu.style.display = 'none';
 });
 
 // Drag-and-drop on the welcome drop zone
