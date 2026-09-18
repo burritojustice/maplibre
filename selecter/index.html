@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: v844 -->
+<!-- build: v911 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1342,6 +1342,35 @@
 </div>
 
 
+<!-- Join Data Panel (right side) -->
+<button id="join-panel-btn" title="Show join data table" style="display:none;position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:200;background:var(--surface);border:1px solid var(--border);border-right:none;border-radius:6px 0 0 6px;padding:8px 4px;cursor:pointer;writing-mode:vertical-rl;color:var(--accent);font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:.06em;box-shadow:-4px 0 12px rgba(0,0,0,0.3)">⤵ Data</button>
+
+<div id="join-right-panel" style="display:none;position:fixed;top:12px;right:12px;width:400px;max-width:calc(100vw - 320px);height:calc(100vh - 24px);z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:-8px 0 32px rgba(0,0,0,0.5);display:none;flex-direction:column;font-family:var(--sans);overflow:hidden;resize:horizontal;direction:rtl">
+    <div style="direction:ltr;display:flex;flex-direction:column;height:100%;overflow:hidden">
+        <!-- Header -->
+        <div id="jrp-header" style="padding:10px 12px 8px;border-bottom:1px solid var(--border);flex-shrink:0">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <div style="overflow:hidden">
+                    <div id="jrp-title" style="font-size:11px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+                    <div id="jrp-subtitle" style="font-size:9px;color:var(--text-muted);margin-top:1px"></div>
+                </div>
+                <button id="jrp-close" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text-muted);padding:0 0 0 8px;flex-shrink:0">✕</button>
+            </div>
+            <!-- Column picker row -->
+            <div style="display:flex;align-items:center;gap:6px">
+                <div id="jrp-col-pills" style="display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;flex:1;scrollbar-width:none"></div>
+                <button id="jrp-col-add" title="Add column" style="flex-shrink:0;background:none;border:1px solid var(--border);border-radius:4px;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 6px;line-height:1">+</button>
+            </div>
+        </div>
+        <!-- Sort bar -->
+        <div id="jrp-sort-bar" style="display:flex;gap:0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none"></div>
+        <!-- Table rows -->
+        <div id="jrp-body" style="flex:1;overflow-y:auto;overflow-x:hidden"></div>
+        <!-- Footer totals -->
+        <div id="jrp-footer" style="border-top:1px solid var(--border);padding:6px 12px;flex-shrink:0;font-size:10px;color:var(--text-muted)"></div>
+    </div>
+</div>
+
 <div id="map"></div>
 
 <div id="drop-overlay">
@@ -1540,6 +1569,7 @@
         <!-- Working Style Panel — below props list, mirrors File #style-panel with w- prefixed IDs -->
     </div>
 
+<div id="join-status-panel" style="display:none;flex-shrink:0;border-top:1px solid var(--border);background:var(--surface2);padding:6px 12px;font-size:10px"></div>
 <div id="settings-panels" style="flex-shrink:0;overflow-y:auto;display:flex;flex-direction:column;max-height:55vh;min-height:0">
 
 <!-- Elevation panel — collapsible, sits below Basemap -->
@@ -1776,8 +1806,11 @@
                     <label class="basemap-check active" id="lbl-bm-places" title="Show/hide city and place name labels">
                         <input type="checkbox" id="chk-bm-places" checked> Places
                     </label>
-                    <label class="basemap-check active" id="lbl-bm-streets" title="Show/hide street name labels and highway shields">
+                    <label class="basemap-check active" id="lbl-bm-streets" title="Show/hide street name labels and one-way arrows">
                         <input type="checkbox" id="chk-bm-streets" checked> St names
+                    </label>
+                    <label class="basemap-check" id="lbl-bm-shields" title="Show/hide highway shields and major road labels (hidden by default)">
+                        <input type="checkbox" id="chk-bm-shields"> Hwy shields
                     </label>
                     <label class="basemap-check active" id="lbl-bm-buildings" title="Show/hide building footprints">
                         <input type="checkbox" id="chk-bm-buildings" checked> Buildings
@@ -2029,6 +2062,13 @@
                             <button class="style-opt" data-val="bright" title="High opacity fill (0.85) regardless of basemap">Bright</button>
                             <button class="style-opt" data-val="grey" title="Flat grey fill, auto opacity">Grey</button>
                             <button class="style-opt" data-val="none" title="No fill (outline only)">None</button>
+                        </div>
+                    </div>
+                    <div class="style-section">
+                        <span class="style-section-label">Draw order</span>
+                        <div id="poly-water-pill" class="style-pill">
+                            <button class="style-opt" data-val="under" title="Polygon fill draws below roads — road lines and bridges visible through fill">Under roads</button>
+                            <button class="style-opt active" data-val="over" title="Polygon fill draws above roads — fills cover road lines, labels still float on top">Over roads</button>
                         </div>
                     </div>
                     <div class="style-section">
@@ -2292,6 +2332,13 @@
                             </div>
                         </div>
                         <div class="style-section">
+                            <span class="style-section-label">Draw order</span>
+                            <div id="w-poly-water-pill" class="style-pill">
+                                <button class="style-opt" data-val="under" title="Polygon fill draws below roads — road lines and bridges visible through fill">Under roads</button>
+                                <button class="style-opt active" data-val="over" title="Polygon fill draws above roads — fills cover road lines, labels still float on top">Over roads</button>
+                            </div>
+                        </div>
+                        <div class="style-section">
                             <span class="style-section-label">Width</span>
                             <div id="w-poly-width-pill" class="style-pill">
                                 <button class="style-opt" data-val="hair">Hair</button>
@@ -2366,6 +2413,16 @@
         </div>
     </div>
 <!-- /settings-panels -->
+    <div id="join-section" style="display:none;flex-shrink:0">
+        <button id="join-panel-toggle" onclick="toggleJoinPanel()" style="width:100%;display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--surface2);border:none;border-top:1px solid var(--border);cursor:pointer;font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);text-align:left">
+            <span id="join-panel-arrow" style="font-size:9px;transition:transform .2s">▶</span>
+            <span>Join</span>
+            <span id="join-panel-badge" style="margin-left:auto;font-size:9px;color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0"></span>
+        </button>
+        <div id="join-panel-body" style="display:none;padding:8px 12px 10px">
+            <div id="join-panel-content" style="font-size:10px;color:var(--text-muted)">No active join</div>
+        </div>
+    </div>
 </div><!-- /file-panel --> style="display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);z-index:1100;max-height:240px;overflow-y:auto;text-align:left"></div>
 
 <!-- Histogram popout panel — fixed bottom center -->
@@ -2582,7 +2639,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </script>
 
 <script type="text/javascript">
-const _BUILD_VERSION = 'v844';
+const _BUILD_VERSION = 'v911';
 
 // Global unhandled-rejection logger. Without this, an async function called
 // without await/catch (the exact bug class that caused the progress overlay to
@@ -2611,7 +2668,7 @@ function _decodeProtomapsId(featureId) {
         return { osmId: osmId.toString(), osmType };
     } catch { return null; }
 }
-const _BUILD_TIMESTAMP = '2026-09-10T15:45:14Z';
+const _BUILD_TIMESTAMP = '2026-09-15T20:59:47Z';
 const _loadedAt = Date.now(); // session start — use to confirm tab didn't silently reload
 
 // Detect silent reloads: write a heartbeat to sessionStorage on load,
@@ -3172,6 +3229,10 @@ map.once('load', () => {
     document.getElementById('chk-bm-streets').addEventListener('change', function() {
         toggleBasemapGroup('streets', this.checked);
         document.getElementById('lbl-bm-streets').classList.toggle('active', this.checked);
+    });
+    document.getElementById('chk-bm-shields')?.addEventListener('change', function() {
+        toggleBasemapGroup('shields', this.checked);
+        document.getElementById('lbl-bm-shields').classList.toggle('active', this.checked);
     });
     document.getElementById('chk-bm-landuse').addEventListener('change', function() {
         _satelliteTogglePolygonGroup('landuse', this.checked);
@@ -4321,8 +4382,9 @@ function addTileSelectionToLayer() {
         return;
     }
 
+    const _joinSuffix = _joinStore ? ` <span style="color:var(--text-muted);font-weight:400">joined to ${escHtml(_joinStore.file)}</span>` : '';
     document.getElementById('sidebar-subtitle').innerHTML =
-        `${buildSourceTitleHTML(allFeatures, currentSourceName)}<br><span style="font-size:11px">${allFeatures.length.toLocaleString()} features · ${Object.keys(propData).length} props · ${fmtBytes(_aggregateBytes())}<br>${vertLabel} vertices · geom ~${geomPct}% · attrs ~${propPct}%</span>`;
+        `${buildSourceTitleHTML(allFeatures, currentSourceName)}${_joinSuffix}<br><span style="font-size:11px">${allFeatures.length.toLocaleString()} features · ${Object.keys(propData).length} props · ${fmtBytes(_aggregateBytes())}<br>${vertLabel} vertices · geom ~${geomPct}% · attrs ~${propPct}%</span>`;
 }
 
 document.getElementById('add-to-layer-btn').addEventListener('click', addTileSelectionToLayer);
@@ -4412,15 +4474,34 @@ async function fetchGeoJSONFiles() {
         } catch (err) { console.warn('[geojson] GitHub API failed:', err); }
     }
 
-    // Strategy 3: nginx/apache autoindex (flat)
+    // Strategy 3: nginx/apache autoindex — detect files and subdirectories
     if (!tree.files.length) {
         try {
             const r = await fetch(geojsonBasePath);
             if (r.ok) {
                 const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
                 const hrefs = [...doc.querySelectorAll('a[href]')].map(a => a.getAttribute('href'));
-                tree.files = hrefs.filter(h => /\.(geojson|json|geojsonl)$/i.test(h)).map(h => h.replace(/^.*\//, ''));
-                console.log('[geojson] directory listing files:', tree.files);
+                // Files have geojson/json/geojsonl extension
+                tree.files = hrefs
+                    .filter(h => /\.(geojson|json|geojsonl)$/i.test(h))
+                    .map(h => h.replace(/^.*\//, ''));
+                // Directories end with / and aren't parent links (..)
+                const dirHrefs = hrefs.filter(h => h.endsWith('/') && !h.startsWith('..') && !h.startsWith('/') && h !== './');
+                // Fetch each subdirectory's listing in parallel
+                await Promise.all(dirHrefs.map(async dirHref => {
+                    const dirName = dirHref.replace(/\/$/, '');
+                    try {
+                        const dr = await fetch(geojsonBasePath + dirHref);
+                        if (!dr.ok) return;
+                        const ddoc = new DOMParser().parseFromString(await dr.text(), 'text/html');
+                        const dhrefs = [...ddoc.querySelectorAll('a[href]')].map(a => a.getAttribute('href'));
+                        const subFiles = dhrefs
+                            .filter(h => /\.(geojson|json|geojsonl)$/i.test(h))
+                            .map(h => h.replace(/^.*\//, ''));
+                        if (subFiles.length) tree.dirs[dirName] = subFiles;
+                    } catch {}
+                }));
+                console.log('[geojson] directory listing files:', tree.files, 'dirs:', Object.keys(tree.dirs));
             }
         } catch (err) { console.warn('[geojson] directory listing failed:', err); }
     }
@@ -4643,6 +4724,12 @@ function switchDataset(name) {
     _stackFeatures = []; _hoverStackFeatures = []; _stackIndex = 0; _stackAnchorProps = null;
     // Clear frozen popup — it belongs to the outgoing tab
     if (frozenPopup) { frozenPopup.remove(); frozenPopup = null; frozenFeatureProps = null; }
+    // If returning to file tab with an active join, rebuild propData to reinject join props
+    // (propData was saved without join props if buildPropData ran while on working tab)
+    if (name === 'file' && _joinStore) {
+        buildPropData();
+        _applyJoinFeatureStates(); // reapply feature states (tab switch clears them)
+    }
 }
 // Call after any allFeatures = newArray reassignment to keep store in sync
 function _syncFeatures() {
@@ -4738,9 +4825,12 @@ function switchTab(tab) {
     document.getElementById('filter-status-row').style.display = tab === 'file' ? '' : 'none';
     document.getElementById('style-panel').style.display   = tab === 'file'    ? '' : 'none';
     document.getElementById('w-style-panel').style.display = tab === 'working' ? '' : 'none';
+    // Join section: only on file tab when join is active
+    _renderJoinStatusPanel();
+    _renderJoinRightPanel();
     // Layer visibility by tab — prevent bleed between tabs
     const _tabGvLayers = ['gv-fill','gv-outline','gv-outline-interact','gv-line','gv-line-casing',
-        'gv-line-dashed','gv-point','gv-arrows','gv-endpoints'];
+        'gv-line-dashed','gv-point','gv-arrows','gv-endpoints','gv-labels','gv-labels-poly','gv-labels-line'];
     const _tabWorkingLayers = ['working-fill','working-outline','working-line','working-line-dashed',
         'working-point','working-labels','working-labels-line'];
         // Note: working-endpoints and working-arrows are managed by direction mode, not tab visibility
@@ -5833,7 +5923,11 @@ function updateLegendCard() {
         const n = _workingStore.features.length;
         stats.textContent = n ? `${n.toLocaleString()} features` : 'No features';
     } else if (currentSourceName) {
-        title.textContent = formatSourceName(currentSourceName);
+        if (_joinStore) {
+            title.textContent = `${formatSourceName(currentSourceName)} joined to ${_joinStore.file}`;
+        } else {
+            title.textContent = formatSourceName(currentSourceName);
+        }
         const total = allFeatures.length;
         const hidden = hiddenIds.size;
         const visible = total - hidden;
@@ -7723,7 +7817,25 @@ function setupGeoJsonLayers(fc) {
     // Find the first basemap symbol layer (place/road labels) so we can insert
     // our data layers BELOW it — basemap labels stay readable above our fills/lines.
     // Our own gv-labels are added last (no beforeId) so they render above everything.
-    const firstBasemapLabelId = _styleLayers().find(l => l.type === 'symbol')?.id;
+    const layers = _styleLayers();
+    const firstBasemapLabelId = layers.find(l => l.type === 'symbol')?.id;
+
+    // Exact Protomaps layer names for insertion points.
+    // Target stack: water → [gv-fill] → roads → bridges → [gv-outline/gv-line] → labels
+    //
+    // gv-fill goes before the first tunnel/road casing — above water and landuse,
+    // below all road lines, bridges, and buildings
+    const GV_FILL_BEFORE = 'roads_tunnels_other_casing'; // first real road layer
+    // gv-outline/gv-line go before address_label — above all roads and bridges,
+    // below all labels (road labels, place labels, etc.)
+    const GV_LINE_BEFORE = 'address_label'; // first label layer
+
+    // Default: gv-fill before address_label (above roads) — "Over roads" is the default
+    // The "Draw order" pill can move it to before roads_tunnels_other_casing ("Under roads")
+    const firstFillBefore = layers.find(l => l.id === GV_LINE_BEFORE)?.id || firstBasemapLabelId;
+    const firstLineBefore = layers.find(l => l.id === GV_LINE_BEFORE)?.id || firstBasemapLabelId;
+
+    console.log('[layers] gv-fill before:', firstFillBefore, '| gv-line before:', firstLineBefore);
 
     const colorExpr = ['case',
         ['boolean', ['feature-state', 'hovered'],     false], '#e040fb',
@@ -7733,9 +7845,10 @@ function setupGeoJsonLayers(fc) {
         '#3b82f6'];
     const visExpr = ['case', ['boolean', ['feature-state', 'hidden'], false], 0, ['case', ['has', '_selecter_opacity'], ['to-number', ['get', '_selecter_opacity'], 1], 1]];
 
-    const addBeforeLabel = (layerDef) => map.addLayer(layerDef, firstBasemapLabelId);
+    const addBeforeRoads = (layerDef) => map.addLayer(layerDef, firstFillBefore);
+    const addBeforeLabel = (layerDef) => map.addLayer(layerDef, firstLineBefore);
 
-    addBeforeLabel({ id: 'gv-fill', type: 'fill', source: 'geojson-data',
+    addBeforeRoads({ id: 'gv-fill', type: 'fill', source: 'geojson-data',
         filter: ['==', ['geometry-type'], 'Polygon'],
         paint: { 'fill-color': colorExpr,
             'fill-outline-color': 'transparent',
@@ -7793,25 +7906,28 @@ function setupGeoJsonLayers(fc) {
     });
 
     addLabelLayer();
-
-    // Layer ordering: water sits above gv-fill but below gv-line/outline
-    // so polygon fills show through water, but outlines and lines draw on top
-    ['water', 'water_river'].forEach(id => {
-        if (map.getLayer(id)) map.moveLayer(id, 'gv-line');
+    // Diagnostic: confirm all three label layers exist with correct config
+    ['gv-labels', 'gv-labels-poly', 'gv-labels-line'].forEach(l => {
+        const layer = map.getLayer(l);
+        if (!layer) { console.warn(`[labels] MISSING layer: ${l}`); return; }
+        const placement = map.getLayoutProperty(l, 'symbol-placement') || 'point';
+        console.log(`[labels] created: ${l} | placement=${placement} | filter=${JSON.stringify(layer.filter)?.slice(0,60)}`);
     });
-    // gv-outline above water — polygon borders visible over water
-    if (map.getLayer('gv-outline')) map.moveLayer('gv-outline', 'gv-line');
 
-    // Move road labels and shields below our data layers — place names stay above
-    const firstGv = _styleLayers().find(l => l.id.startsWith('gv-'))?.id;
-    if (firstGv) {
-        _styleLayers()
-            .filter(l => l.type === 'symbol' && !l.id.startsWith('gv-') &&
-                (l.id.includes('road') || l.id.includes('shield') || l.id.includes('transit')))
-            .forEach(l => map.moveLayer(l.id, firstGv));
-    }
-    // roads_labels_major back up above fills and outlines — readable but below lines/points
-    if (map.getLayer('roads_labels_major')) map.moveLayer('roads_labels_major', 'gv-line-casing');
+    // ── Post-load layer ordering ──────────────────────────────────────────
+    // Protomaps layer order (confirmed):
+    //   landuse → water(fill) → roads(tunnels→regular→bridges) → [gv-fill inserted before tunnels]
+    //   → [gv-outline/gv-line inserted before address_label]
+    //   → address_label → roads_oneway → roads_labels_minor → roads_shields
+    //   → roads_labels_major → places_*
+    //
+    // Water is already BELOW roads in Protomaps — do NOT move it.
+    // Road label symbols are already above our gv-line layers — do NOT move them.
+    // Nothing to reorder here; the insertion points handle everything correctly.
+    //
+    // Exception: roads_labels_major appears AFTER place labels in some basemap versions.
+    // Ensure it stays readable above polygon fills by confirming it's above gv-fill.
+    // (No action needed — it's already in symbol layer territory above gv-line.)
 
     allMidpoints = []; midpointsCacheValid = false;
     const emptyFC = { type: 'FeatureCollection', features: [] };
@@ -7940,7 +8056,7 @@ function setupTileOverlayLayers() {
 
 function discoverBasemapGroups() {
     const layers = _styleLayers();
-    basemapGroups.roads = []; basemapGroups.places = []; basemapGroups.streets = [];
+    basemapGroups.roads = []; basemapGroups.places = []; basemapGroups.streets = []; basemapGroups.shields = [];
     basemapGroups.buildings = []; basemapGroups.landuse = []; basemapGroups.water = []; basemapGroups.poi = [];
     layers.forEach(l => {
         if (l.id.startsWith('gv-') || l.id.startsWith('tile-') || l.id.startsWith('working-') || l.id === _ESRI_SAT_LAYER) return;
@@ -7957,15 +8073,21 @@ function discoverBasemapGroups() {
         } else if (l.type === 'symbol') {
             if (sl.includes('place') || id.includes('place') || id.includes('city') || id.includes('country') || id.includes('state')) {
                 basemapGroups.places.push(l.id);
-            } else if (sl.includes('road') || id.includes('road') || id.includes('street') || id.includes('transit') || id.includes('shield') || id.includes('highway')) {
-                // Street name labels AND highway shields — both road-associated
+            } else if (id.includes('shield') || id === 'roads_labels_major') {
+                // Highway shields and major road labels — hidden by default
+                basemapGroups.shields = basemapGroups.shields || [];
+                basemapGroups.shields.push(l.id);
+            } else if (sl.includes('road') || id.includes('road') || id.includes('street') || id.includes('transit') || id.includes('highway')) {
+                // Minor street name labels and one-way arrows
                 basemapGroups.streets.push(l.id);
             } else if (sl.includes('poi') || id.includes('poi') || id.includes('point_of_interest') || id.includes('amenity') || id.includes('attraction')) {
                 basemapGroups.poi.push(l.id);
             }
         }
     });
-    console.log('[basemap] discovered groups:', Object.fromEntries(Object.entries(basemapGroups).map(([k,v]) => [k, v.length])));
+    console.log('[basemap] discovered groups:', Object.fromEntries(Object.entries(basemapGroups).map(([k,v]) => [k, v?.length ?? 0])));
+    // Hide highway shields by default (checkbox starts unchecked)
+    if (basemapGroups.shields?.length) toggleBasemapGroup('shields', false);
 }
 
 // Apply viewport pitch alignment to all line-placed symbol layers — both Protomaps
@@ -8455,7 +8577,7 @@ async function ingestGeoJSON(geojson, filename, skipFit = false) {
                         {
                             const gs = _computeGeomStats();
                             document.getElementById('sidebar-subtitle').innerHTML =
-                                `${buildSourceTitleHTML(allFeatures, currentSourceName)}<br><span style="font-size:11px">${allFeatures.length.toLocaleString()} features · ${Object.keys(propData).length} props · ${fmtBytes(_aggregateBytes())}<br>${gs.vertLbl} vertices · geom ~${gs.geomPct}% · attrs ~${gs.attrsPct}%</span>`;
+                                `${buildSourceTitleHTML(allFeatures, currentSourceName)}${_joinStore ? ` <span style=\"color:var(--text-muted);font-weight:400\">joined to ${escHtml(_joinStore.file)}</span>` : ''}<br><span style="font-size:11px">${allFeatures.length.toLocaleString()} features · ${Object.keys(propData).length} props · ${fmtBytes(_aggregateBytes())}<br>${gs.vertLbl} vertices · geom ~${gs.geomPct}% · attrs ~${gs.attrsPct}%</span>`;
                         }
                         logMemory(`after appending "${_sourceName}" (far region, forced)`);
                         // Pan to new data
@@ -8503,7 +8625,7 @@ async function ingestGeoJSON(geojson, filename, skipFit = false) {
         {
             const gs = _computeGeomStats();
             document.getElementById('sidebar-subtitle').innerHTML =
-                `${buildSourceTitleHTML(allFeatures, currentSourceName)}<br><span style="font-size:11px">${allFeatures.length.toLocaleString()} features · ${Object.keys(propData).length} props · ${fmtBytes(_aggregateBytes())}<br>${gs.vertLbl} vertices · geom ~${gs.geomPct}% · attrs ~${gs.attrsPct}%</span>`;
+                `${buildSourceTitleHTML(allFeatures, currentSourceName)}${_joinStore ? ` <span style=\"color:var(--text-muted);font-weight:400\">joined to ${escHtml(_joinStore.file)}</span>` : ''}<br><span style="font-size:11px">${allFeatures.length.toLocaleString()} features · ${Object.keys(propData).length} props · ${fmtBytes(_aggregateBytes())}<br>${gs.vertLbl} vertices · geom ~${gs.geomPct}% · attrs ~${gs.attrsPct}%</span>`;
         }
         logMemory(`after appending "${_sourceName}"`);
         if (!skipFit) {
@@ -8603,8 +8725,13 @@ async function ingestGeoJSON(geojson, filename, skipFit = false) {
         }
         if (map.getLayer('gv-dots')) map.setLayoutProperty('gv-dots', 'visibility', 'none');
         if (map.getLayer('gv-labels')) map.removeLayer('gv-labels');
+        if (map.getLayer('gv-labels-poly')) map.removeLayer('gv-labels-poly');
         if (map.getLayer('gv-labels-line')) map.removeLayer('gv-labels-line');
         addLabelLayer();
+        // Enforce correct filter — session restore may have left stale filters
+        if (map.getLayer('gv-labels')) {
+            map.setFilter('gv-labels', ['in', ['geometry-type'], ['literal', ['Point', 'MultiPoint']]]);
+        }
         // Re-apply default color expressions — palette was cleared so features show as default blue
         applyPaletteToLayers();
         applyPolyStyle();
@@ -8616,17 +8743,24 @@ async function ingestGeoJSON(geojson, filename, skipFit = false) {
 
     if (!skipFit) {
         try {
-            let minLng=Infinity, maxLng=-Infinity, minLat=Infinity, maxLat=-Infinity;
-            allFeatures.forEach(f => {
-                const cs = [];
-                collectCoords(f.geometry, cs);
-                cs.forEach(c => {
-                    if (c[0] < minLng) minLng = c[0];
-                    if (c[0] > maxLng) maxLng = c[0];
-                    if (c[1] < minLat) minLat = c[1];
-                    if (c[1] > maxLat) maxLat = c[1];
+            // Use GeoJSON top-level bbox if present (allows files to specify a preferred view
+            // that excludes outliers like the Farallon Islands in SF District data)
+            let minLng, maxLng, minLat, maxLat;
+            if (Array.isArray(geojson.bbox) && geojson.bbox.length === 4 && geojson.bbox.every(isFinite)) {
+                [minLng, minLat, maxLng, maxLat] = geojson.bbox;
+            } else {
+                minLng=Infinity; maxLng=-Infinity; minLat=Infinity; maxLat=-Infinity;
+                allFeatures.forEach(f => {
+                    const cs = [];
+                    collectCoords(f.geometry, cs);
+                    cs.forEach(c => {
+                        if (c[0] < minLng) minLng = c[0];
+                        if (c[0] > maxLng) maxLng = c[0];
+                        if (c[1] < minLat) minLat = c[1];
+                        if (c[1] > maxLat) maxLat = c[1];
+                    });
                 });
-            });
+            }
             if (isFinite(minLng)) {
                 map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 40, maxZoom: 16 });
             }
@@ -8660,7 +8794,7 @@ async function ingestGeoJSON(geojson, filename, skipFit = false) {
                    : totalVerts >= 1e3 ? (totalVerts/1e3).toFixed(0)+'k'
                    : totalVerts.toLocaleString();
     document.getElementById('sidebar-subtitle').innerHTML =
-        `${buildSourceTitleHTML(allFeatures, currentSourceName)}<br><span style="font-size:11px">${allFeatures.length.toLocaleString()} features · ${Object.keys(propData).length} props · ${fmtBytes(_aggregateBytes())}<br>${vertLbl} vertices · geom ~${geomEst}% · attrs ~${100-geomEst}%</span>`;
+        `${buildSourceTitleHTML(allFeatures, currentSourceName)}${_joinStore ? ` <span style=\"color:var(--text-muted);font-weight:400\">joined to ${escHtml(_joinStore.file)}</span>` : ''}<br><span style="font-size:11px">${allFeatures.length.toLocaleString()} features · ${Object.keys(propData).length} props · ${fmtBytes(_aggregateBytes())}<br>${vertLbl} vertices · geom ~${geomEst}% · attrs ~${100-geomEst}%</span>`;
     // Update point radius after data loads — use idle so tiles have rendered
     map.once('idle', updatePointRadius);
     map.once('idle', applyPolyStyle);
@@ -8690,21 +8824,19 @@ async function ingestGeoJSON(geojson, filename, skipFit = false) {
 function addLabelLayer() {
     const hiddenOpacity = ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1];
 
-    // Point & polygon labels
-    // Default: above point with radial offset to clear circle radius
+    // Point, MultiPoint & Polygon labels — Polygons use variable anchor as fallback
+    // (gv-labels-poly centroid source overrides for better placement when labels are active)
     map.addLayer({
         id: 'gv-labels', type: 'symbol', source: 'geojson-data',
-        filter: ['in', ['geometry-type'], ['literal', ['Point', 'Polygon', 'MultiPolygon', 'MultiPoint']]],
+        filter: ['in', ['geometry-type'], ['literal', ['Point', 'MultiPoint']]],
         layout: {
             'text-field': '',
             'text-size': 11,
             'text-font': ['Noto Sans Regular'],
             'text-allow-overlap': labelOverlap,
             'text-ignore-placement': labelOverlap,
-            // Variable placement: try above first, then sides, below — avoids collisions
-            // text-variable-anchor and text-radial-offset work together
             'text-variable-anchor': ['top', 'bottom', 'right', 'left', 'top-right', 'top-left'],
-            'text-radial-offset': 0.8,  // ~11px at text-size:11; updated by applyLabelLayout
+            'text-radial-offset': 0.8,
             'text-justify': 'auto'
         },
         paint: {
@@ -8712,6 +8844,32 @@ function addLabelLayer() {
             'text-halo-color': '#e8e8f0',
             'text-halo-width': 1.5,
             'text-opacity': hiddenOpacity
+        }
+    });
+
+    // Polygon labels — compute centroid of each polygon and add as a separate point source.
+    // This guarantees exactly one label per polygon, centered, no tile-boundary duplication.
+    // We use pole-of-inaccessibility (approx) for better centering than raw centroid.
+    if (!map.getSource('geojson-poly-labels')) {
+        map.addSource('geojson-poly-labels', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, promoteId: '_gvid' });
+    }
+    map.addLayer({
+        id: 'gv-labels-poly', type: 'symbol', source: 'geojson-poly-labels',
+        layout: {
+            'text-field': '',
+            'text-size': 11,
+            'text-font': ['Noto Sans Regular'],
+            'text-allow-overlap': labelOverlap,
+            'text-ignore-placement': labelOverlap,
+            'text-justify': 'center',
+            'text-anchor': 'center',
+            'text-max-width': 10
+        },
+        paint: {
+            'text-color': '#0f0f11',
+            'text-halo-color': '#e8e8f0',
+            'text-halo-width': 1.5,
+            'text-opacity': ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1]
         }
     });
 
@@ -8832,28 +8990,26 @@ function updateEndpointsLayer() {
 function applyLabelLayout() {
     if (!map.getLayer('gv-labels')) return;
 
-    // Radial offset in ems — scales with text-size
-    // Estimate point radius in px from current mode, convert to ems (text-size=11)
-    // density/zoom modes vary; use a generous default that works across zoom levels
     const baseRadiusPx = pointRadiusMode === 'density' ? 6 : 7;
-    const radiusEm = +(baseRadiusPx / 11).toFixed(2); // em = px / text-size
+    const radiusEm = +(baseRadiusPx / 11).toFixed(2);
 
     map.setLayoutProperty('gv-labels', 'text-allow-overlap', labelOverlap);
     map.setLayoutProperty('gv-labels', 'text-ignore-placement', labelOverlap);
     map.setLayoutProperty('gv-labels-line', 'text-allow-overlap', labelOverlap);
     map.setLayoutProperty('gv-labels-line', 'text-ignore-placement', labelOverlap);
+    if (map.getLayer('gv-labels-poly')) {
+        map.setLayoutProperty('gv-labels-poly', 'text-allow-overlap', labelOverlap);
+        map.setLayoutProperty('gv-labels-poly', 'text-ignore-placement', labelOverlap);
+    }
 
     if (labelVarPlacement) {
-        // Variable anchor: MapLibre tries each in order, picks first non-colliding
         map.setLayoutProperty('gv-labels', 'text-variable-anchor',
             ['top', 'bottom', 'right', 'left', 'top-right', 'top-left', 'bottom-right', 'bottom-left']);
         map.setLayoutProperty('gv-labels', 'text-radial-offset', radiusEm + 0.5);
         map.setLayoutProperty('gv-labels', 'text-justify', 'auto');
-        // Remove fixed anchor/offset when using variable placement
         try { map.setLayoutProperty('gv-labels', 'text-anchor', undefined); } catch {}
         try { map.setLayoutProperty('gv-labels', 'text-offset', undefined); } catch {}
     } else {
-        // Fixed: always above, offset by radius
         map.setLayoutProperty('gv-labels', 'text-anchor', 'bottom');
         map.setLayoutProperty('gv-labels', 'text-offset', [0, -(radiusEm + 0.3)]);
         map.setLayoutProperty('gv-labels', 'text-justify', 'center');
@@ -8869,7 +9025,7 @@ function updateLabelColors() {
     const textColor  = dark ? '#ffffff' : '#0f0f11';
     const haloColor  = dark ? 'rgba(0,0,0,0.85)' : '#e8e8f0';
     const haloWidth  = dark ? 2 : 1.5;
-    ['gv-labels', 'gv-labels-line', 'tile-labels-line'].forEach(layer => {
+    ['gv-labels', 'gv-labels-poly', 'gv-labels-line', 'tile-labels-line'].forEach(layer => {
         if (!map.getLayer(layer)) return;
         map.setPaintProperty(layer, 'text-color',       textColor);
         map.setPaintProperty(layer, 'text-halo-color',  haloColor);
@@ -9225,31 +9381,48 @@ function buildQuantitativeStops(prop, scheme, rampColors, clampLow, clampHigh, n
     }));
 }
 
+function _paletteGetExpr(prop) {
+    // Join props live in feature-state, not feature properties
+    if (prop && prop.startsWith('join_') && propData[prop]?._isJoinProp) {
+        return ['to-number', ['feature-state', prop], -Infinity];
+    }
+    return ['to-number', ['get', prop], -Infinity];
+}
+
+function _paletteHasExpr(prop) {
+    if (prop && prop.startsWith('join_') && propData[prop]?._isJoinProp) {
+        // feature-state is always "present" if the state was set; check for null
+        return ['!=', ['feature-state', prop], null];
+    }
+    return ['has', prop];
+}
+
 function buildQuantitativePaletteColorExpr(prop, stops) {
     if (!stops || stops.length < 2) return PALETTE_FALLBACK;
-    const outOfRangeColor = 'rgba(120,120,130,0.35)'; // dim grey for filtered-out values
-    const nullColor = outOfRangeColor; // nulls same as out-of-range
+    const outOfRangeColor = 'rgba(120,120,130,0.35)';
+    const nullColor = outOfRangeColor;
+    const isJoin = prop && prop.startsWith('join_') && propData[prop]?._isJoinProp;
+    const getExpr = isJoin ? ['feature-state', prop] : ['get', prop];
+    const toNum   = isJoin ? ['to-number', ['feature-state', prop], -Infinity]
+                           : ['to-number', ['get', prop], -Infinity];
 
-    const interpolate = ['interpolate', ['linear'], ['to-number', ['get', prop], -Infinity]];
+    const interpolate = ['interpolate', ['linear'], toNum];
     stops.forEach(s => { interpolate.push(s.value, s.color); });
 
     const sMin = stops[0].value, sMax = stops[stops.length - 1].value;
 
-    // Values outside filter range get dim grey; nulls same
     if (paletteFilterLo !== null || paletteFilterHi !== null) {
         const lo = paletteFilterLo !== null ? paletteFilterLo : -Infinity;
         const hi = paletteFilterHi !== null ? paletteFilterHi :  Infinity;
         return ['case',
-            ['==', ['get', prop], null],  outOfRangeColor,
-            ['!',  ['has', prop]],         outOfRangeColor,
-            ['<',  ['to-number', ['get', prop], lo - 1], lo], outOfRangeColor,
-            ['>',  ['to-number', ['get', prop], hi + 1], hi], outOfRangeColor,
+            ['==', getExpr, null],          outOfRangeColor,
+            ['<',  toNum,   lo],            outOfRangeColor,
+            ['>',  toNum,   hi],            outOfRangeColor,
             interpolate
         ];
     }
     return ['case',
-        ['==', ['get', prop], null], nullColor,
-        ['!', ['has', prop]],        nullColor,
+        ['==', getExpr, null], nullColor,
         interpolate
     ];
 }
@@ -9261,8 +9434,15 @@ function buildPaletteColorExpr(prop, pMap) {
     }
     const entries = Object.entries(pMap);
     if (!entries.length) return PALETTE_FALLBACK;
+    // Join props live in feature-state, not feature properties
+    const isJoin = prop && prop.startsWith('join_') && propData[prop]?._isJoinProp;
+    if (isJoin) {
+        const args = ['match', ['to-string', ['feature-state', prop]]];
+        entries.forEach(([val, color]) => { args.push(String(val), color); });
+        args.push(PALETTE_FALLBACK);
+        return args;
+    }
     // Detect if all keys are boolean-like — if so, coerce to string for match
-    // (MapLibre stores JSON booleans as actual booleans, not strings)
     const boolSet = new Set(['true','false','yes','no','y','n']);
     const isBoolPalette = entries.length > 0 && entries.length <= 2 && entries.every(([v]) => boolSet.has(String(v).toLowerCase()));
     const getExpr = isBoolPalette ? ['to-string', ['get', prop]] : ['get', prop];
@@ -9346,8 +9526,16 @@ function applyPaletteToLayers() {
     if (paletteFilterHide && paletteProp && isQuantitativeScheme(paletteScheme)) {
         const lo = paletteFilterLo !== null ? paletteFilterLo : -Infinity;
         const hi = paletteFilterHi !== null ? paletteFilterHi :  Infinity;
+        const isJoin = paletteProp.startsWith('join_') && propData[paletteProp]?._isJoinProp;
+        const aggKey = isJoin ? paletteProp.slice(5) : null; // strip 'join_'
         allFeatures.forEach(f => {
-            const raw = f.properties[paletteProp];
+            let raw;
+            if (isJoin) {
+                const gvid = f.properties._gvid;
+                raw = _joinStore?.byGvid[gvid]?.agg[aggKey] ?? null;
+            } else {
+                raw = f.properties[paletteProp];
+            }
             const n = Number(raw);
             const outOfRange = raw === null || raw === undefined || raw === '' || isNaN(n) || n < lo || n > hi;
             if (outOfRange) {
@@ -10691,6 +10879,76 @@ function buildPropData() {
     });
     // Sync back to active store (buildPropData replaces the pointer, not the object)
     _activeStore.propData = propData;
+
+    // Inject join store aggregated props as synthetic propData entries
+    // These show in the sidebar with ⤵ indicator so users know they come from the CSV
+    if (_joinStore && _activeStore === _fileStore) {
+        const joinedGvids = Object.keys(_joinStore.byGvid);
+        const matchedCount = joinedGvids.length;
+        console.log(`[join] buildPropData: injecting props for ${matchedCount} matched features, ` +
+            `${_joinStore.numericCols.length} numeric cols`);
+
+        // For each aggregated numeric column, inject join_avg_X, join_count, etc.
+        const injectJoinProp = (name, vals) => {
+            if (!vals.length) return;
+            const valueCounts = {};
+            vals.forEach(v => { const s = String(parseFloat(v.toFixed(2))); valueCounts[s] = (valueCounts[s] || 0) + 1; });
+            vals.sort((a, b) => a - b);
+            const n = vals.length, sum = vals.reduce((a, b) => a + b, 0), mean = sum / n;
+            const median = n % 2 === 0 ? (vals[n/2-1] + vals[n/2]) / 2 : vals[Math.floor(n/2)];
+            const stddev = Math.sqrt(vals.reduce((a, v) => a + (v - mean) ** 2, 0) / n);
+            const range = vals[n-1] - vals[0];
+            const isNumeric = range > 0;
+            propData[name] = {
+                valueCounts, totalWithValue: vals.length,
+                // isColorProp: false for join props — values are numbers, not CSS colors
+                // The palette button shows because _isJoinProp is checked separately in renderSidebar
+                isColorProp: false, isNumeric, _isJoinProp: true,
+                numericStats: isNumeric ? {
+                    count: n, nullCount: matchedCount - n, min: vals[0], max: vals[n-1],
+                    mean: parseFloat(mean.toFixed(4)), median: parseFloat(median.toFixed(4)),
+                    stddev: parseFloat(stddev.toFixed(4)), sum: parseFloat(sum.toFixed(4)),
+                    q1: vals[Math.floor(n*0.25)], q3: vals[Math.floor(n*0.75)],
+                    iqr: vals[Math.floor(n*0.75)] - vals[Math.floor(n*0.25)],
+                    p02: vals[Math.max(0,Math.round(n*0.02))], p98: vals[Math.min(n-1,Math.round(n*0.98))],
+                    range, negCount: vals.filter(v => v < 0).length, sorted: vals
+                } : null
+            };
+        };
+
+        // count is always available
+        const counts = joinedGvids.map(gvid => _joinStore.byGvid[gvid].agg.count).filter(v => v != null);
+        if (counts.length) injectJoinProp('join_count', counts);
+
+        // Per numeric column: avg, sum, min, max, median, stddev, and pct of CSV total
+        _joinStore.numericCols.forEach(col => {
+            ['avg', 'sum', 'min', 'max', 'median', 'stddev'].forEach(agg => {
+                const key = `join_${agg}_${col}`;
+                const vals = joinedGvids.map(gvid => _joinStore.byGvid[gvid].agg[`${agg}_${col}`])
+                    .filter(v => v !== null && v !== undefined);
+                if (vals.length) injectJoinProp(key, [...vals]);
+            });
+            // % of CSV total — each feature's sum as % of the total across all CSV rows
+            const csvTotal = _joinStore.csvTotals?.[col];
+            if (csvTotal && csvTotal > 0) {
+                const pctKey = `join_pct_${col}`;
+                const pctVals = joinedGvids.map(gvid => {
+                    const sum = _joinStore.byGvid[gvid].agg[`sum_${col}`];
+                    return (sum !== null && sum !== undefined) ? parseFloat((sum / csvTotal * 100).toFixed(2)) : null;
+                }).filter(v => v !== null);
+                if (pctVals.length) {
+                    injectJoinProp(pctKey, [...pctVals]);
+                    console.log(`[join] pct col: "${pctKey}" csvTotal=${csvTotal} range=${Math.min(...pctVals).toFixed(1)}–${Math.max(...pctVals).toFixed(1)}%`);
+                }
+            }
+        });
+
+        // Categorical join props — inject mode (most common value) for each cat column
+        // These show as text props in the sidebar and can be used for categorical palettes
+        // Categorical join props (join_mode_*) are intentionally omitted from propData.
+        // They represent mode of many rows which isn't meaningful in the sidebar.
+        // They'll be shown in the right panel (Step 3) when it's built.
+    }
 }
 
 function isNumericProperty(valueCounts, totalWithValue) {
@@ -10748,16 +11006,32 @@ function computeNumericStatsFiltered(prop, filterLo, filterHi) {
     // Same as computeNumericStats but excludes values outside [filterLo, filterHi]
     const vals = [];
     let nullCount = 0;
-    allFeatures.forEach(f => {
-        const v = f.properties[prop];
-        if (v === null || v === undefined || v === '') { nullCount++; return; }
-        const n = Number(v);
-        if (isNaN(n) || !isFinite(n)) { nullCount++; return; }
-        // Exclude values outside filter range
-        if (filterLo !== null && n < filterLo) { nullCount++; return; }
-        if (filterHi !== null && n > filterHi) { nullCount++; return; }
-        vals.push(n);
-    });
+
+    // Join props read from _joinStore aggregations, not feature properties
+    if (prop && prop.startsWith('join_') && propData[prop]?._isJoinProp && _joinStore) {
+        allFeatures.forEach(f => {
+            const gvid = f.properties._gvid;
+            const agg = _joinStore.byGvid[gvid]?.agg;
+            const key = prop.slice(5); // strip 'join_'
+            const v = agg?.[key];
+            if (v === null || v === undefined) { nullCount++; return; }
+            const n = Number(v);
+            if (isNaN(n) || !isFinite(n)) { nullCount++; return; }
+            if (filterLo !== null && n < filterLo) { nullCount++; return; }
+            if (filterHi !== null && n > filterHi) { nullCount++; return; }
+            vals.push(n);
+        });
+    } else {
+        allFeatures.forEach(f => {
+            const v = f.properties[prop];
+            if (v === null || v === undefined || v === '') { nullCount++; return; }
+            const n = Number(v);
+            if (isNaN(n) || !isFinite(n)) { nullCount++; return; }
+            if (filterLo !== null && n < filterLo) { nullCount++; return; }
+            if (filterHi !== null && n > filterHi) { nullCount++; return; }
+            vals.push(n);
+        });
+    }
     if (!vals.length) return null;
 
     vals.sort((a, b) => a - b);
@@ -10857,42 +11131,37 @@ function updateLayerFilters() {
     if (map.getLayer('gv-line')) applyLineStyle();
 
     // Labels: exclude hidden features using feature-state (works for all hide sources:
-    // value filter, palette hide, geom type hide, histogram range filter)
-    // Note: feature-state is not directly available in setFilter — use ID exclusion for
-    // small hidden sets, and for large sets rely on label text-opacity expression instead.
+    // gv-labels: Points only — polygons use gv-labels-poly centroid source
+    // gv-labels-line: Lines only
+    // Hidden polygon labels are handled by _updatePolyLabelCentroids filtering out hiddenIds
     if (map.getLayer('gv-labels') || map.getLayer('gv-labels-line')) {
-        const notHiddenExpr = ['!', ['boolean', ['feature-state', 'hidden'], false]];
+        const pointFilter = ['in', ['geometry-type'], ['literal', ['Point', 'MultiPoint']]];
+        const lineFilter  = ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]];
         if (hiddenIds.size === 0) {
-            if (map.getLayer('gv-labels'))
-                map.setFilter('gv-labels', ['in', ['geometry-type'], ['literal', ['Point', 'Polygon', 'MultiPolygon', 'MultiPoint']]]);
-            if (map.getLayer('gv-labels-line'))
-                map.setFilter('gv-labels-line', ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]]);
+            if (map.getLayer('gv-labels'))     map.setFilter('gv-labels',     pointFilter);
+            if (map.getLayer('gv-labels-line')) map.setFilter('gv-labels-line', lineFilter);
         } else if (hiddenIds.size <= 5000) {
-            // For manageable sets: ID-based exclusion (precise)
             const hiddenArr = [...hiddenIds];
             const notHiddenId = ['!', ['in', ['id'], ['literal', hiddenArr]]];
             if (map.getLayer('gv-labels'))
-                map.setFilter('gv-labels', ['all',
-                    ['in', ['geometry-type'], ['literal', ['Point', 'Polygon', 'MultiPolygon', 'MultiPoint']]],
-                    notHiddenId]);
+                map.setFilter('gv-labels', ['all', pointFilter, notHiddenId]);
             if (map.getLayer('gv-labels-line'))
-                map.setFilter('gv-labels-line', ['all',
-                    ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]],
-                    notHiddenId]);
+                map.setFilter('gv-labels-line', ['all', lineFilter, notHiddenId]);
         } else {
-            // Large hidden sets: use feature-state expression on text-opacity instead
-            // (setFilter with large literal arrays is slow)
+            // Large hidden sets: text-opacity via feature-state
             if (map.getLayer('gv-labels')) {
-                map.setFilter('gv-labels', ['in', ['geometry-type'], ['literal', ['Point', 'Polygon', 'MultiPolygon', 'MultiPoint']]]);
+                map.setFilter('gv-labels', pointFilter);
                 map.setPaintProperty('gv-labels', 'text-opacity',
                     ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1]);
             }
             if (map.getLayer('gv-labels-line')) {
-                map.setFilter('gv-labels-line', ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]]);
+                map.setFilter('gv-labels-line', lineFilter);
                 map.setPaintProperty('gv-labels-line', 'text-opacity',
                     ['case', ['boolean', ['feature-state', 'hidden'], false], 0, 1]);
             }
         }
+        // Polygon labels: centroid source already excludes hiddenIds — just refresh it
+        _updatePolyLabelCentroids();
     }
 }
 
@@ -10986,9 +11255,43 @@ function fmtLabelNumber(val) {
 
 function buildLabelValueExpr(key) {
     const isNumeric = propData[key]?.isNumeric;
+    const isJoin = key.startsWith('join_') && propData[key]?._isJoinProp;
+
+    // MapLibre does NOT allow feature-state in layout properties (text-field).
+    // For join props, write the value into a unique feature property (one per join key)
+    // and read with ['get', propKey]. Unique keys prevent multiple join labels overwriting each other.
+    if (isJoin) {
+        const propKey = _writeJoinLabelProp(key);
+        // Detect if this join prop comes from a currency column
+        const aggKey = key.slice(5); // strip 'join_'
+        const colName = aggKey.replace(/^(avg|sum|min|max|median|stddev|count|mode|pct)_/, '');
+        const isCurrency = _joinStore?.currencyCols?.has(colName);
+        const isPct = aggKey.startsWith('pct_');
+
+        const raw = ['coalesce', ['to-string', ['get', propKey]], ''];
+
+        // Build prefix string (e.g. "avg: " or "avg: $" for currency)
+        const prefixStr = _joinLabelPrefix ? (_displayJoinPropName(key) + ': ') : '';
+        const currencyPrefix = (isCurrency && !isPct) ? '$' : '';
+        const fullPrefix = prefixStr + currencyPrefix;
+
+        const makeWithPrefix = (expr) => {
+            if (!fullPrefix) return expr;
+            return ['case', ['!=', ['to-string', ['get', propKey]], ''], ['concat', fullPrefix, expr], ''];
+        };
+
+        // Currency and pct values are pre-formatted as strings by _writeJoinLabelProp
+        if (isCurrency || isPct || !isNumeric || (!labelFmtDecimals && !labelFmtAbbreviate)) return makeWithPrefix(raw);
+        const n = ['to-number', ['get', propKey], null];
+        const abs = ['abs', n];
+        const isNum = ['has', propKey];
+        const rawN = ['coalesce', ['to-string', ['get', propKey]], ''];
+        return makeWithPrefix(buildNumericLabelExpr(n, abs, isNum, rawN));
+    }
+
+    const getExpr = ['get', key];
     if (!isNumeric || (!labelFmtDecimals && !labelFmtAbbreviate)) {
-        const raw = ['coalesce', ['to-string', ['get', key]], ''];
-        // Append units for known _selecter_ properties
+        const raw = ['coalesce', ['to-string', getExpr], ''];
         if (key === '_selecter_slope_pct')    return ['concat', raw, '%'];
         if (key === '_selecter_slope_a_pct')  return ['concat', raw, '%'];
         if (key === '_selecter_slope_b_pct')  return ['concat', raw, '%'];
@@ -10998,30 +11301,79 @@ function buildLabelValueExpr(key) {
             key === '_selecter_elev_end'   || key === '_selecter_elev' ||
             key === '_selecter_rise') {
             if (_elevUnit === 'ft') {
-                // Convert meters to feet in the expression
-                const ftExpr = ['concat', ['to-string', ['round', ['*', ['to-number', ['get', key], 0], 3.28084]]], 'ft'];
+                const ftExpr = ['concat', ['to-string', ['round', ['*', ['to-number', getExpr, 0], 3.28084]]], 'ft'];
                 return ftExpr;
             }
             return ['concat', raw, 'm'];
         }
         if (key === '_selecter_run') {
-            if (_elevUnit === 'ft') return ['concat', ['to-string', ['round', ['*', ['to-number', ['get', key], 0], 3.28084]]], 'ft'];
+            if (_elevUnit === 'ft') return ['concat', ['to-string', ['round', ['*', ['to-number', getExpr, 0], 3.28084]]], 'ft'];
             return ['concat', raw, 'm'];
         }
-        if (key === '_selecter_bearing')      return ['concat', raw, '\u00b0'];
+        if (key === '_selecter_bearing') return ['concat', raw, '\u00b0'];
         return raw;
     }
-    const n   = ['to-number', ['get', key], null];
+    const n   = ['to-number', getExpr, null];
     const abs = ['abs', n];
-    const isNum = ['==', ['typeof', ['get', key]], 'number'];
-    const raw   = ['coalesce', ['to-string', ['get', key]], ''];
+    const isNum = ['==', ['typeof', getExpr], 'number'];
+    const raw   = ['coalesce', ['to-string', getExpr], ''];
+    return buildNumericLabelExpr(n, abs, isNum, raw);
+}
 
+// Helper: write join prop value into _join_label feature property so it can be used
+// in text-field (which doesn't support feature-state). Called when a join prop is labelled.
+function _writeJoinLabelProp(joinKey) {
+    if (!_joinStore) return '_jl_x';
+    const aggKey = joinKey.slice(5); // strip 'join_'
+    const propKey = `_jl_${aggKey.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+    // Detect currency column for formatting
+    const colName = aggKey.replace(/^(avg|sum|min|max|median|stddev|count|mode)_/, '');
+    const isCurrency = _joinStore?.currencyCols?.has(colName);
+
+    const isPct = aggKey.startsWith('pct_');
+
+    function formatVal(val) {
+        if (val === null || val === undefined) return null;
+        if (isPct && typeof val === 'number') {
+            return val.toFixed(1) + '%';
+        }
+        if (isCurrency && typeof val === 'number') {
+            if (Math.abs(val) >= 1000000)
+                return (val / 1000000).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) + 'M';
+            if (Math.abs(val) >= 1000)
+                return (val / 1000).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 1}) + 'K';
+            return val.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2});
+        }
+        return val;
+    }
+
+    let changed = false;
+    const updatedFeatures = allFeatures.map(f => {
+        const gvid = f.properties._gvid;
+        const agg = _joinStore.byGvid[gvid]?.agg;
+        const raw = agg ? (agg[aggKey] ?? null) : null;
+        const val = formatVal(raw);
+        if (val === f.properties[propKey]) return f;
+        changed = true;
+        return { ...f, properties: { ...f.properties, [propKey]: val } };
+    });
+    if (changed) {
+        allFeatures = updatedFeatures;
+        _fileStore.features = updatedFeatures;
+        if (map.getSource('geojson-data')) {
+            map.getSource('geojson-data').setData({ type: 'FeatureCollection', features: updatedFeatures });
+        }
+    }
+    return propKey;
+}
+
+function buildNumericLabelExpr(n, abs, isNum, raw) {
     // nf1dp: round to 1dp using number-format
     const nf1 = val => ['number-format', val, {'max-fraction-digits': 1, 'min-fraction-digits': 0}];
     // nf2dp: round to 2dp
     const nf2 = val => ['number-format', val, {'max-fraction-digits': 2, 'min-fraction-digits': 0}];
     // For 0dp: use ['round'] then ['to-string'] — avoids number-format rounding bug
-    // ['round'] is a native MapLibre math expression, reliable for integer rounding
     const nf0 = val => ['to-string', ['round', val]];
 
     // Decimal tiers for non-abbreviated values
@@ -11032,35 +11384,11 @@ function buildLabelValueExpr(key) {
                              nf0(n)]
         : nf0(n);
 
-    const slopePctKeys = new Set(['_selecter_slope_pct','_selecter_slope_a_pct','_selecter_slope_b_pct','_selecter_slope_max_pct']);
-    const elevMKeys   = new Set(['_selecter_elev_start','_selecter_elev_mid','_selecter_elev_end','_selecter_elev','_selecter_rise']);
-    const isElevKey   = elevMKeys.has(key) || key === '_selecter_run';
-    const addSuffix = (expr) => {
-        if (slopePctKeys.has(key)) return ['concat', expr, '%'];
-        if (key === '_selecter_slope_deg')   return ['concat', expr, '\u00b0'];
-        if (isElevKey) {
-            if (_elevUnit === 'ft') {
-                // Convert m→ft: multiply n by 3.28084, then apply same decimal formatting
-                const nFt = ['*', n, 3.28084];
-                const absFt = ['abs', nFt];
-                const decFt = labelFmtDecimals
-                    ? ['case', ['<', absFt, 1], nf2(nFt), ['<', absFt, 100], nf1(nFt), nf0(nFt)]
-                    : nf0(nFt);
-                return ['concat', ['case', isNum, decFt, raw], 'ft'];
-            }
-            return ['concat', expr, 'm'];
-        }
-        if (key === '_selecter_bearing')      return ['concat', expr, '\u00b0'];
-        return expr;
-    };
-
     if (!labelFmtAbbreviate) {
-        return addSuffix(['case', isNum, decExpr, raw]);
+        return ['case', isNum, decExpr, raw];
     }
 
     // makeAbbrev: divide by unit, round correctly, append suffix
-    // Use ['round'] for 0dp (reliable), nf1 for 1dp
-    // Threshold: unit value >= 100 → 0dp (e.g. 301.1K → 301K), else 1dp (e.g. 28.4K)
     const makeAbbrev = (divisor, suffix) => {
         const unit    = ['/', n, divisor];
         const unitAbs = ['/', abs, divisor];
@@ -11070,17 +11398,16 @@ function buildLabelValueExpr(key) {
         return fmt;
     };
 
-    // Years mode: treat 1000–9999 as years, show as plain integer without K
     const kThreshold = (labelFmtYears && labelFmtAbbreviate) ? 1e4 : 1e3;
 
-    return addSuffix(['case', isNum,
+    return ['case', isNum,
         ['case',
             ['>=', abs, 1e12], makeAbbrev(1e12, 'T'),
             ['>=', abs, 1e9],  makeAbbrev(1e9,  'B'),
             ['>=', abs, 1e6],  makeAbbrev(1e6,  'M'),
             ['>=', abs, kThreshold], makeAbbrev(1e3, 'K'),
             decExpr],
-        raw]);
+        raw];
 }
 
 function updateLabels() {
@@ -11088,12 +11415,19 @@ function updateLabels() {
     const isWorking = activeTab === 'working';
     const layers = isWorking
         ? ['working-labels', 'working-labels-line']
-        : ['gv-labels', 'gv-labels-line'];
+        : ['gv-labels', 'gv-labels-poly', 'gv-labels-line'];
     // Hide the other tab's label layers to prevent cross-tab leaks
-    const otherLayers = isWorking ? ['gv-labels', 'gv-labels-line'] : ['working-labels', 'working-labels-line'];
+    const otherLayers = isWorking
+        ? ['gv-labels', 'gv-labels-poly', 'gv-labels-line']
+        : ['working-labels', 'working-labels-line'];
     otherLayers.forEach(l => { try { if (map.getLayer(l)) map.setLayoutProperty(l, 'visibility', 'none'); } catch {} });
+    // Restore visibility for active layers
+    layers.forEach(l => { try { if (map.getLayer(l)) map.setLayoutProperty(l, 'visibility', 'visible'); } catch {} });
     if (labelProps.size === 0) {
         layers.forEach(l => { if (map.getLayer(l)) map.setLayoutProperty(l, 'text-field', ''); });
+        if (map.getSource('geojson-poly-labels')) {
+            map.getSource('geojson-poly-labels').setData({ type: 'FeatureCollection', features: [] });
+        }
         updateLabelHint(); return;
     }
     const parts = [...labelProps].map(key => buildLabelValueExpr(key));
@@ -11108,7 +11442,45 @@ function updateLabels() {
         });
         expr = ['concat', ...pieces];
     }
+
+    // If any join label props are active with prefix + zoom threshold, wrap the whole
+    // expression in a top-level step — zoom must be at the root of step/interpolate
+    const hasJoinPrefix = _joinLabelPrefix && _joinLabelPrefixZoom > 0 &&
+        [...labelProps].some(k => k.startsWith('join_') && propData[k]?._isJoinProp);
+    if (hasJoinPrefix) {
+        // Build a parallel "no-prefix" expression by temporarily disabling prefix
+        const savedPrefix = _joinLabelPrefix;
+        _joinLabelPrefix = false;
+        const partsNoPrefix = [...labelProps].map(key => buildLabelValueExpr(key));
+        _joinLabelPrefix = savedPrefix;
+        let exprNoPrefix;
+        if (partsNoPrefix.length === 1) {
+            exprNoPrefix = partsNoPrefix[0];
+        } else {
+            const pieces2 = [];
+            partsNoPrefix.forEach((p, i) => {
+                if (i === 0) { pieces2.push(p); }
+                else { pieces2.push(['case', ['!=', ['to-string', p], ''], ['concat', '\n', p], '']); }
+            });
+            exprNoPrefix = ['concat', ...pieces2];
+        }
+        // Top-level step: below threshold = no prefix, at/above = with prefix
+        expr = ['step', ['zoom'], exprNoPrefix, _joinLabelPrefixZoom, expr];
+    }
     layers.forEach(l => { if (map.getLayer(l)) map.setLayoutProperty(l, 'text-field', expr); });
+
+    // Update centroid source for polygon labels (one point per polygon = one label, centered)
+    _updatePolyLabelCentroids();
+
+    // Diagnostic: log what each label layer is doing
+    layers.forEach(l => {
+        const layer = map.getLayer(l);
+        if (!layer) { console.log(`[labels] ${l}: NOT FOUND`); return; }
+        const placement = map.getLayoutProperty(l, 'symbol-placement') || 'point';
+        const field = map.getLayoutProperty(l, 'text-field');
+        const filter = layer.filter;
+        console.log(`[labels] ${l}: placement=${placement} filter=${JSON.stringify(filter)?.slice(0,60)} field=${JSON.stringify(field)?.slice(0,40)}`);
+    });
     updateLabelHint();
 }
 
@@ -11120,7 +11492,11 @@ function getSortedKeys(filterStr) {
         '_selecter_elev_computed', '_selecter_elevations', '_selecter_slopes',
         '_selecter_units', '_gvid'
     ]);
-    let keys = Object.keys(propData).filter(k => !_SIDEBAR_HIDDEN_PROPS.has(k));
+    let keys = Object.keys(propData).filter(k =>
+        !_SIDEBAR_HIDDEN_PROPS.has(k) &&
+        !k.startsWith('_jl_') &&   // join label scratch properties
+        k !== '_join_label'         // legacy join label property
+    );
     if (filterStr) {
         const q = filterStr.toLowerCase();
         keys = keys.filter(k => {
@@ -11199,9 +11575,12 @@ function renderNumericPanel(key, container) {
     const stats = propData[key]?.numericStats;
     if (!stats) return;
 
+    // Sanitize key for use in HTML element ids (keys may contain spaces, colons, etc.)
+    const safeId = key.replace(/[^a-zA-Z0-9_-]/g, '_');
+
     const panel = document.createElement('div');
     panel.className = 'numeric-panel';
-    panel.dataset.numericKey = key;
+    panel.dataset.numericKey = key; 
 
     // ── Stats grid: [Max | Mean | IQR] / [Min | Median | Sum] / [Count] ──
     const isInt = stats.sorted.every(v => Number.isInteger(v));
@@ -11327,22 +11706,22 @@ function renderNumericPanel(key, container) {
     const filterHiVal = paletteFilterHi !== null ? paletteFilterHi : stats.max;
     filterRow.style.flexWrap = 'wrap';
     filterRow.innerHTML = `<span>Filter</span>
-        <input type="number" id="filter-lo-${key}" value="${filterLoVal}" step="any" style="width:64px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono)">
+        <input type="number" id="filter-lo-${safeId}" value="${filterLoVal}" step="any" style="width:64px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono)">
         <span style="color:var(--text-muted)">–</span>
-        <input type="number" id="filter-hi-${key}" value="${filterHiVal}" step="any" style="width:64px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono)">
-        <button id="filter-reset-${key}" style="background:transparent;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:10px;padding:1px 5px;color:var(--text-muted)" title="Reset to data min/max">✕</button>
-        <label id="filter-hide-label-${key}" style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--text-muted);cursor:pointer;white-space:nowrap;" title="Hide features outside filter range">
-            <input type="checkbox" id="filter-hide-${key}" style="cursor:pointer">
-            <span id="filter-hide-count-${key.replace(/[^a-zA-Z0-9]/g, '_')}">Hide</span>
+        <input type="number" id="filter-hi-${safeId}" value="${filterHiVal}" step="any" style="width:64px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono)">
+        <button id="filter-reset-${safeId}" style="background:transparent;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:10px;padding:1px 5px;color:var(--text-muted)" title="Reset to data min/max">✕</button>
+        <label id="filter-hide-label-${safeId}" style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--text-muted);cursor:pointer;white-space:nowrap;" title="Hide features outside filter range">
+            <input type="checkbox" id="filter-hide-${safeId}" style="cursor:pointer">
+            <span id="filter-hide-count-${safeId}">Hide</span>
         </label>`;
     panel.appendChild(filterRow);
 
-    const filterLoInput = filterRow.querySelector(`#filter-lo-${key}`);
-    const filterHiInput = filterRow.querySelector(`#filter-hi-${key}`);
+    const filterLoInput = filterRow.querySelector(`#filter-lo-${safeId}`);
+    const filterHiInput = filterRow.querySelector(`#filter-hi-${safeId}`);
     const applyFilterInputs = () => {
         // Re-query inputs from live DOM — the closure references may be stale after renderSidebar
-        const liveLoInput = document.getElementById(`filter-lo-${key}`);
-        const liveHiInput = document.getElementById(`filter-hi-${key}`);
+        const liveLoInput = document.getElementById(`filter-lo-${safeId}`);
+        const liveHiInput = document.getElementById(`filter-hi-${safeId}`);
         const lo = parseFloat(liveLoInput ? liveLoInput.value : filterLoInput.value);
         const hi = parseFloat(liveHiInput ? liveHiInput.value : filterHiInput.value);
         if (!isNaN(lo)) paletteFilterLo = lo;
@@ -11357,7 +11736,7 @@ function renderNumericPanel(key, container) {
         paletteStops = null;
         applyPaletteToLayers();
         // Rebuild just the histogram — don't call renderSidebar() as it creates stale closures
-        const histoDiv = document.querySelector(`.numeric-panel [id^="histo-canvas-${key}"]`);
+        const histoDiv = document.querySelector(`.numeric-panel [id^="histo-canvas-${safeId}"]`);
         if (histoDiv) renderHistogram(key, histoDiv);
         syncPopoutHistogram(key);
         updateFilterHideCountDisplay();
@@ -11366,14 +11745,14 @@ function renderNumericPanel(key, container) {
     };
     // Use event delegation on document to survive renderSidebar() rebuilds
     const filterChangeHandler = (e) => {
-        if (e.target.id === `filter-lo-${key}` || e.target.id === `filter-hi-${key}`) {
+        if (e.target.id === `filter-lo-${safeId}` || e.target.id === `filter-hi-${safeId}`) {
             applyFilterInputs();
         }
     };
     document.addEventListener('change', filterChangeHandler);
     filterLoInput.addEventListener('change', applyFilterInputs);
     filterHiInput.addEventListener('change', applyFilterInputs);
-    const filterHideChk = filterRow.querySelector(`#filter-hide-${key}`);
+    const filterHideChk = filterRow.querySelector(`#filter-hide-${safeId}`);
     // filterHideCountEl no longer needed — updateFilterHideCountDisplay() queries DOM fresh
     if (filterHideChk) {
         filterHideChk.checked = paletteFilterHide;
@@ -11387,7 +11766,7 @@ function renderNumericPanel(key, container) {
             pushHashState();
         });
     }
-    filterRow.querySelector(`#filter-reset-${key}`).addEventListener('click', () => {
+    filterRow.querySelector(`#filter-reset-${safeId}`).addEventListener('click', () => {
         const _rstSrc   = activeTab === 'working' ? 'working-data'  : 'geojson-data';
         const _rstIdKey = activeTab === 'working' ? '_wgvid' : '_gvid';
         const _rstFeats = activeTab === 'working' ? _workingStore.features : allFeatures;
@@ -11404,15 +11783,15 @@ function renderNumericPanel(key, container) {
         paletteStops = null;
         // Restore input values to actual data min/max
         const stats = propData[key].numericStats;
-        const liveLoInput = document.getElementById(`filter-lo-${key}`);
-        const liveHiInput = document.getElementById(`filter-hi-${key}`);
+        const liveLoInput = document.getElementById(`filter-lo-${safeId}`);
+        const liveHiInput = document.getElementById(`filter-hi-${safeId}`);
         if (liveLoInput) liveLoInput.value = stats.min;
         if (liveHiInput) liveHiInput.value = stats.max;
         applyPaletteToLayers();
         updateFilterHideCountDisplay();
         updateLayerFilters();
         updateSelectionBar();
-        const histoDiv = document.querySelector(`[id^="histo-canvas-${key}"]`);
+        const histoDiv = document.querySelector(`[id^="histo-canvas-${safeId}"]`);
         if (histoDiv) renderHistogram(key, histoDiv);
         syncPopoutHistogram(key);
     });
@@ -11434,32 +11813,32 @@ function renderNumericPanel(key, container) {
         const _sizeLogVal     = activeTab === 'working' ? wStyle.pointSizeLog    : pointSizeLog;
         const sizeActive = _sizeActiveOn && _sizeActiveProp === key;
         sizeRow.innerHTML = `<label style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--text-muted);cursor:pointer;white-space:nowrap">
-            <input type="checkbox" id="point-size-chk-${key}" style="cursor:pointer" ${sizeActive ? 'checked' : ''}>
+            <input type="checkbox" id="point-size-chk-${safeId}" style="cursor:pointer" ${sizeActive ? 'checked' : ''}>
             <span>Size</span>
         </label>
         <span style="color:var(--text-muted);font-size:10px">min</span>
-        <input type="number" id="point-size-min-${key}" value="${sizeActive ? _sizeMinVal : 3}" min="1" max="20" step="0.5"
+        <input type="number" id="point-size-min-${safeId}" value="${sizeActive ? _sizeMinVal : 3}" min="1" max="20" step="0.5"
             style="width:40px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono);${sizeActive ? '' : 'opacity:0.45'}">
         <span style="color:var(--text-muted);font-size:10px">–</span>
         <span style="color:var(--text-muted);font-size:10px">max</span>
-        <input type="number" id="point-size-max-${key}" value="${sizeActive ? _sizeMaxVal : 12}" min="1" max="60" step="0.5"
+        <input type="number" id="point-size-max-${safeId}" value="${sizeActive ? _sizeMaxVal : 12}" min="1" max="60" step="0.5"
             style="width:40px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono);${sizeActive ? '' : 'opacity:0.45'}">
         <span style="color:var(--text-muted);font-size:10px">px</span>
-        <button id="point-size-log-${key}" style="font-size:9px;padding:1px 5px;background:transparent;border:1px solid var(--border);border-radius:3px;cursor:pointer;color:var(--text-muted);${(sizeActive && _sizeLogVal) ? 'background:var(--surface2);border-color:var(--accent);color:var(--accent)' : ''}" title="Logarithmic size scale — better for skewed distributions">Log</button>`;
+        <button id="point-size-log-${safeId}" style="font-size:9px;padding:1px 5px;background:transparent;border:1px solid var(--border);border-radius:3px;cursor:pointer;color:var(--text-muted);${(sizeActive && _sizeLogVal) ? 'background:var(--surface2);border-color:var(--accent);color:var(--accent)' : ''}" title="Logarithmic size scale — better for skewed distributions">Log</button>`;
         panel.appendChild(sizeRow);
 
-        const sizeChk  = sizeRow.querySelector(`#point-size-chk-${key}`);
-        const sizeMinEl = sizeRow.querySelector(`#point-size-min-${key}`);
-        const sizeMaxEl = sizeRow.querySelector(`#point-size-max-${key}`);
+        const sizeChk  = sizeRow.querySelector(`#point-size-chk-${safeId}`);
+        const sizeMinEl = sizeRow.querySelector(`#point-size-min-${safeId}`);
+        const sizeMaxEl = sizeRow.querySelector(`#point-size-max-${safeId}`);
         const applyPointSize = () => {
             if (activeTab === 'working') {
-                wStyle.pointSizeMin = parseFloat(document.getElementById(`point-size-min-${key}`)?.value) || 3;
-                wStyle.pointSizeMax = parseFloat(document.getElementById(`point-size-max-${key}`)?.value) || 12;
+                wStyle.pointSizeMin = parseFloat(document.getElementById(`point-size-min-${safeId}`)?.value) || 3;
+                wStyle.pointSizeMax = parseFloat(document.getElementById(`point-size-max-${safeId}`)?.value) || 12;
                 updateWorkingPointRadius();
                 return;
             }
-            pointSizeMin = parseFloat(document.getElementById(`point-size-min-${key}`)?.value) || 3;
-            pointSizeMax = parseFloat(document.getElementById(`point-size-max-${key}`)?.value) || 12;
+            pointSizeMin = parseFloat(document.getElementById(`point-size-min-${safeId}`)?.value) || 3;
+            pointSizeMax = parseFloat(document.getElementById(`point-size-max-${safeId}`)?.value) || 12;
             updatePointRadius();
             updateStylePanelBadges();
         };
@@ -11467,8 +11846,8 @@ function renderNumericPanel(key, container) {
             if (activeTab === 'working') {
                 wStyle.pointSizeActive = enabled;
                 wStyle.pointSizeProp   = enabled ? key : null;
-                wStyle.pointSizeMin    = parseFloat(document.getElementById(`point-size-min-${key}`)?.value) || 3;
-                wStyle.pointSizeMax    = parseFloat(document.getElementById(`point-size-max-${key}`)?.value) || 12;
+                wStyle.pointSizeMin    = parseFloat(document.getElementById(`point-size-min-${safeId}`)?.value) || 3;
+                wStyle.pointSizeMax    = parseFloat(document.getElementById(`point-size-max-${safeId}`)?.value) || 12;
                 updateWorkingPointRadius();
                 return;
             }
@@ -11479,7 +11858,7 @@ function renderNumericPanel(key, container) {
             sizeMaxEl.style.opacity = opacity;
             applyPointSize();
         };
-        const sizeLogBtn = sizeRow.querySelector(`#point-size-log-${key}`);
+        const sizeLogBtn = sizeRow.querySelector(`#point-size-log-${safeId}`);
         sizeChk.addEventListener('change', () => setSizeEnabled(sizeChk.checked));
         sizeMinEl.addEventListener('change', applyPointSize);
         sizeMaxEl.addEventListener('change', applyPointSize);
@@ -11516,23 +11895,23 @@ function renderNumericPanel(key, container) {
         opacRow.className = 'numeric-clamp-row';
         const opacActive = lineOpacActive && lineOpacProp === key;
         opacRow.innerHTML = `<label style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--text-muted);cursor:pointer;white-space:nowrap">
-            <input type="checkbox" id="line-opac-chk-${key}" style="cursor:pointer" ${opacActive ? 'checked' : ''}>
+            <input type="checkbox" id="line-opac-chk-${safeId}" style="cursor:pointer" ${opacActive ? 'checked' : ''}>
             <span>Opacity</span>
         </label>
         <span style="color:var(--text-muted);font-size:10px">min</span>
-        <input type="number" id="line-opac-min-${key}" value="${opacActive ? lineOpacMin : 0.15}" min="0" max="1" step="0.05"
+        <input type="number" id="line-opac-min-${safeId}" value="${opacActive ? lineOpacMin : 0.15}" min="0" max="1" step="0.05"
             style="width:40px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono);${opacActive ? '' : 'opacity:0.45'}">
         <span style="color:var(--text-muted);font-size:10px">–</span>
         <span style="color:var(--text-muted);font-size:10px">max</span>
-        <input type="number" id="line-opac-max-${key}" value="${opacActive ? lineOpacMax : 1}" min="0" max="1" step="0.05"
+        <input type="number" id="line-opac-max-${safeId}" value="${opacActive ? lineOpacMax : 1}" min="0" max="1" step="0.05"
             style="width:40px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:2px 4px;border-radius:3px;font-family:var(--mono);${opacActive ? '' : 'opacity:0.45'}">`;
         panel.appendChild(opacRow);
-        const opacChk  = opacRow.querySelector(`#line-opac-chk-${key}`);
-        const opacMinEl = opacRow.querySelector(`#line-opac-min-${key}`);
-        const opacMaxEl = opacRow.querySelector(`#line-opac-max-${key}`);
+        const opacChk  = opacRow.querySelector(`#line-opac-chk-${safeId}`);
+        const opacMinEl = opacRow.querySelector(`#line-opac-min-${safeId}`);
+        const opacMaxEl = opacRow.querySelector(`#line-opac-max-${safeId}`);
         const doOpac = () => {
-            lineOpacMin = parseFloat(document.getElementById(`line-opac-min-${key}`)?.value) ?? 0.15;
-            lineOpacMax = parseFloat(document.getElementById(`line-opac-max-${key}`)?.value) ?? 1;
+            lineOpacMin = parseFloat(document.getElementById(`line-opac-min-${safeId}`)?.value) ?? 0.15;
+            lineOpacMax = parseFloat(document.getElementById(`line-opac-max-${safeId}`)?.value) ?? 1;
             applyLineOpacity();
             updateStylePanelBadges();
         };
@@ -11551,17 +11930,17 @@ function renderNumericPanel(key, container) {
     const clampRow = document.createElement('div');
     clampRow.className = 'numeric-clamp-row';
     clampRow.innerHTML = `<span>Squish</span>
-        <input type="range" id="clamp-lo-${key}" min="0" max="20" step="1" value="${paletteClampLow}" style="width:60px">
-        <span id="clamp-lo-label-${key}">${paletteClampLow}%</span>
+        <input type="range" id="clamp-lo-${safeId}" min="0" max="20" step="1" value="${paletteClampLow}" style="width:60px">
+        <span id="clamp-lo-label-${safeId}">${paletteClampLow}%</span>
         <span style="color:var(--text-muted)">–</span>
-        <span id="clamp-hi-label-${key}">${paletteClampHigh}%</span>
-        <input type="range" id="clamp-hi-${key}" min="80" max="100" step="1" value="${paletteClampHigh}" style="width:60px">`;
+        <span id="clamp-hi-label-${safeId}">${paletteClampHigh}%</span>
+        <input type="range" id="clamp-hi-${safeId}" min="80" max="100" step="1" value="${paletteClampHigh}" style="width:60px">`;
     panel.appendChild(clampRow);
 
-    const loSlider = clampRow.querySelector(`#clamp-lo-${key}`);
-    const hiSlider = clampRow.querySelector(`#clamp-hi-${key}`);
-    const loLabel  = clampRow.querySelector(`#clamp-lo-label-${key}`);
-    const hiLabel  = clampRow.querySelector(`#clamp-hi-label-${key}`);
+    const loSlider = clampRow.querySelector(`#clamp-lo-${safeId}`);
+    const hiSlider = clampRow.querySelector(`#clamp-hi-${safeId}`);
+    const loLabel  = clampRow.querySelector(`#clamp-lo-label-${safeId}`);
+    const hiLabel  = clampRow.querySelector(`#clamp-hi-label-${safeId}`);
     loSlider.addEventListener('input', () => {
         paletteClampLow = +loSlider.value; loLabel.textContent = paletteClampLow + '%';
         paletteStops = null; applyPaletteToLayers(); renderHistogram(key, histoDiv); syncPopoutHistogram(key);
@@ -11610,12 +11989,12 @@ function renderNumericPanel(key, container) {
     const binsRow = document.createElement('div');
     binsRow.className = 'numeric-bins-row';
     binsRow.innerHTML = `<span>Bins</span>
-        <input type="range" id="bins-${key}" min="2" max="50" step="1" value="${numericBinCount}">
-        <span id="bins-label-${key}">${numericBinCount}</span>`;
+        <input type="range" id="bins-${safeId}" min="2" max="50" step="1" value="${numericBinCount}">
+        <span id="bins-label-${safeId}">${numericBinCount}</span>`;
     panel.appendChild(binsRow);
-    binsRow.querySelector(`#bins-${key}`).addEventListener('input', function() {
+    binsRow.querySelector(`#bins-${safeId}`).addEventListener('input', function() {
         numericBinCount = +this.value;
-        binsRow.querySelector(`#bins-label-${key}`).textContent = numericBinCount;
+        binsRow.querySelector(`#bins-label-${safeId}`).textContent = numericBinCount;
         renderHistogram(key, histoDiv);
         // Also refresh popped panel if open
         const poppedContainer = document.querySelector('#histo-popout-panel .numeric-histogram');
@@ -12057,7 +12436,7 @@ function renderHistogram(key, container) {
                 // → highlight: show matching features in green
                 numericRangeFilter = { prop: key, lo, hi, state: 1 };
                 allFeatures.forEach(f => {
-                    const v = Number(f.properties[key]);
+                    const v = Number(_getFeatureVal(f, key));
                     if (!isNaN(v) && v >= lo && v <= hi) {
                         const id = f.properties._gvid;
                         map.setFeatureState({ source: _src(), id }, { highlighted: true });
@@ -12068,7 +12447,7 @@ function renderHistogram(key, container) {
                 // → filter: keep only matching, color them with the bar's histogram color
                 numericRangeFilter = { prop: key, lo, hi, state: 2, color: binColor };
                 allFeatures.forEach(f => {
-                    const v = Number(f.properties[key]);
+                    const v = Number(_getFeatureVal(f, key));
                     const matches = !isNaN(v) && v >= lo && v <= hi;
                     const id = f.properties._gvid;
                     const geomHidden = geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
@@ -12101,7 +12480,7 @@ function renderHistogram(key, container) {
                 // → exclude: hide matching, show rest
                 numericRangeFilter = { prop: key, lo, hi, state: 3 };
                 allFeatures.forEach(f => {
-                    const v = Number(f.properties[key]);
+                    const v = Number(_getFeatureVal(f, key));
                     const matches = !isNaN(v) && v >= lo && v <= hi;
                     const id = f.properties._gvid;
                     const geomHidden = geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
@@ -12138,7 +12517,7 @@ function lerpColor(a, b, t) {
 // 3-state click cycle for the null/non-numeric histogram bar
 function nullBarClick(key) {
     const isNullMatch = f => {
-        const v = f.properties[key];
+        const v = _getFeatureVal(f, key);
         return v === null || v === undefined || v === '' || (typeof v !== 'boolean' && isNaN(Number(v)));
     };
     const isSameNull = numericRangeFilter?.prop === key && numericRangeFilter?.lo === null;
@@ -12291,6 +12670,7 @@ function renderSidebar() {
     clearPropTooltip(); // clear any lingering hover tooltip before rebuild
     if (activeTab === 'working' && !_renderingSidebar) { renderWorkingPanel(); return; }
     if (_renderingSidebar) { /* called from renderWorkingPanel — proceed normally */ }
+    _renderJoinStatusPanel(); // show/hide join status bar
     updateLegendCard();
 
     // Update shape active label in style panel
@@ -12381,7 +12761,7 @@ function renderSidebar() {
         palDot.addEventListener('click', e => {
             e.stopPropagation();
             if (palState === 'none') {
-                activatePalette(key, propData[key]?.isColorProp ? 'native' : 'Set1');
+                activatePalette(key, propData[key]?._isJoinProp ? (propData[key]?.isNumeric ? paletteQuantScheme || 'YlOrRd' : 'Set1') : (propData[key]?.isColorProp ? 'native' : 'Set1'));
             } else if (palState === 'active') {
                 pinnedPalettes.clear(); // only one pin at a time
                 pinnedPalettes.set(key, _captureCurrentPaletteConfig());
@@ -12430,7 +12810,10 @@ function renderSidebar() {
         const _boolBadge = _isBoolProp
             ? `<button class="prop-type-toggle-bool" title="Boolean property — click to apply true/false colors" style="background:transparent;border:none;cursor:pointer;font-size:9px;font-family:var(--mono);color:var(--accent);opacity:0.8;padding:0 2px 0 0;line-height:1;vertical-align:middle">T/F</button>`
             : '';
-        nameBtn.innerHTML = `<span class="prop-name">${escHtml(_displayPropName(key))}</span>`;
+        const _isJoinProp = propData[key]?._isJoinProp === true;
+        nameBtn.innerHTML = _isJoinProp
+            ? `<span class="prop-name" style="font-style:italic;color:var(--text-muted)"><span style="font-size:9px;vertical-align:1px;margin-right:2px;font-style:normal">⤵</span>${escHtml(_displayJoinPropName(key))}</span>`
+            : `<span class="prop-name">${escHtml(_displayPropName(key))}</span>`;
 
         // Hover: show a small popup with the first 5 sample values
         // Special: _selecter_flag/_selecter_flag_coords → show all flag markers
@@ -12509,7 +12892,7 @@ function renderSidebar() {
                     renderSidebar();
                     pushHashState();
                 } else {
-                    activatePalette(key, propData[key]?.isColorProp ? 'native' : 'Set1');
+                    activatePalette(key, propData[key]?._isJoinProp ? (propData[key]?.isNumeric ? paletteQuantScheme || 'YlOrRd' : 'Set1') : (propData[key]?.isColorProp ? 'native' : 'Set1'));
                 }
                 } // end pin guard else
             } else {
@@ -12581,7 +12964,7 @@ function renderSidebar() {
                     renderSidebar();
                     pushHashState();
                 } else {
-                    activatePalette(key, propData[key]?.isColorProp ? 'native' : 'Set1');
+                    activatePalette(key, propData[key]?._isJoinProp ? (propData[key]?.isNumeric ? paletteQuantScheme || 'YlOrRd' : 'Set1') : (propData[key]?.isColorProp ? 'native' : 'Set1'));
                 }
             } else {
                 renderSidebar();
@@ -12785,7 +13168,7 @@ function renderSidebar() {
                 allFeatures.forEach(f => {
                     const fid = f.properties[idKey];
                     if (fid == null) return;
-                    if (String(f.properties[key]) === String(val)) {
+                    if (String(_getFeatureVal(f, key)) === String(val)) {
                         try { map.setFeatureState({ source: _src(), id: fid }, { highlighted: true }); } catch {}
                         highlightedIds.add(fid);
                     }
@@ -12852,6 +13235,15 @@ function sidebarValueClick(key, val) {
 }
 
 // ── HIGHLIGHT / FILTER ──
+// Get a feature's value for a property key — reads from join store for join props
+function _getFeatureVal(f, key) {
+    if (key && key.startsWith('join_') && propData[key]?._isJoinProp && _joinStore) {
+        const aggKey = key.slice(5);
+        return _joinStore.byGvid[f.properties._gvid]?.agg[aggKey] ?? null;
+    }
+    return f.properties[key];
+}
+
 function doHighlight(key, val) {
     const src   = _src();
     const idKey = activeTab === 'working' ? '_wgvid' : '_gvid';
@@ -12859,7 +13251,7 @@ function doHighlight(key, val) {
     highlightedIds.forEach(id => { try { map.setFeatureState({ source: src, id }, { highlighted: false }); } catch {} });
     highlightedIds.clear();
     allFeatures.forEach(f => {
-        if (String(f.properties[key]) === String(val)) {
+        if (String(_getFeatureVal(f, key)) === String(val)) {
             const id = f.properties[idKey];
             try { map.setFeatureState({ source: src, id }, { highlighted: true }); } catch {}
             highlightedIds.add(id);
@@ -12872,7 +13264,7 @@ function doFilterSelect(key, val) {
     const idKey = activeTab === 'working' ? '_wgvid' : '_gvid';
     allFeatures.forEach(f => {
         const id = f.properties[idKey];
-        const matches = String(f.properties[key]) === String(val);
+        const matches = String(_getFeatureVal(f, key)) === String(val);
         const geomHidden = geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
         if (matches) {
             try { map.setFeatureState({ source: src, id }, { highlighted: false, filtered: true, hidden: geomHidden }); } catch {}
@@ -12895,7 +13287,7 @@ function doExclude(key, val) {
     const idKey = activeTab === 'working' ? '_wgvid' : '_gvid';
     allFeatures.forEach(f => {
         const id = f.properties[idKey];
-        const matches = String(f.properties[key]) === String(val);
+        const matches = String(_getFeatureVal(f, key)) === String(val);
         const geomHidden = geomTypeOf(f) ? !geomVisible[geomTypeOf(f)] : false;
         if (matches) {
             try { map.setFeatureState({ source: src, id }, { filtered: false, highlighted: false, hidden: true }); } catch {}
@@ -13090,8 +13482,8 @@ function onMouseMove(e) {
     // Always show pointer and apply hover tint (unless in split mode)
     map.getCanvas().style.cursor = splitModeActive ? 'crosshair' : 'pointer';
     setHoveredFeature(fid);
-
-    // Dwell select — start timer when hovering a new feature
+    // Sync to right panel — scroll the matching row into view on hover
+    if (_jrpOpen && _joinStore) _jrpHighlightRow(fid);
     if (_dwellSelectMode && !splitModeActive) {
         if (fid !== _dwellFeatureId || _dwellTimer === null) {
             _startDwell(fid, 'geojson-data');
@@ -13111,9 +13503,14 @@ function onMouseMove(e) {
         if (fid !== lastHoveredId) {
             lastHoveredId = fid;
             const props = cleanProps(f.properties);
-            const entries = sortEntriesByActivity(
+            const baseEntries = sortEntriesByActivity(
                 Object.entries(props).filter(([, v]) => v !== null && v !== undefined && v !== '')
             );
+            // Append join aggregation data if available
+            const joinEntries = _getJoinEntries(fid);
+            const entries = joinEntries.length
+                ? [...baseEntries, ...joinEntries.map(([k,v]) => [k, String(v)])]
+                : baseEntries;
             if (!entries.length) { hoverPopup.remove(); return; }
             const hoverDividerIdx = lastActiveIndex(entries);
             // On hover: only show active props (palette/label/filter); hide the rest
@@ -13973,6 +14370,8 @@ function onFeatureClick(e) {
     }
 
     // New feature: select it and pin a new popup
+    // Also expand the right panel row if open
+    if (_jrpOpen && _joinStore) _jrpExpandRow(f.properties._gvid);
     // Detect stack at click point so cycle button works in pinned popup
     const _clickLayers2 = ['gv-line','gv-line-dashed','gv-fill','gv-point','gv-point-shape','gv-outline-interact']
         .filter(lid => { try { return !!map.getLayer(lid); } catch { return false; } });
@@ -14106,12 +14505,15 @@ function buildFrozenHTML() {
         .filter(([, vals]) => vals.size > 1)
         .map(([k]) => k));
 
-    // Sort: diffs first within each group, then normal group sort
     const baseEntries = sortEntriesByActivity(
         Object.entries(props).filter(([, v]) => v !== null && v !== undefined && v !== '')
     );
-    // Sort: no diff-based reordering — keeps property order stable while cycling
-    const entries = baseEntries;
+    // Append join aggregation data if available for this feature
+    const _frozenGvid = frozenFeatureProps?._gvid;
+    const joinEntries = _getJoinEntries(_frozenGvid);
+    const entries = joinEntries.length
+        ? [...baseEntries, ...joinEntries.map(([k,v]) => [k, String(v)])]
+        : baseEntries;
     const frozenDividerIdx = lastActiveIndex(entries);
     const rows = entries.map(([k, v], i) => {
         const st = popupRowStates[k] || 0;
@@ -14128,7 +14530,10 @@ function buildFrozenHTML() {
         const isDiff  = _diffKeys.has(k);
         // Soft-wrap property keys at _ and values at |
         const kDisplay = _displayPropName(k);
-        const kWrap = escHtml(kDisplay).replace(/_/g, '_​');
+        const isJoinProp = k.startsWith('⤵');
+        const kWrap = isJoinProp
+            ? `<span style="color:#2dd4bf;font-style:italic">${escHtml(kDisplay)}</span>`
+            : escHtml(kDisplay).replace(/_/g, '_​');
         const vRaw  = String(v);
         const vWrap = escHtml(vRaw).replace(/\|/g, '|​');
         const anchorVal = anchor ? escHtml(String(anchor[k] ?? '')) : null;
@@ -14280,7 +14685,7 @@ function attachFrozenEvents() {
             if (!key) return;
             // Hovering _selecter_flag_coords → show all flag markers
             if (key === '_selecter_flag_coords') { showAllFlagMarkers(); return; }
-            activatePalette(key, propData[key]?.isColorProp ? 'native' : (paletteScheme || 'Set1'));
+            activatePalette(key, propData[key]?._isJoinProp ? (propData[key]?.isNumeric ? paletteQuantScheme || 'YlOrRd' : 'Set1') : (propData[key]?.isColorProp ? 'native' : (paletteScheme || 'Set1')));
             openPropKey = key; _activeStore.openPropKey = key;
             // Open style panel if collapsed so user can see the palette bar
             const body = document.getElementById('style-panel-body');
@@ -15004,6 +15409,22 @@ document.getElementById('poly-width-pill').addEventListener('click', e => {
     polyWidthMode = opt.dataset.val;
     applyPolyStyle(); pushHashState();
 });
+document.getElementById('poly-water-pill')?.addEventListener('click', e => {
+    const opt = e.target.closest('.style-opt');
+    if (!opt) return;
+    document.querySelectorAll('#poly-water-pill .style-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    const mode = opt.dataset.val;
+    if (!map.getLayer('gv-fill')) return;
+    try {
+        // 'under': gv-fill below roads (default) — roads and bridges visible above polygon fills
+        // 'over':  gv-fill above roads but below labels — polygon fills cover roads
+        const target = mode === 'under'
+            ? (map.getLayer('roads_tunnels_other_casing') ? 'roads_tunnels_other_casing' : 'address_label')
+            : (map.getLayer('address_label') ? 'address_label' : null);
+        if (target) map.moveLayer('gv-fill', target);
+    } catch (err) { console.warn('[poly-water]', err); }
+});
 document.getElementById('poly-size-pill').addEventListener('click', e => {
     const opt = e.target.closest('.style-opt');
     if (!opt) return;
@@ -15183,6 +15604,20 @@ _wPill('w-poly-outline-pill', 'polyOutlineMode', _wApplyPoly);
 _wPill('w-poly-fill-pill',    'polyFillMode',    _wApplyPoly);
 _wPill('w-poly-width-pill',   'polyWidthMode',   _wApplyPoly);
 _wPill('w-poly-size-pill',    'polySizeMode',    _wApplyPoly);
+
+document.getElementById('w-poly-water-pill')?.addEventListener('click', e => {
+    const opt = e.target.closest('.style-opt');
+    if (!opt) return;
+    document.querySelectorAll('#w-poly-water-pill .style-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    if (!map.getLayer('working-fill')) return;
+    try {
+        const target = opt.dataset.val === 'under'
+            ? (map.getLayer('roads_tunnels_other_casing') ? 'roads_tunnels_other_casing' : 'address_label')
+            : (map.getLayer('address_label') ? 'address_label' : null);
+        if (target) map.moveLayer('working-fill', target);
+    } catch (err) { console.warn('[w-poly-draw]', err); }
+});
 
 // Width-by-prop panel
 function showWorkingLineWidthDataPanel(mode) {
@@ -18139,6 +18574,26 @@ function _displayPropName(key) {
     return key;
 }
 
+// Format join prop names: join_avg_cost → "avg cost", join_count → "count"
+function _displayJoinPropName(key) {
+    if (!key.startsWith('join_')) return key;
+    const rest = key.slice(5); // strip "join_"
+    // For mode_ (categorical): just show the column name — "mode" is implicit
+    if (rest.startsWith('mode_')) return rest.slice(5);
+    // For pct_ show as "% of column" to make clear it's a share of total
+    if (rest.startsWith('pct_')) return `% of ${rest.slice(4)}`;
+    // For other agg prefixes: show "avg cost", "sum cost", etc.
+    const aggPrefixes = ['avg_','sum_','min_','max_','median_','stddev_','count_','pct_'];
+    for (const pfx of aggPrefixes) {
+        if (rest.startsWith(pfx)) {
+            const col = rest.slice(pfx.length);
+            const aggLabel = pfx.slice(0, -1);
+            return `${aggLabel} ${col}`;
+        }
+    }
+    return rest; // e.g. "count"
+}
+
 // Format _selecter_ numeric values with unit suffix for display
 function _displayPropValue(key, value) {
     if (value === null || value === undefined || typeof value !== 'number') return null;
@@ -18431,6 +18886,7 @@ function _applySatelliteBasemap() {
         _preSatState = {
             roadsChecked:     document.getElementById('chk-bm-roads')?.checked     ?? true,
             streetsChecked:   document.getElementById('chk-bm-streets')?.checked   ?? true,
+            shieldsChecked:   document.getElementById('chk-bm-shields')?.checked   ?? false,
             waterChecked:     document.getElementById('chk-bm-water')?.checked      ?? true,
             poiChecked:       document.getElementById('chk-bm-poi')?.checked        ?? true,
             landuseChecked:   document.getElementById('chk-bm-landuse')?.checked    ?? true,
@@ -18599,14 +19055,10 @@ function _removeSatelliteBasemap() {
         toggleBasemapGroup('roads',     _preSatState.roadsChecked);
         toggleBasemapGroup('water',     _preSatState.waterChecked);
         toggleBasemapGroup('poi',       _preSatState.poiChecked);
-        // Street names: restore highway shields that were individually hidden
-        basemapGroups.streets.forEach(id => {
-            const lid = id.toLowerCase();
-            if (lid.includes('shield') || lid.includes('highway') || lid.includes('route')) {
-                const vis = _preSatState.streetsChecked ? 'visible' : 'none';
-                try { map.setLayoutProperty(id, 'visibility', vis); } catch {}
-            }
-        });
+        // Street names and shields: restore separately
+        _chkRestore('chk-bm-shields', _preSatState.shieldsChecked ?? false);
+        if (basemapGroups.shields?.length) toggleBasemapGroup('shields', _preSatState.shieldsChecked ?? false);
+        document.getElementById('lbl-bm-shields')?.classList.toggle('active', _preSatState.shieldsChecked ?? false);
 
         // File tab line style
         lineWidthMode   = _preSatState.fileLineWidthMode;
@@ -18748,13 +19200,16 @@ function switchBasemapTo(val) {
                     map.setFeatureState({ source: _src(), id }, { hidden: true });
                 });
                 if (savedFiltered) {
-                    // Re-apply filtered state visually
                     allFeatures.forEach(f => {
                         const id = f.properties._gvid;
                         if (savedSelected.has(id)) {
                             map.setFeatureState({ source: 'geojson-data', id }, { filtered: true });
                         }
                     });
+                }
+                // Restore join feature states — setStyle wipes all feature state
+                if (_joinStore) {
+                    _applyJoinFeatureStates();
                 }
                 updatePointRadius();
                 applyPolyStyle();
@@ -19356,9 +19811,9 @@ document.getElementById('save-visible-btn').addEventListener('click', () => {
         }));
         saveGeoJSON(features, buildTileSaveFilename('visible'));
     } else {
-        const features = allFeatures
-            .filter(f => !hiddenIds.has(f.properties._gvid))
-            .map(f => { const p = { ...f.properties }; delete p._gvid; return { ...f, id: undefined, properties: p }; });
+        // Pass features WITH _gvid so saveGeoJSON can attach join data if needed;
+        // saveGeoJSON's clean() strips _gvid before writing to disk.
+        const features = allFeatures.filter(f => !hiddenIds.has(f.properties._gvid));
         saveGeoJSON(features, buildSaveFilename('visible'));
     }
 });
@@ -19789,11 +20244,16 @@ async function _applyStyleState(state, opts = {}) {
     if (state.geomVisible) Object.assign(geomVisible, state.geomVisible);
     if (Array.isArray(state.labelProps)) {
         labelProps.clear();
-        state.labelProps.forEach(p => labelProps.add(p));
+        // Don't restore join label props — _joinStore not active at restore time
+        state.labelProps.forEach(p => { if (!p.startsWith('join_')) labelProps.add(p); });
     }
     if (state.numericTypeOverrides) Object.assign(numericTypeOverrides, state.numericTypeOverrides);
-    // Palette
+    // Palette — clear join props if _joinStore not available (not yet re-joined)
     paletteProp        = state.paletteProp        ?? null;
+    if (paletteProp && paletteProp.startsWith('join_') && !_joinStore) {
+        console.log(`[join] Clearing restored palette "${paletteProp}" — join store not active`);
+        paletteProp = null;
+    }
     paletteScheme      = state.paletteScheme      ?? 'Set1';
     paletteQuantScheme = state.paletteQuantScheme ?? 'YlOrRd';
     paletteNumStops    = state.paletteNumStops    ?? 7;
@@ -20062,7 +20522,687 @@ function exportStyleJSON(baseName) {
 }
 
 // Import a .style.json file — can be generic (no sourceName) or file-specific
-// ── CSV IMPORT ─────────────────────────────────────────────────────────────
+// Normalize a value for matching — strips thousands-separator commas from numeric strings
+// e.g. "3,495,000" → "3495000" so it matches integer properties
+function normVal(v) {
+    if (!v) return '';
+    const stripped = String(v).trim().replace(/,/g, '');
+    return isNaN(stripped) || stripped === '' ? String(v).trim() : stripped;
+}
+
+// Compute a label point for each polygon feature and update geojson-poly-labels source.
+// Uses a simple pole-of-inaccessibility approximation (avg of bbox center and centroid).
+// Called whenever labels change or data changes so the centroid source stays in sync.
+function _updatePolyLabelCentroids() {
+    if (!map.getSource('geojson-poly-labels')) return;
+    const polyFeatures = allFeatures.filter(f =>
+        f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon');
+    if (!polyFeatures.length) {
+        map.getSource('geojson-poly-labels').setData({ type: 'FeatureCollection', features: [] });
+        return;
+    }
+    const seen = new Set(); // dedup by _gvid — prevents duplicate labels for same feature
+    const pts = [];
+    for (const f of polyFeatures) {
+        const gvid = f.properties._gvid;
+        if (seen.has(gvid)) continue;
+        seen.add(gvid);
+        if (hiddenIds.has(gvid)) continue; // skip hidden features
+
+        let coords;
+        if (f.geometry.type === 'Polygon') {
+            coords = f.geometry.coordinates[0];
+        } else {
+            // MultiPolygon: pick the sub-polygon with the most vertices.
+            // More vertices = more detailed coastline = the important polygon.
+            // Do NOT use bbox area — remote islands can have larger bbox than mainland
+            // (e.g. Farallon Islands in SF District 4 have wider longitude span than SF proper).
+            let best = null, bestPts = 0;
+            f.geometry.coordinates.forEach(poly => {
+                const ring = poly[0];
+                if (ring.length > bestPts) { bestPts = ring.length; best = ring; }
+            });
+            coords = best || f.geometry.coordinates[0][0];
+        }
+        const lngs = coords.map(c => c[0]), lats = coords.map(c => c[1]);
+        const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+        const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+        const cLng = coords.reduce((s, c) => s + c[0], 0) / coords.length;
+        const cLat = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+        const lng = (cLng + (minLng + maxLng) / 2) / 2;
+        const lat = (cLat + (minLat + maxLat) / 2) / 2;
+        pts.push({
+            type: 'Feature',
+            id: gvid,
+            geometry: { type: 'Point', coordinates: [lng, lat] },
+            properties: { ...f.properties }
+        });
+    }
+    map.getSource('geojson-poly-labels').setData({ type: 'FeatureCollection', features: pts });
+}
+// Populated when a CSV is matched to the loaded GeoJSON. Kept separate from
+// feature properties — features are never mutated; aggregated values are
+// injected via feature-state for palette/color use.
+// Get join aggregation entries for a feature to show in hover/pinned popups
+function _getJoinEntries(gvid) {
+    // In Working tab, join data is embedded in feature properties — don't use _joinStore
+    // (which belongs to the File tab and may point to different/stale data).
+    if (activeTab === 'working') {
+        const f = allFeatures.find(f => f.id === gvid || f.properties._wgvid === gvid);
+        if (!f || !f.properties.join_data_source) return [];
+        const entries = [];
+        const p = f.properties;
+        if (p.join_data_source) entries.push(['⤵ source', p.join_data_source]);
+        if (p.join_count !== undefined) entries.push(['⤵ count', p.join_count]);
+        Object.keys(p).forEach(k => {
+            if (k.startsWith('join_') && k !== 'join_count' && k !== 'join_data_source' && k !== 'join_join_key') {
+                entries.push([`⤵ ${k.slice(5)}`, p[k]]);
+            }
+        });
+        return entries.slice(0, 8); // cap to avoid flooding the popup
+    }
+
+    if (!_joinStore) return [];
+    // Try direct lookup (file tab: gvid === _gvid via promoteId)
+    let agg = _joinStore.byGvid[gvid]?.agg;
+    if (!agg) {
+        // Fallback for any case where id doesn't match directly
+        const f = allFeatures.find(f => f.id === gvid && f.properties._gvid != null);
+        if (f) agg = _joinStore.byGvid[f.properties._gvid]?.agg;
+    }
+    if (!agg) return [];
+    const entries = [];
+    if (agg.count !== undefined) entries.push(['⤵ count', agg.count]);
+    _joinStore.numericCols.forEach(col => {
+        const isCur = _joinStore.currencyCols?.has(col);
+        const fmt = v => {
+            if (v === null || v === undefined) return null;
+            if (!isCur) return typeof v === 'number' ? parseFloat(v.toFixed(2)) : v;
+            if (Math.abs(v) >= 1e6) return '$' + (v/1e6).toLocaleString(undefined,{maximumFractionDigits:1}) + 'M';
+            if (Math.abs(v) >= 1e3) return '$' + (v/1e3).toLocaleString(undefined,{maximumFractionDigits:1}) + 'K';
+            return '$' + v.toLocaleString(undefined,{maximumFractionDigits:2});
+        };
+        const avg = fmt(agg[`avg_${col}`]);
+        const sum = fmt(agg[`sum_${col}`]);
+        if (avg !== null) entries.push([`⤵ avg ${col}`, avg]);
+        if (sum !== null && agg.count > 1) entries.push([`⤵ sum ${col}`, sum]);
+    });
+    // Categorical modes intentionally omitted — right panel will show all rows
+    return entries;
+}
+
+// ── JOIN RIGHT PANEL ──────────────────────────────────────────────────────
+
+let _jrpOpen = false;
+let _jrpSortCol = null;
+let _jrpSortDir = 'desc';
+let _jrpExpandedGvid = null;
+let _jrpCols = [];
+let _jrpDetailShowAll = new Set(); // gvids whose rows are fully expanded
+let _jrpFieldsExpanded = new Set(); // "gvid:rowIndex" whose fields are all shown
+
+// Highlight a row in the JRP on map hover (no expand, just visual focus)
+function _jrpHighlightRow(gvid) {
+    const body = document.getElementById('jrp-body');
+    if (!body) return;
+    body.querySelectorAll('._jrp-row-main').forEach(el => {
+        const isThis = parseInt(el.closest('._jrp-row')?.dataset.gvid) === gvid;
+        el.style.background = isThis ? 'rgba(45,212,191,0.12)' : (_jrpExpandedGvid === parseInt(el.closest('._jrp-row')?.dataset.gvid) ? 'rgba(45,212,191,0.06)' : 'transparent');
+        if (isThis) el.scrollIntoView({ block: 'nearest' });
+    });
+}
+
+// Expand a row in the JRP on map click
+function _jrpExpandRow(gvid) {
+    if (!_joinStore || !_jrpOpen) return;
+    _jrpExpandedGvid = _jrpExpandedGvid === gvid ? null : gvid;
+    _renderJoinRightPanel();
+}
+
+function _jrpDefaultCols() {
+    if (!_joinStore) return [];
+    const cols = [_joinStore.propKey, 'join_count'];
+    _joinStore.numericCols.forEach(c => {
+        cols.push(`join_sum_${c}`);
+        cols.push(`join_pct_${c}`);
+    });
+    return cols.filter(k => k && (k === _joinStore.propKey || propData[k]));
+}
+
+function _jrpAvailableCols() {
+    if (!_joinStore) return [];
+    const all = [_joinStore.propKey, 'join_count'];
+    _joinStore.numericCols.forEach(c => {
+        ['avg','sum','min','max','median','pct'].forEach(a => all.push(`join_${a}_${c}`));
+    });
+    const _LABEL_HINTS = ['name','neighborhood','block','district','ward','street','address','location'];
+    _joinStore.catCols.forEach(c => {
+        if (_LABEL_HINTS.some(h => c.toLowerCase().includes(h))) all.push(`join_mode_${c}`);
+    });
+    return all.filter(k => k === _joinStore.propKey || propData[k]);
+}
+
+function _jrpColLabel(key) {
+    if (!_joinStore || key === _joinStore.propKey) return key;
+    return _displayJoinPropName(key);
+}
+
+function _jrpCellVal(gvid, key) {
+    if (!_joinStore) return '';
+    if (key === _joinStore.propKey) {
+        const f = allFeatures.find(f => f.properties._gvid === gvid);
+        return f ? String(f.properties[key] ?? '') : '';
+    }
+    const agg = _joinStore.byGvid[gvid]?.agg;
+    if (!agg) return '';
+    const aggKey = key.slice(5);
+    const v = agg[aggKey];
+    if (v === null || v === undefined) return '';
+    const colName = aggKey.replace(/^(avg|sum|min|max|median|stddev|count|pct)_/,'');
+    const isCur = _joinStore.currencyCols?.has(colName);
+    const isPct = aggKey.startsWith('pct_');
+    if (isPct) return v.toFixed(1) + '%';
+    if (isCur) {
+        if (Math.abs(v) >= 1e6) return '$' + (v/1e6).toFixed(1) + 'M';
+        if (Math.abs(v) >= 1e3) return '$' + (v/1e3).toFixed(1) + 'K';
+        return '$' + v.toLocaleString(undefined,{maximumFractionDigits:2});
+    }
+    if (aggKey === 'count') return v;
+    return typeof v === 'number' ? parseFloat(v.toFixed(2)) : v;
+}
+
+function _jrpSortedRows() {
+    if (!_joinStore) return [];
+    const rows = Object.entries(_joinStore.byGvid).map(([gvid, entry]) => ({ gvid: parseInt(gvid), entry }));
+    if (!_jrpSortCol) return rows;
+    return rows.sort((a, b) => {
+        const va = _jrpCellVal(a.gvid, _jrpSortCol);
+        const vb = _jrpCellVal(b.gvid, _jrpSortCol);
+        const na = parseFloat(va), nb = parseFloat(vb);
+        const isNum = !isNaN(na) && !isNaN(nb);
+        let cmp = isNum ? na - nb : String(va).localeCompare(String(vb));
+        return _jrpSortDir === 'asc' ? cmp : -cmp;
+    });
+}
+
+function _renderJoinRightPanel() {
+    const panel = document.getElementById('join-right-panel');
+    const btn   = document.getElementById('join-panel-btn');
+    if (!panel || !btn) return;
+
+    if (!_joinStore || activeTab !== 'file') {
+        panel.style.display = 'none';
+        btn.style.display = 'none';
+        return;
+    }
+    btn.style.display = '';
+    if (!_jrpOpen) { panel.style.display = 'none'; return; }
+    panel.style.display = 'flex';
+
+    const titleEl = document.getElementById('jrp-title');
+    const subEl   = document.getElementById('jrp-subtitle');
+    if (titleEl) titleEl.textContent = _joinStore.file;
+    if (subEl)   subEl.textContent   = `${_joinStore.csvCol} → ${_joinStore.propKey} · ${Object.keys(_joinStore.byGvid).length} features`;
+
+    if (!_jrpCols.length) _jrpCols = _jrpDefaultCols();
+
+    // Column pills
+    const pillsEl = document.getElementById('jrp-col-pills');
+    if (pillsEl) {
+        pillsEl.innerHTML = _jrpCols.map((k, i) =>
+            `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);font-size:9px;color:var(--text-muted);white-space:nowrap">
+                ${escHtml(_jrpColLabel(k))}
+                ${i > 0 ? `<button data-rmcol="${escHtml(k)}" style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:0;font-size:10px;line-height:1">×</button>` : ''}
+            </span>`
+        ).join('');
+        pillsEl.querySelectorAll('[data-rmcol]').forEach(b => {
+            b.addEventListener('click', () => { _jrpCols = _jrpCols.filter(c => c !== b.dataset.rmcol); _renderJoinRightPanel(); });
+        });
+    }
+
+    // Sort header
+    const sortBar = document.getElementById('jrp-sort-bar');
+    if (sortBar) {
+        sortBar.innerHTML = `<span style="width:16px;flex-shrink:0;border-right:1px solid var(--border)"></span>` +
+            _jrpCols.map(k => {
+                const active = _jrpSortCol === k;
+                const arrow  = active ? (_jrpSortDir === 'asc' ? ' ↑' : ' ↓') : '';
+                return `<button data-sortcol="${escHtml(k)}" style="flex:1;min-width:80px;padding:5px 8px;border:none;border-right:1px solid var(--border);background:${active?'var(--surface2)':'none'};cursor:pointer;font-size:9px;font-weight:600;color:${active?'var(--accent)':'var(--text-muted)'};text-align:left;font-family:var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(_jrpColLabel(k))}${arrow}</button>`;
+            }).join('');
+        sortBar.querySelectorAll('[data-sortcol]').forEach(b => {
+            b.addEventListener('click', () => {
+                const k = b.dataset.sortcol;
+                if (_jrpSortCol === k) _jrpSortDir = _jrpSortDir === 'asc' ? 'desc' : 'asc';
+                else { _jrpSortCol = k; _jrpSortDir = 'desc'; }
+                _renderJoinRightPanel();
+            });
+        });
+    }
+
+    // Body rows
+    const body = document.getElementById('jrp-body');
+    if (body) {
+        const rows = _jrpSortedRows();
+        body.innerHTML = rows.map(({ gvid, entry }) => {
+            const isExpanded = _jrpExpandedGvid === gvid;
+            const isHidden   = hiddenIds.has(gvid);
+            const cells = _jrpCols.map(k =>
+                `<span style="flex:1;min-width:80px;padding:5px 8px;font-size:10px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-right:1px solid var(--border)">${escHtml(String(_jrpCellVal(gvid, k)))}</span>`
+            ).join('');
+            let detail = '';
+            if (isExpanded) {
+                const csvRows = entry.rows || [];
+                const showAllRows  = _jrpDetailShowAll.has(gvid);
+                const colKeys  = _joinStore.headers.filter(h => h !== _joinStore.csvCol);
+                const ROWS_PER_PAGE = 3;
+                const FIELDS_MAX    = 8;
+                const visibleRows = showAllRows ? csvRows : csvRows.slice(0, ROWS_PER_PAGE);
+                const moreRows    = csvRows.length - visibleRows.length;
+                detail = `<div style="background:var(--surface2);border-bottom:1px solid var(--border)">
+                    ${visibleRows.map((row, ri) => {
+                        const nonEmpty = colKeys.filter(k => row[k]);
+                        const fieldKey = `${gvid}:${ri}`;
+                        const showAllFields = _jrpFieldsExpanded.has(fieldKey);
+                        const visibleFields = showAllFields ? nonEmpty : nonEmpty.slice(0, FIELDS_MAX);
+                        const moreFields = nonEmpty.length - visibleFields.length;
+                        return `<div style="padding:6px 12px 6px 24px;${ri<visibleRows.length-1||moreRows>0?'border-bottom:1px solid var(--border)':''}">
+                            <div style="font-size:9px;font-weight:600;color:var(--text-muted);margin-bottom:3px">Row ${ri+1} of ${csvRows.length}</div>
+                            ${visibleFields.map(k =>
+                                `<div style="display:grid;grid-template-columns:100px 1fr;gap:6px;font-size:10px;margin-bottom:1px">
+                                    <span style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(k)}">${escHtml(k)}</span>
+                                    <span style="color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(String(row[k]))}">${escHtml(String(row[k]).slice(0,160))}</span>
+                                </div>`
+                            ).join('')}
+                            ${moreFields > 0 ? `<button class="_jrp-show-fields" data-gvid="${gvid}" data-ri="${ri}" style="background:none;border:none;cursor:pointer;font-size:9px;color:var(--accent);padding:2px 0;font-family:var(--sans)">+ ${moreFields} more fields</button>` : ''}
+                        </div>`;
+                    }).join('')}
+                    ${moreRows > 0 ? `<div style="padding:6px 12px 6px 24px">
+                        <button class="_jrp-show-more" data-gvid="${gvid}" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:10px;color:var(--accent);padding:3px 8px;font-family:var(--sans)">Show all ${csvRows.length} rows (+${moreRows} more)</button>
+                    </div>` : ''}
+                </div>`;
+            }
+            return `<div class="_jrp-row" data-gvid="${gvid}" style="border-bottom:1px solid var(--border);opacity:${isHidden?0.4:1}">
+                <div class="_jrp-row-main" style="display:flex;align-items:stretch;cursor:pointer;background:${isExpanded?'rgba(45,212,191,0.06)':'transparent'}">
+                    <span style="width:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--text-muted);border-right:1px solid var(--border)">${isExpanded?'▾':'▸'}</span>
+                    ${cells}
+                </div>${detail}
+            </div>`;
+        }).join('') || `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:10px">No joined features</div>`;
+
+        body.querySelectorAll('._jrp-row-main').forEach(row => {
+            const gvid = parseInt(row.closest('._jrp-row').dataset.gvid);
+            // Hover on table row → highlight feature on map
+            row.addEventListener('mouseenter', () => {
+                setHoveredFeature(gvid);
+            });
+            row.addEventListener('mouseleave', () => {
+                setHoveredFeature(null);
+            });
+            // Click → expand/collapse accordion + highlight on map
+            row.addEventListener('click', () => {
+                _jrpExpandedGvid = _jrpExpandedGvid === gvid ? null : gvid;
+                if (_jrpExpandedGvid) setHoveredFeature(gvid);
+                _renderJoinRightPanel();
+            });
+        });
+
+        // "Show more rows" button
+        body.querySelectorAll('._jrp-show-more').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                _jrpDetailShowAll.add(parseInt(btn.dataset.gvid));
+                _renderJoinRightPanel();
+            });
+        });
+
+        // "Show more fields" button — expands fields for one specific row
+        body.querySelectorAll('._jrp-show-fields').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                _jrpFieldsExpanded.add(`${btn.dataset.gvid}:${btn.dataset.ri}`);
+                _renderJoinRightPanel();
+            });
+        });
+    }
+
+    // Footer totals
+    const footer = document.getElementById('jrp-footer');
+    if (footer && _joinStore.csvTotals) {
+        const parts = Object.entries(_joinStore.csvTotals).map(([col, total]) => {
+            const isCur = _joinStore.currencyCols?.has(col);
+            const fmt = v => {
+                if (!isCur) return v.toLocaleString(undefined,{maximumFractionDigits:1});
+                if (v >= 1e6) return '$' + (v/1e6).toFixed(1) + 'M';
+                if (v >= 1e3) return '$' + (v/1e3).toFixed(1) + 'K';
+                return '$' + v.toLocaleString(undefined,{maximumFractionDigits:0});
+            };
+            return `<span>${escHtml(col)}: <strong style="color:var(--text)">${fmt(total)}</strong> (CSV total)</span>`;
+        });
+        footer.innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap">${parts.join('')}</div>`;
+    }
+}
+
+document.addEventListener('click', e => {
+    const b = e.target.closest('#jrp-col-add');
+    if (!b) return;
+    const avail = _jrpAvailableCols().filter(k => !_jrpCols.includes(k));
+    if (!avail.length) return;
+    const existing = document.getElementById('_jrp_col_popup');
+    if (existing) { existing.remove(); return; }
+    const popup = document.createElement('div');
+    popup.id = '_jrp_col_popup';
+    popup.style.cssText = 'position:fixed;z-index:400;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);padding:4px 0;min-width:160px;max-height:200px;overflow-y:auto';
+    popup.innerHTML = avail.map(k =>
+        `<button data-addcol="${escHtml(k)}" style="display:block;width:100%;padding:5px 12px;text-align:left;background:none;border:none;cursor:pointer;font-size:10px;color:var(--text);font-family:var(--sans)">${escHtml(_jrpColLabel(k))}</button>`
+    ).join('');
+    document.body.appendChild(popup);
+    const rect = b.getBoundingClientRect();
+    popup.style.top   = (rect.bottom + 4) + 'px';
+    popup.style.right = (window.innerWidth - rect.right) + 'px';
+    popup.querySelectorAll('[data-addcol]').forEach(pb => {
+        pb.addEventListener('click', () => { _jrpCols.push(pb.dataset.addcol); popup.remove(); _renderJoinRightPanel(); });
+    });
+    setTimeout(() => {
+        const closePopup = (ev) => { if (!popup.contains(ev.target)) { popup.remove(); document.removeEventListener('click', closePopup); } };
+        document.addEventListener('click', closePopup);
+    }, 0);
+});
+
+document.getElementById('join-panel-btn')?.addEventListener('click', () => {
+    _jrpOpen = !_jrpOpen;
+    if (_jrpOpen) { _jrpCols = []; _jrpDetailShowAll = new Set(); _jrpFieldsExpanded = new Set(); }
+    _renderJoinRightPanel();
+});
+document.getElementById('jrp-close')?.addEventListener('click', () => {
+    _jrpOpen = false; _renderJoinRightPanel();
+});
+
+// ── END JOIN RIGHT PANEL ──────────────────────────────────────────────────
+
+let _joinStore = null;
+
+// Compute aggregations for a set of rows and columns
+function _computeJoinAgg(rows, numericCols, catCols) {
+    const agg = { count: rows.length };
+
+    // Parse numeric value from a cell, handling currency strings like "$45,000"
+    function _parseNum(v) {
+        if (v === null || v === undefined || v === '') return null;
+        const s = String(v).trim();
+        if (!isNaN(Number(s)) && isFinite(Number(s))) return Number(s);
+        const stripped = s.replace(/^\$/, '').replace(/,/g, '').trim();
+        const n = Number(stripped);
+        return (!isNaN(n) && isFinite(n)) ? n : null;
+    }
+
+    numericCols.forEach(col => {
+        const vals = rows.map(r => _parseNum(r[col])).filter(v => v !== null);
+        if (!vals.length) {
+            ['sum','avg','min','max','median','stddev'].forEach(a => agg[`${a}_${col}`] = null);
+            agg[`count_${col}`] = 0; return;
+        }
+        vals.sort((a, b) => a - b);
+        const n = vals.length, sum = vals.reduce((a, b) => a + b, 0), mean = sum / n;
+        const median = n % 2 === 0 ? (vals[n/2-1] + vals[n/2]) / 2 : vals[Math.floor(n/2)];
+        const stddev = Math.sqrt(vals.reduce((a, v) => a + (v - mean) ** 2, 0) / n);
+        agg[`count_${col}`] = n;
+        agg[`sum_${col}`]    = parseFloat(sum.toFixed(4));
+        agg[`avg_${col}`]    = parseFloat(mean.toFixed(4));
+        agg[`min_${col}`]    = vals[0];
+        agg[`max_${col}`]    = vals[n - 1];
+        agg[`median_${col}`] = parseFloat(median.toFixed(4));
+        agg[`stddev_${col}`] = parseFloat(stddev.toFixed(4));
+    });
+    catCols.forEach(col => {
+        const counts = {};
+        rows.forEach(r => { const v = String(r[col] ?? '').trim(); if (v) counts[v] = (counts[v] || 0) + 1; });
+        agg[`mode_${col}`] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    });
+    return agg;
+}
+
+function _buildJoinStore(rows, headers, csvCol, propKey, filename, statsCol) {
+    // Currency column hints — names suggesting dollar amounts
+    const _CURRENCY_NAME_HINTS = ['amount','cost','price','budget','fee','payment','revenue',
+        'salary','wage','income','spend','spending','expense','grant','award','funded','funding','total'];
+
+    // Parse a value as a number, stripping currency symbols and thousands commas
+    function parseCurrencyVal(v) {
+        if (v === null || v === undefined || v === '') return null;
+        const s = String(v).trim();
+        // Try plain number first
+        if (!isNaN(Number(s)) && isFinite(Number(s))) return Number(s);
+        // Strip leading $, trailing currency codes, thousands separators
+        const stripped = s.replace(/^\$/, '').replace(/,/g, '').trim();
+        const n = Number(stripped);
+        return (!isNaN(n) && isFinite(n)) ? n : null;
+    }
+
+    function isCurrencyVal(v) {
+        if (v === null || v === undefined || v === '') return false;
+        return String(v).trim().startsWith('$');
+    }
+
+    // Classify columns as numeric, currency, or categorical (skip the join key)
+    // Column names that look numeric but are always identifiers — force to categorical
+    const _FORCE_CAT_NAMES = [
+        'zip','zipcode','zip_code','postal','postalcode',  // zip codes
+        'geoid','geo_id','fips','fips_code',               // census FIPS
+        'tractce','tract','blkgrpce','blockce','blockgrp', // census tract/block
+        'countyfp','statefp','stateabbr','state_fips',     // state/county FIPS
+        'objectid','object_id','globalid','global_id',     // GIS IDs
+        'phone','tel','telephone','mobile','fax',           // phone numbers
+        'ssn','ein','tax_id',                              // tax/gov IDs
+        'year','yr',                                       // years (not amounts)
+        'district','dist','ward','precinct','zone','sector','region','area','quad', // political/admin IDs
+        'supdist','sup_dist','supervisorial',              // SF supervisor districts
+    ];
+    // Column name hints for identifier-like columns — require word-boundary match
+    // (e.g. "district" matches "sup_district" but NOT "awarded", "ward" matches "ward_num" but NOT "awarded")
+    const _FORCE_CAT_PARTIAL = ['district','ward','precinct','zone','sector'];
+    // Also detect by value pattern
+    function _isForcecat(col, vals) {
+        const low = col.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+        if (_FORCE_CAT_NAMES.some(n => low === n || low === n + '_' || low.endsWith('_' + n) || low.startsWith(n + '_'))) return true;
+        // Partial match only at word boundaries (separated by _ or at start/end)
+        // "awarded" → tokens: ["awarded"] — does NOT match "ward"
+        const tokens = low.split('_').filter(Boolean);
+        if (_FORCE_CAT_PARTIAL.some(n => tokens.includes(n))) return true;
+        // Zero-padded numeric strings (5-digit zips, FIPS codes) → categorical
+        const zeropadded = vals.filter(v => /^0\d{3,}$/.test(String(v).trim())).length;
+        if (zeropadded / vals.length > 0.3) return true;
+        // Small-integer identifiers: all values are integers 1-99, ≤20 distinct values
+        // e.g. district numbers 1-11, ward numbers 1-50
+        const numericVals = vals.map(v => Number(v)).filter(n => !isNaN(n) && isFinite(n));
+        if (numericVals.length / vals.length > 0.9) {
+            const allSmallInt = numericVals.every(n => Number.isInteger(n) && n >= 1 && n <= 99);
+            const distinctCount = new Set(numericVals).size;
+            if (allSmallInt && distinctCount <= 20) return true;
+        }
+        return false;
+    }
+
+    const otherCols = headers.filter(h => h !== csvCol);
+    let numericCols = [], currencyCols = new Set(), catCols = [];
+    otherCols.forEach(col => {
+        const vals = rows.map(r => r[col]).filter(v => v !== null && v !== undefined && v !== '');
+        if (!vals.length) { catCols.push(col); return; }
+
+        // Force-categorical check before any numeric test
+        if (_isForcecat(col, vals)) {
+            catCols.push(col);
+            console.log(`[join] cat col (forced): "${col}" — zip/census/id/phone column`);
+            return;
+        }
+        const currencyCount = vals.filter(v => isCurrencyVal(v)).length;
+        const isCurrencyCol = currencyCount > 0 && currencyCount / vals.length >= 0.5;
+
+        // Count parseable numeric values (including stripped currency)
+        const parseableCount = vals.filter(v => parseCurrencyVal(v) !== null).length;
+        if (!parseableCount) { catCols.push(col); return; }
+        const parseableRatio = parseableCount / vals.length;
+        const colLower = col.toLowerCase();
+        const nameHint = _CURRENCY_NAME_HINTS.some(h => colLower.includes(h));
+
+        // For currency columns: min 1 value, 25% ratio threshold (free-text mixed in is common)
+        // For plain numeric columns: min 3 values, 50% ratio threshold
+        const minRequired  = (isCurrencyCol || (nameHint && currencyCount > 0)) ? 1   : 3;
+        const minRatio     = (isCurrencyCol || (nameHint && currencyCount > 0)) ? 0.1 : 0.5;
+
+        if (parseableCount >= minRequired && parseableRatio >= minRatio) {
+            numericCols.push(col);
+            if (isCurrencyCol || (nameHint && currencyCount > 0)) currencyCols.add(col);
+            console.log(`[join] numeric col: "${col}" currency=${isCurrencyCol} parseable=${parseableCount}/${vals.length}`);
+        } else {
+            catCols.push(col);
+            console.log(`[join] cat col: "${col}" parseable=${parseableCount}/${vals.length} minReq=${minRequired} ratio=${parseableRatio.toFixed(2)} sample="${vals[0]}"`);
+        }
+    });
+    // If user selected a specific column for stats, filter to just that one
+    if (statsCol && statsCol !== '__all__') {
+        catCols = [...catCols, ...numericCols.filter(c => c !== statsCol)];
+        numericCols = numericCols.filter(c => c === statsCol);
+    }
+
+    // Build byGvid: match CSV rows to features via propKey
+    const byGvid = {};
+    const propValToGvid = {};
+    allFeatures.forEach(f => {
+        const v = normVal(String(f.properties[propKey] ?? ''));
+        if (!v) return;
+        if (!propValToGvid[v]) propValToGvid[v] = [];
+        propValToGvid[v].push(f.properties._gvid);
+    });
+
+    rows.forEach(row => {
+        const v = normVal(row[csvCol] ?? '');
+        if (!v) return;
+        const gvids = propValToGvid[v] || [];
+        gvids.forEach(gvid => {
+            if (!byGvid[gvid]) byGvid[gvid] = { rows: [] };
+            byGvid[gvid].rows.push(row);
+        });
+    });
+
+    // Compute per-feature aggregations
+    Object.values(byGvid).forEach(entry => {
+        entry.agg = _computeJoinAgg(entry.rows, numericCols, catCols);
+    });
+
+    // Compute global stats for the full dataset
+    const globalAgg = _computeJoinAgg(rows, numericCols, catCols);
+
+    // Numeric stats per column (for palette range)
+    const aggColumns = {};
+    numericCols.forEach(col => {
+        const perFeatureVals = Object.values(byGvid)
+            .map(e => e.agg[`avg_${col}`]).filter(v => v !== null);
+        if (perFeatureVals.length) {
+            perFeatureVals.sort((a, b) => a - b);
+            const n = perFeatureVals.length, sum = perFeatureVals.reduce((a, b) => a + b, 0), mean = sum / n;
+            aggColumns[col] = {
+                min: perFeatureVals[0], max: perFeatureVals[n-1], mean: parseFloat(mean.toFixed(3)),
+                count: n, nullCount: Object.keys(byGvid).length - n
+            };
+        }
+    });
+
+    // Categorical column distinct counts
+    const catColumns = {};
+    catCols.forEach(col => {
+        const counts = {};
+        rows.forEach(r => { const v = String(r[col] ?? '').trim(); if (v) counts[v] = (counts[v] || 0) + 1; });
+        if (Object.keys(counts).length <= 40) catColumns[col] = counts;
+    });
+
+    _joinStore = { file: filename, csvCol, propKey, headers, rows, numericCols, catCols,
+        currencyCols,  // Set of column names containing currency values
+        byGvid, globalAgg, aggColumns, catColumns,
+        // CSV-wide totals (across ALL rows, including unmatched) for % calculations
+        csvTotals: Object.fromEntries(numericCols.map(col => {
+            const sum = rows.reduce((acc, r) => {
+                const v = String(r[col]??'').trim().replace(/^\$/,'').replace(/,/g,'');
+                const n = parseFloat(v);
+                return isNaN(n) ? acc : acc + n;
+            }, 0);
+            return [col, sum];
+        }))
+    };
+    // Back-fill pct_X into each feature's agg so _writeJoinLabelProp can find them
+    const csvTotals = _joinStore.csvTotals;
+    numericCols.forEach(col => {
+        const total = csvTotals[col];
+        if (!total || total <= 0) return;
+        Object.values(byGvid).forEach(entry => {
+            const sum = entry.agg[`sum_${col}`];
+            entry.agg[`pct_${col}`] = (sum !== null && sum !== undefined)
+                ? parseFloat((sum / total * 100).toFixed(2))
+                : null;
+        });
+    });
+
+    console.log(`[join] store built: ${Object.keys(byGvid).length} features matched`);
+    console.log(`[join] numeric cols (${numericCols.length}):`, numericCols);
+    if (currencyCols.size) console.log(`[join] currency cols:`, [...currencyCols]);
+    console.log(`[join] categorical cols (${catCols.length}):`, catCols);
+    const joinedWithMultiple = Object.values(byGvid).filter(e => e.rows.length > 1).length;
+    console.log(`[join] features with multiple rows: ${joinedWithMultiple} of ${Object.keys(byGvid).length}`);
+
+    // Log and store unmatched CSV rows
+    const unmatchedVals = new Set();
+    rows.forEach(row => {
+        const v = normVal(row[csvCol] ?? '');
+        if (v && !propValToGvid[v]) unmatchedVals.add(v);
+    });
+    const totalRows = rows.length;
+    const matchedRows = rows.filter(r => propValToGvid[normVal(r[csvCol] ?? '')]).length;
+    const nullRows = rows.filter(r => { const v = normVal(r[csvCol] ?? ''); return !v; }).length;
+    console.log(`[join] CSV rows: ${totalRows} total, ${matchedRows} matched, ${totalRows - matchedRows - nullRows} unmatched, ${nullRows} null`);
+    if (unmatchedVals.size && unmatchedVals.size <= 20)
+        console.log(`[join] unmatched CSV values (${unmatchedVals.size}):`, [...unmatchedVals].sort());
+    else if (unmatchedVals.size > 20)
+        console.log(`[join] unmatched CSV values (${unmatchedVals.size} — showing first 20):`, [...unmatchedVals].sort().slice(0, 20));
+
+    // Store CSV row match stats for the status panel
+    _joinStore.totalRows    = totalRows;
+    _joinStore.matchedRows  = matchedRows;
+    _joinStore.nullRows     = nullRows;
+    _joinStore.unmatchedGeomVals = [...unmatchedVals].sort();
+}
+
+// Inject aggregated join values as feature-state so palette can use them without mutating properties
+function _applyJoinFeatureStates() {
+    if (!_joinStore) return;
+    const source = 'geojson-data';
+    // Clear any previous join states on all features
+    allFeatures.forEach(f => {
+        const id = f.id ?? f.properties._gvid;
+        if (id == null) return;
+        try { map.removeFeatureState({ source, id }); } catch {}
+    });
+    // Apply new states
+    Object.entries(_joinStore.byGvid).forEach(([gvid, entry]) => {
+        const id = parseInt(gvid);
+        if (isNaN(id)) return;
+        const state = {};
+        Object.entries(entry.agg).forEach(([k, v]) => {
+            if (v !== null) state[`join_${k}`] = v;
+        });
+        // Add pct of CSV total for each numeric column
+        if (_joinStore.csvTotals) {
+            _joinStore.numericCols.forEach(col => {
+                const csvTotal = _joinStore.csvTotals[col];
+                const sum = entry.agg[`sum_${col}`];
+                if (csvTotal > 0 && sum !== null && sum !== undefined) {
+                    state[`join_pct_${col}`] = parseFloat((sum / csvTotal * 100).toFixed(2));
+                }
+            });
+        }
+        try { map.setFeatureState({ source, id }, state); } catch {}
+    });
+    console.log(`[join] feature states applied for ${Object.keys(_joinStore.byGvid).length} features`);
+}
+// ── END JOIN STORE ────────────────────────────────────────────────────────
 // Priority order matters — more specific/unambiguous names first
 const _LAT_COLS_PRI  = ['latitude','lat'];  // high confidence
 const _LAT_COLS_SEC  = ['y','ycoord','ycoordinate','coordy','coordinatey','y_coord','y_coordinate','ylat','geo_lat','point_lat','decimallatitude'];
@@ -20166,30 +21306,58 @@ function _parseGeomValue(val) {
 }
 
 function _parseCSVText(text) {
-    const lines = text.trim().split(/\r?\n/);
-    if (lines.length < 2) return null;
-    const sample = lines[0];
+    if (!text || !text.trim()) return null;
+
+    // Detect delimiter from first non-quoted line
+    const firstLine = text.slice(0, text.indexOf('\n') > 0 ? text.indexOf('\n') : text.length);
     const delim = [',', '\t', ';', '|'].reduce((best, d) =>
-        (sample.split(d).length > sample.split(best).length ? d : best), ',');
-    function parseLine(line) {
-        const fields = []; let cur = ''; let inQ = false;
-        for (let i = 0; i < line.length; i++) {
-            const c = line[i];
-            if (c === '"' && inQ && line[i+1] === '"') { cur += '"'; i++; }
-            else if (c === '"') { inQ = !inQ; }
-            else if (c === delim && !inQ) { fields.push(cur); cur = ''; }
-            else { cur += c; }
+        (firstLine.split(d).length > firstLine.split(best).length ? d : best), ',');
+
+    // RFC 4180 compliant parser — handles quoted fields containing newlines, commas, quotes
+    function parseCSV(str, sep) {
+        const rows = [];
+        let cur = [], field = '', inQ = false;
+        for (let i = 0; i < str.length; i++) {
+            const c = str[i];
+            if (inQ) {
+                if (c === '"') {
+                    if (str[i+1] === '"') { field += '"'; i++; }  // escaped quote
+                    else inQ = false;                               // end of quoted field
+                } else {
+                    field += c;  // newlines inside quotes are part of the field value
+                }
+            } else {
+                if (c === '"') {
+                    inQ = true;
+                } else if (c === sep) {
+                    cur.push(field.trim()); field = '';
+                } else if (c === '\r') {
+                    // skip bare CR
+                } else if (c === '\n') {
+                    cur.push(field.trim()); field = '';
+                    rows.push(cur); cur = [];
+                } else {
+                    field += c;
+                }
+            }
         }
-        fields.push(cur);
-        return fields;
+        // Last field/row
+        if (field || cur.length) { cur.push(field.trim()); rows.push(cur); }
+        return rows;
     }
-    const headers = parseLine(lines[0]).map(h => h.trim());
-    const rows = lines.slice(1).filter(l => l.trim()).map(l => {
-        const vals = parseLine(l);
-        const obj = {};
-        headers.forEach((h, i) => { obj[h] = vals[i]?.trim() ?? ''; });
-        return obj;
-    });
+
+    const allRows = parseCSV(text.trim(), delim);
+    if (allRows.length < 2) return null;
+
+    const headers = allRows[0].map(h => h.trim());
+    const rows = allRows.slice(1)
+        .filter(r => r.some(v => v.trim()))  // skip blank rows
+        .map(r => {
+            const obj = {};
+            headers.forEach((h, i) => { obj[h] = r[i]?.trim() ?? ''; });
+            return obj;
+        });
+
     return { headers, rows, delim };
 }
 
@@ -20303,6 +21471,247 @@ function _csvSamples(rows, col, n = 3) {
     return rows.map(r => r[col]).filter(v => v && v.trim()).slice(0, n);
 }
 
+let _joinHideUnmatched = false;
+let _joinLabelPrefix = true; // prefix join stat labels (e.g. "avg: 4.2")
+let _joinLabelPrefixZoom = 12; // show prefix only at this zoom and above (0 = always show)
+
+function toggleJoinPanel() {
+    const body = document.getElementById('join-panel-body');
+    const arrow = document.getElementById('join-panel-arrow');
+    if (!body) return;
+    const open = body.style.display === 'none';
+    body.style.display = open ? '' : 'none';
+    if (arrow) arrow.style.transform = open ? 'rotate(90deg)' : '';
+}
+
+function _renderJoinStatusPanel() {
+    // Old compact bar — keep for now but delegate to join section
+    const el = document.getElementById('join-status-panel');
+    if (el) el.style.display = 'none'; // hide compact bar, use join section instead
+
+    const section = document.getElementById('join-section');
+    const badge   = document.getElementById('join-panel-badge');
+    const content = document.getElementById('join-panel-content');
+    if (!section || !content) return;
+
+    if (!_joinStore || activeTab !== 'file') {
+        section.style.display = 'none';
+        return;
+    }
+
+    section.style.display = 'block';
+    const { file, csvCol, propKey, byGvid, numericCols, catCols } = _joinStore;
+    const matchedCount = Object.keys(byGvid).length;
+    const unmatchedCount = allFeatures.length - matchedCount;
+
+    if (badge) badge.innerHTML = `<span style="color:var(--text-accent);font-weight:500">⤵ ${escHtml(file)}</span> <span style="color:var(--text-muted);font-weight:400;font-size:9px">${escHtml(csvCol)} → ${escHtml(propKey)}</span>`;
+
+    // Build color-by options: numeric join props first, then count
+    const colorByOpts = [
+        { key: 'join_count', label: 'count' },
+        ...numericCols.flatMap(c => ['avg','sum','min','max','median','pct'].map(a => ({
+            key: `join_${a}_${c}`,
+            label: a === 'pct' ? `% of ${c}` : `${a} ${c}`
+        })))
+    ].filter(o => propData[o.key]);
+
+    const colorBySelOpts = colorByOpts.map(o =>
+        `<option value="${o.key}"${paletteProp === o.key ? ' selected' : ''}>${escHtml(o.label)}</option>`
+    ).join('');
+
+    content.innerHTML = `
+        ${(() => {
+            // Geometry line — hover shows list of unmatched IDs
+            const geomPct = Math.round(matchedCount / allFeatures.length * 100);
+            const unmatchedGeomIds = allFeatures
+                .filter(f => !_joinStore.byGvid[f.properties._gvid])
+                .map(f => String(f.properties[propKey] ?? '(no value)')).filter(Boolean).sort();
+            const geomTip = unmatchedGeomIds.length
+                ? `title="Geometries without CSV data:\n${unmatchedGeomIds.slice(0,20).join('\n')}${unmatchedGeomIds.length>20?'\n…':''}"` : '';
+            const geomLine = `<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:2px">
+                <span ${geomTip} style="font-size:11px;font-weight:600;color:#e2e8f0;${unmatchedGeomIds.length?'cursor:help':''}">${matchedCount.toLocaleString()}/${allFeatures.length.toLocaleString()} geometries joined <span style="color:#2dd4bf">(${geomPct}%)</span>${unmatchedCount>0?` <span style="font-size:10px;font-weight:400;color:#94a3b8">· ${unmatchedCount.toLocaleString()} without data</span>`:''}</span>
+                ${unmatchedGeomIds.length ? `<button id="_join_copy_geom" style="border:none;background:none;cursor:pointer;font-size:9px;color:#94a3b8;padding:0;flex-shrink:0" title="Copy unmatched IDs">⎘</button>` : ''}
+            </div>`;
+
+            // CSV row line — same font as geom line, includes null count + hover tooltip
+            let csvLine = '';
+            if (_joinStore.totalRows !== undefined) {
+                const csvPct     = Math.round(_joinStore.matchedRows / _joinStore.totalRows * 100);
+                const unmatchedVals = _joinStore.unmatchedGeomVals || [];
+                const nullRows   = _joinStore.nullRows || 0;
+                const valCounts  = {};
+                _joinStore.rows.forEach(row => {
+                    const v = normVal(row[_joinStore.csvCol] ?? '');
+                    if (v && unmatchedVals.includes(v)) valCounts[v] = (valCounts[v] || 0) + 1;
+                });
+                const unrRows    = _joinStore.totalRows - _joinStore.matchedRows - nullRows;
+                const tooltipLines = Object.entries(valCounts).sort((a,b) => b[1]-a[1]).slice(0,20)
+                    .map(([v,n]) => `${v}: ${n} row${n>1?'s':''}`).join('\n');
+                const nullTip  = nullRows > 0 ? `${tooltipLines ? tooltipLines + '\n' : ''}(${nullRows} null/empty)` : tooltipLines;
+                const csvTip = nullTip ? `title="${nullTip}${Object.keys(valCounts).length>20?'\n…':''}"` : '';
+                csvLine = `<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px">
+                    <span ${csvTip} style="font-size:11px;font-weight:600;color:#e2e8f0;${nullTip?'cursor:help':''}">${_joinStore.matchedRows.toLocaleString()}/${_joinStore.totalRows.toLocaleString()} rows joined <span style="color:#2dd4bf">(${csvPct}%)</span>${unrRows>0?` <span style="font-size:10px;font-weight:400;color:#94a3b8">· ${unrRows.toLocaleString()} unmatched</span>`:''}${nullRows>0?` <span style="font-size:10px;font-weight:400;color:#94a3b8">· ${nullRows} null</span>`:''}</span>
+                    ${unmatchedVals.length ? `<button id="_join_copy_csv" style="border:none;background:none;cursor:pointer;font-size:9px;color:#94a3b8;padding:0;flex-shrink:0" title="Copy unmatched CSV values">⎘</button>` : ''}
+                </div>`;
+            }
+
+            content._copyGeomIds = unmatchedGeomIds;
+            content._copyCsvVals = _joinStore.unmatchedGeomVals || [];
+            return geomLine + csvLine;
+        })()}
+
+        ${colorBySelOpts ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+            <label style="font-size:9px;color:var(--text-muted);white-space:nowrap;flex-shrink:0">Color by</label>
+            <select id="_join_color_by" style="flex:1;min-width:0;font-size:10px;padding:3px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text)">
+                <option value="">— none —</option>${colorBySelOpts}
+            </select>
+        </div>` : ''}
+
+        <div style="margin-bottom:6px">
+            <label style="font-size:9px;color:var(--text-muted);display:block;margin-bottom:2px">Label as <span style="font-weight:400">(click to toggle)</span></label>
+            <div id="_join_label_as" style="border:1px solid var(--border);border-radius:4px;overflow:hidden;max-height:90px;overflow-y:auto">
+                ${(() => {
+                    const csvOpts = [{ key: 'join_count', label: 'count' },
+                        ...numericCols.flatMap(c => ['avg','sum','min','max','median','pct'].map(a => ({
+                            key: `join_${a}_${c}`, label: a === 'pct' ? `% of ${c}` : `${a} ${c}`
+                        })))
+                    ].filter(o => propData[o.key]);
+                    const sel = (k) => labelProps.has(k);
+                    const itemStyle = (k) => sel(k)
+                        ? 'display:block;padding:3px 8px;font-size:10px;cursor:pointer;background:rgba(45,212,191,0.18);color:#2dd4bf;font-weight:500'
+                        : 'display:block;padding:3px 8px;font-size:10px;cursor:pointer;background:transparent;color:var(--text-muted)';
+                    const sepStyle = 'display:block;padding:1px 8px;font-size:9px;color:var(--text-muted);background:var(--surface2);user-select:none;border-bottom:1px solid var(--border)';
+                    // Join key prop shown first, italicized — it's a geometry property used as the join key
+                    const joinKeyRow = propData[propKey]
+                        ? `<span class="_lbl_opt" data-key="${escHtml(propKey)}" style="${itemStyle(propKey)};font-style:italic">${escHtml(_displayPropName(propKey))}</span>`
+                        : '';
+                    return joinKeyRow +
+                        `<span style="${sepStyle}">⤵ CSV stats</span>` +
+                        csvOpts.map(o => `<span class="_lbl_opt" data-key="${escHtml(o.key)}" style="${itemStyle(o.key)}">${escHtml(o.label)}</span>`).join('');
+                })()}
+            </div>
+        </div>
+
+        ${unmatchedCount > 0 ? `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;color:${_joinHideUnmatched?'var(--text)':'var(--text-muted)'};margin-bottom:4px">
+            <input type="checkbox" id="_join_hide_unmatched" ${_joinHideUnmatched?'checked':''} style="cursor:pointer;margin:0">
+            <span>Hide ${unmatchedCount.toLocaleString()} features without data</span>
+        </label>` : ''}
+
+        <div style="margin-bottom:6px">
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;color:${_joinLabelPrefix?'var(--text)':'var(--text-muted)'}">
+                <input type="checkbox" id="_join_label_prefix" ${_joinLabelPrefix?'checked':''} style="cursor:pointer;margin:0;flex-shrink:0">
+                <span id="_join_prefix_zoom_val" style="white-space:nowrap;flex-shrink:0">${_joinLabelPrefix ? `Prefix stats labels (above zoom ${_joinLabelPrefixZoom === 0 ? 'all' : _joinLabelPrefixZoom.toFixed(1)})` : 'Prefix stats labels'}</span>
+                ${_joinLabelPrefix ? `<input type="range" id="_join_prefix_zoom" min="0" max="18" step="0.5" value="${_joinLabelPrefixZoom}" style="flex:1;accent-color:#2dd4bf;cursor:pointer;min-width:0">` : ''}
+            </label>
+        </div>
+
+        <button id="_join_clear_btn" style="font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer;width:100%">✕ Clear join</button>`;
+
+    // Wire controls
+    document.getElementById('_join_color_by')?.addEventListener('change', e => {
+        const key = e.target.value;
+        if (!key) { clearPalette(); return; }
+        activatePalette(key, propData[key]?._isJoinProp ? (propData[key]?.isNumeric ? paletteQuantScheme || 'YlOrRd' : 'Set1') : 'Set1');
+    });
+    // Copy buttons for unmatched lists
+    const copyBtn = (id, getData, label) => {
+        document.getElementById(id)?.addEventListener('click', () => {
+            const txt = getData().join('\n');
+            navigator.clipboard?.writeText(txt).then(() => showToast(`✓ Copied ${getData().length} ${label}`, 2000));
+        });
+    };
+    copyBtn('_join_copy_geom', () => content._copyGeomIds || [], 'unmatched geometry IDs');
+    copyBtn('_join_copy_csv',  () => content._copyCsvVals || [], 'unmatched CSV values');
+    document.getElementById('_join_label_as')?.addEventListener('click', e => {
+        const opt = e.target.closest('._lbl_opt');
+        if (!opt) return;
+        const key = opt.dataset.key;
+        if (labelProps.has(key)) {
+            labelProps.delete(key);
+            opt.style.background = 'transparent';
+            opt.style.color = 'var(--text-muted)';
+            opt.style.fontWeight = '';
+        } else {
+            labelProps.add(key);
+            opt.style.background = 'rgba(45,212,191,0.18)';
+            opt.style.color = '#2dd4bf';
+            opt.style.fontWeight = '500';
+        }
+        updateLabels();
+    });
+    document.getElementById('_join_hide_unmatched')?.addEventListener('change', e => {
+        _joinHideUnmatched = e.target.checked;
+        _applyJoinHideUnmatched();
+        _updatePolyLabelCentroids();
+        _renderJoinStatusPanel();
+    });
+    document.getElementById('_join_label_prefix')?.addEventListener('change', e => {
+        _joinLabelPrefix = e.target.checked;
+        updateLabels();
+        _renderJoinStatusPanel();
+    });
+    document.getElementById('_join_prefix_zoom')?.addEventListener('input', e => {
+        _joinLabelPrefixZoom = parseFloat(e.target.value);
+        const valEl = document.getElementById('_join_prefix_zoom_val');
+        if (valEl) valEl.textContent = `Prefix stats labels (above zoom ${_joinLabelPrefixZoom === 0 ? 'all' : _joinLabelPrefixZoom.toFixed(1)})`;
+        updateLabels();
+    });
+    document.getElementById('_join_clear_btn')?.addEventListener('click', e => {
+        e.stopPropagation(); _clearJoin();
+    });
+}
+
+function _applyJoinHideUnmatched() {
+    if (!_joinStore) return;
+    const matchedGvids = new Set(Object.keys(_joinStore.byGvid).map(Number));
+    allFeatures.forEach(f => {
+        const id = f.id ?? f.properties._gvid;
+        if (id == null) return;
+        const hide = _joinHideUnmatched && !matchedGvids.has(Number(id));
+        try { map.setFeatureState({ source: 'geojson-data', id }, { hidden: hide }); } catch {}
+        if (hide) hiddenIds.add(id); else hiddenIds.delete(id);
+    });
+    updateSelectionBar();
+}
+
+function _clearJoin() {
+    if (!_joinStore) return;
+    // Remove feature states (join aggregation values)
+    allFeatures.forEach(f => {
+        const id = f.id ?? f.properties._gvid;
+        if (id == null) return;
+        try { map.removeFeatureState({ source: 'geojson-data', id }); } catch {}
+    });
+    // Re-apply selection states that were cleared by removeFeatureState
+    selectedIds.forEach(id => { try { map.setFeatureState({ source: 'geojson-data', id }, { selected: true }); } catch {} });
+    // Remove _jl_* label properties written into feature properties by _writeJoinLabelProp
+    const jlKeys = allFeatures.length > 0
+        ? Object.keys(allFeatures[0].properties).filter(k => k.startsWith('_jl_'))
+        : [];
+    if (jlKeys.length > 0) {
+        const cleaned = allFeatures.map(f => {
+            const props = { ...f.properties };
+            jlKeys.forEach(k => delete props[k]);
+            return { ...f, properties: props };
+        });
+        allFeatures = cleaned;
+        _fileStore.features = cleaned;
+        if (map.getSource('geojson-data')) {
+            map.getSource('geojson-data').setData({ type: 'FeatureCollection', features: cleaned });
+        }
+    }
+    if (_joinHideUnmatched) { _joinHideUnmatched = false; hiddenIds.clear(); }
+    _joinStore = null;
+    if (paletteProp?.startsWith('join_')) clearPalette();
+    // Clear join label props and update labels
+    labelProps.forEach(p => { if (p.startsWith('join_')) labelProps.delete(p); });
+    updateLabels(); // clears text-field and refreshes centroid source
+    buildPropData(); renderSidebar(); updateSelectionBar();
+    _jrpOpen = false; _jrpCols = []; _jrpExpandedGvid = null; _jrpDetailShowAll = new Set();
+    _renderJoinRightPanel();
+    showToast('Join cleared', 2000);
+}
+
 async function _loadCSV(file) {
     showProgress(`Loading ${file.name}`);
     const text = await file.text();
@@ -20340,13 +21749,7 @@ async function _loadCSV(file) {
             return;
         }
 
-        // Normalize value: strip thousands-separator commas from numeric strings
-        // e.g. "3,495,000" -> "3495000" to match integer properties
-        function normVal(v) {
-            if (!v) return '';
-            const stripped = String(v).trim().replace(/,/g, '');
-            return isNaN(stripped) || stripped === '' ? String(v).trim() : stripped;
-        }
+        // normVal is defined at module scope (strips thousands-separator commas)
 
         // Build GeoJSON property index: propKey -> Map(normalizedValue -> Set of _gvids)
         const propIndex = {};
@@ -20463,78 +21866,175 @@ async function _loadCSV(file) {
         }
 
         const best = allMatches[0];
+        // Detect numeric columns for stats picker — uses same logic as _buildJoinStore
+        // including forced-categorical exclusion for zip, district, year, etc.
+        const _FORCECAT_NAMES_QUICK = [
+            'zip','zipcode','zip_code','postal','geoid','fips','tractce','tract','blockce',
+            'countyfp','statefp','objectid','phone','tel','ssn','ein','year','yr',
+            'district','dist','ward','precinct','zone','sector','supdist','sup_dist'
+        ];
+        const _isForcecatQuick = (col, vals) => {
+            const low = col.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+            if (_FORCECAT_NAMES_QUICK.some(n => low === n || low.endsWith('_'+n) || low.startsWith(n+'_'))) return true;
+            // Token-based: "awarded" → ["awarded"], does NOT match "ward"
+            const tokens = low.split('_').filter(Boolean);
+            if (['district','ward','precinct','zone','sector'].some(n => tokens.includes(n))) return true;
+            const nums = vals.map(v => Number(v)).filter(n => !isNaN(n) && isFinite(n));
+            if (nums.length / vals.length > 0.9) {
+                const allSmallInt = nums.every(n => Number.isInteger(n) && n >= 1 && n <= 99);
+                if (allSmallInt && new Set(nums).size <= 20) return true;
+            }
+            const zeropad = vals.filter(v => /^0\d{3,}$/.test(String(v).trim())).length;
+            if (zeropad / vals.length > 0.3) return true;
+            return false;
+        };
+        const numericHeaders = headers.filter(h => {
+            if (h === best.csvCol) return false;
+            const vals = rows.map(r => r[h]).filter(v => v !== null && v !== undefined && v !== '');
+            if (!vals.length) return false;
+            if (_isForcecatQuick(h, vals)) return false;
+            const hasCurrency = vals.some(v => String(v).trim().startsWith('$'));
+            const colLower = h.toLowerCase();
+            const nameHint = ['amount','cost','price','budget','fee','grant','award','funded','total','revenue','expense']
+                .some(k => colLower.includes(k));
+            const parseableCount = vals.filter(v => {
+                const s = String(v).trim().replace(/^\$/, '').replace(/,/g, '');
+                return !isNaN(Number(s)) && isFinite(Number(s));
+            }).length;
+            const isCurrency = hasCurrency || (nameHint && parseableCount > 0);
+            const minReq   = isCurrency ? 1   : 3;
+            const minRatio = isCurrency ? 0.1 : 0.5;
+            return parseableCount >= minReq && parseableCount / vals.length >= minRatio;
+        });
         const csvColOpts = headers.map(h => `<option value="${h}"${h === best.csvCol ? ' selected' : ''}>${h}</option>`).join('');
         const propOpts   = geoJsonProps.map(k => `<option value="${k}"${k === best.propKey ? ' selected' : ''}>${k}</option>`).join('');
 
         function scoreBar(score, color) {
-            return `<span style="display:inline-block;width:${Math.max(4,score)}px;height:6px;border-radius:3px;background:${color};vertical-align:middle;margin-right:4px"></span>${score}%`;
+            // Proportional bar that stays within its cell — no fixed pixel width
+            return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;overflow:hidden">
+                <span style="font-size:9px;color:${color};white-space:nowrap">${score}%</span>
+                <div style="width:100%;height:4px;border-radius:2px;background:rgba(255,255,255,0.1);overflow:hidden">
+                    <div style="width:${score}%;height:100%;border-radius:2px;background:${color}"></div>
+                </div>
+            </div>`;
         }
 
-        const nameMatchRows = allMatches.filter(m => m.byName).map((m, i) => {
-            const pref = _PREFERRED_JOIN_FIELDS.includes(m.csvCol.toLowerCase());
-            return `<div class="_jf_row" data-csv="${m.csvCol}" data-prop="${m.propKey}"
-                style="display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;cursor:pointer;border:1px solid ${i===0?'var(--accent)':'transparent'};background:${i===0?'rgba(45,212,191,0.06)':'transparent'}">
-                <span style="font-size:10px;color:#4ade80;flex-shrink:0">\u2713</span>
-                <span style="font-size:11px;color:var(--text);flex:1;font-weight:${pref?'600':'400'}">${m.csvCol}</span>
-                <span style="font-size:10px;color:var(--text-muted)">\u2192</span>
-                <span style="font-size:11px;color:var(--text);flex:1">${m.propKey}</span>
-                <span style="font-size:10px;white-space:nowrap;color:var(--text-muted)">${scoreBar(m.score,'#4ade80')}</span>
+        // Build sample values - same grid columns as match rows
+        function samplePair(csvCol, propKey) {
+            const csvVals = [...new Set(rows.map(r => normVal(r[csvCol])).filter(v => v))].slice(0, 3);
+            const propVals = [...new Set(allFeatures.map(f => normVal(String(f.properties[propKey] ?? ''))).filter(v => v))].slice(0, 3);
+            return `<div style="display:grid;grid-template-columns:1fr 64px 1fr;gap:6px;margin-top:2px">
+                <span style="font-size:9px;color:var(--text-muted);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(csvVals.join(', ') || '—')}</span>
+                <span></span>
+                <span style="font-size:9px;color:var(--text-muted);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:6px">${escHtml(propVals.join(', ') || '—')}</span>
             </div>`;
-        }).join('');
+        }
 
+        function matchRow(m, i, isValue) {
+            const pref = !isValue && _PREFERRED_JOIN_FIELDS.includes(m.csvCol.toLowerCase());
+            const color = isValue ? '#facc15' : '#4ade80';
+            const border = (!isValue && i === 0) ? 'var(--accent)' : 'transparent';
+            const bg = (!isValue && i === 0) ? 'rgba(45,212,191,0.06)' : 'transparent';
+            return `<div class="_jf_row" data-csv="${escHtml(m.csvCol)}" data-prop="${escHtml(m.propKey)}"
+                style="padding:4px 7px;border-radius:6px;cursor:pointer;border:1px solid ${border};background:${bg}">
+                <div style="display:grid;grid-template-columns:1fr 64px 1fr;gap:6px;align-items:center">
+                    <span style="font-size:11px;color:var(--text);font-weight:${pref?'600':'400'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(m.csvCol)}</span>
+                    <div style="overflow:hidden">${scoreBar(m.score, color)}</div>
+                    <span style="font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:6px">${escHtml(m.propKey)}</span>
+                </div>
+                ${samplePair(m.csvCol, m.propKey)}
+            </div>`;
+        }
+
+        const nameMatchRows = allMatches.filter(m => m.byName).map((m, i) => matchRow(m, i, false)).join('');
         const topValueMatches = valueMatchesForDisplay.slice(0, 5);
-        const valueMatchRows = topValueMatches.map(m =>
-            `<div class="_jf_row" data-csv="${m.csvCol}" data-prop="${m.propKey}"
-                style="display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;cursor:pointer;border:1px solid transparent">
-                <span style="font-size:10px;color:#facc15;flex-shrink:0">~</span>
-                <span style="font-size:11px;color:var(--text);flex:1">${m.csvCol}</span>
-                <span style="font-size:10px;color:var(--text-muted)">\u2192</span>
-                <span style="font-size:11px;color:var(--text);flex:1">${m.propKey}</span>
-                <span style="font-size:10px;white-space:nowrap;color:var(--text-muted)">${scoreBar(m.score,'#facc15')}</span>
-            </div>`
-        ).join('');
+        const valueMatchRows = topValueMatches.map((m, i) => matchRow(m, i, true)).join('');
 
         const choice = await new Promise(resolve => {
             const overlay = document.createElement('div');
             overlay.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center';
-            overlay.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:500px;width:90%;font-family:var(--sans);box-shadow:0 16px 48px rgba(0,0,0,0.7);max-height:90vh;overflow-y:auto">
-                <div style="font-size:13px;font-weight:600;margin-bottom:2px;color:var(--text)">Join: ${file.name}</div>
-                <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px">${rows.length.toLocaleString()} rows \u00b7 ${headers.length} columns \u2014 click a row to select it as the join field</div>
+            overlay.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:520px;width:90%;font-family:var(--sans);box-shadow:0 16px 48px rgba(0,0,0,0.7);max-height:90vh;overflow-y:auto">
+                <div style="display:grid;grid-template-columns:1fr 64px 1fr;gap:8px;margin-bottom:10px;align-items:start">
+                    <div>
+                        <div style="font-size:13px;font-weight:600;color:var(--text);word-break:break-word">${escHtml(file.name)}</div>
+                        <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${rows.length.toLocaleString()} rows · ${headers.length} columns</div>
+                    </div>
+                    <div></div>
+                    <div>
+                        <div style="font-size:13px;font-weight:600;color:var(--text);word-break:break-word">${escHtml(currentSourceName || 'loaded file')}</div>
+                        <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${allFeatures.length.toLocaleString()} features · ${Object.keys(allFeatures[0]?.properties||{}).filter(k=>!k.startsWith('_')).length} properties</div>
+                    </div>
+                </div>
                 ${nameMatchRows ? `<div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">\u2713 Column-name matches</div>
                 <div id="_jf_name_list" style="display:flex;flex-direction:column;gap:2px;margin-bottom:12px">${nameMatchRows}</div>` : ''}
-                ${valueMatchRows ? `<div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">~ Value matches (different column names)</div>
+                ${valueMatchRows ? `<div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">~ Value matches</div>
                 <div id="_jf_val_list" style="display:flex;flex-direction:column;gap:2px;margin-bottom:12px">${valueMatchRows}</div>` : ''}
                 <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;margin-top:4px;border-top:1px solid var(--border);padding-top:10px">Join fields</div>
-                <div style="display:grid;grid-template-columns:1fr 16px 1fr;gap:6px;align-items:center;margin-bottom:8px">
+                <div style="display:grid;grid-template-columns:1fr 64px 1fr;gap:6px;align-items:end;margin-bottom:4px">
                     <div>
                         <label style="font-size:9px;color:var(--text-muted);display:block;margin-bottom:2px">CSV column</label>
                         <select id="_jf_csv" style="width:100%;font-size:11px;padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text)">${csvColOpts}</select>
                     </div>
-                    <div style="text-align:center;color:var(--text-muted);padding-top:14px">\u2192</div>
+                    <div style="text-align:center;color:var(--text-muted);padding-bottom:8px">→</div>
                     <div>
                         <label style="font-size:9px;color:var(--text-muted);display:block;margin-bottom:2px">GeoJSON property</label>
                         <select id="_jf_prop" style="width:100%;font-size:11px;padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text)">${propOpts}</select>
                     </div>
                 </div>
-                <div id="_jf_count" style="font-size:10px;color:var(--text-muted);margin-bottom:14px"></div>
+                <div id="_jf_samples" style="font-size:9px;color:var(--text-muted);font-family:var(--mono);margin-bottom:6px;padding:3px 6px;background:var(--surface2);border-radius:4px;min-height:16px"></div>
+                <div id="_jf_count" style="font-size:10px;color:var(--text-muted);margin-bottom:10px"></div>
+                ${numericHeaders.length > 0 ? `
+                <div style="margin-bottom:12px">
+                    <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:4px">Stats columns</div>
+                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Numeric columns to aggregate (count, avg, sum, min, max, median, stddev per feature)</div>
+                    <select id="_jf_stats_col" style="width:100%;font-size:11px;padding:4px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text)">
+                        <option value="__all__">All numeric columns (${numericHeaders.length})</option>
+                        ${numericHeaders.map(h => `<option value="${escHtml(h)}">${escHtml(h)}</option>`).join('')}
+                    </select>
+                </div>` : ''}
                 <div style="display:flex;gap:8px;justify-content:flex-end">
                     <button id="_jf_cancel" style="font-size:11px;padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer">Cancel</button>
-                    <button id="_jf_go" style="font-size:11px;padding:6px 14px;border-radius:6px;border:none;background:var(--accent);color:#000;cursor:pointer;font-weight:600">Highlight matching features</button>
+                    <button id="_jf_highlight" style="font-size:11px;padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer">Highlight only</button>
+                    <button id="_jf_go" style="font-size:11px;padding:6px 14px;border-radius:6px;border:none;background:var(--accent);color:#000;cursor:pointer;font-weight:600">Join data</button>
                 </div>
             </div>`;
             document.body.appendChild(overlay);
             const csvSel = overlay.querySelector('#_jf_csv');
             const propSel = overlay.querySelector('#_jf_prop');
             const countEl = overlay.querySelector('#_jf_count');
+            const samplesEl = overlay.querySelector('#_jf_samples');
             function recount() {
                 const cCol = csvSel.value, pKey = propSel.value;
                 if (!cCol || !pKey) return;
-                const cVals = new Set(rows.map(r => normVal(r[cCol])).filter(v => v));
-                const hits = [...cVals].filter(v => propIndex[pKey]?.has(v));
-                const gvids = new Set();
+                // All rows, null/empty values, unique values
+                const allVals   = rows.map(r => normVal(r[cCol] ?? ''));
+                const nullCount = allVals.filter(v => !v).length;
+                const nonNullRows = rows.length - nullCount;
+                const cVals     = new Set(allVals.filter(v => v));
+                const hits      = [...cVals].filter(v => propIndex[pKey]?.has(v));
+                const gvids     = new Set();
                 for (const v of hits) propIndex[pKey]?.get(v)?.forEach(id => gvids.add(id));
-                const pct = cVals.size > 0 ? Math.round(hits.length / cVals.size * 100) : 0;
-                countEl.textContent = `${hits.length} of ${cVals.size} CSV values match (${pct}%) \u00b7 ${gvids.size} features will be highlighted`;
+                // Rows that match (not just unique values)
+                const matchedRows = allVals.filter(v => v && propIndex[pKey]?.has(v)).length;
+                const csvPct      = cVals.size > 0 ? Math.round(hits.length / cVals.size * 100) : 0;
+                const rowPct      = nonNullRows > 0 ? Math.round(matchedRows / nonNullRows * 100) : 0;
+                const geomTotal   = allFeatures.length;
+                const geomPct     = geomTotal > 0 ? Math.round(gvids.size / geomTotal * 100) : 0;
+                const noMatchRows = nonNullRows - matchedRows;
+                const nullNote    = nullCount > 0 ? `${nullCount} row${nullCount>1?'s are':' is'} missing data.` : '';
+                const noMatchNote = noMatchRows > 0 ? `${noMatchRows} row${noMatchRows>1?'s do':' does'} not match` : '';
+                const trailingNote = (noMatchNote && nullNote) ? ` ${noMatchNote}, and ${nullNote}`
+                    : noMatchNote ? ` ${noMatchNote}.`
+                    : nullNote ? ` ${nullNote}` : '';
+                countEl.innerHTML = `<span style="color:var(--text)">In the <em>"${escHtml(cCol)}"</em> column, ${hits.length} of ${cVals.size} unique values (${csvPct}%) within ${matchedRows} of ${nonNullRows} CSV rows (${rowPct}%) match <strong>${gvids.size} of ${geomTotal} map features</strong> (${geomPct}%).${trailingNote}</span>`;
+                // Show sample values from both sides aligned with dropdowns
+                const csvSamples = [...cVals].slice(0, 3).join(', ');
+                const propSamples = [...new Set(allFeatures.map(f => normVal(String(f.properties[pKey] ?? ''))).filter(v => v))].slice(0, 3).join(', ');
+                if (samplesEl) samplesEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 64px 1fr;gap:4px">
+                    <span style="font-size:9px;color:var(--text-muted);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(csvSamples)}">${escHtml(csvSamples || '—')}</span>
+                    <span style="text-align:center;color:var(--border);font-size:9px">→</span>
+                    <span style="font-size:9px;color:var(--text-muted);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:6px" title="${escHtml(propSamples)}">${escHtml(propSamples || '—')}</span>
+                </div>`;
             }
             function selectRow(csvCol, propKey) {
                 overlay.querySelectorAll('._jf_row').forEach(r => {
@@ -20550,13 +22050,20 @@ async function _loadCSV(file) {
             csvSel.onchange = recount; propSel.onchange = recount;
             recount();
             overlay.querySelector('#_jf_cancel').onclick = () => { overlay.remove(); resolve(null); };
+            overlay.querySelector('#_jf_highlight').onclick = () => {
+                overlay.remove(); resolve({ csvCol: csvSel.value, propKey: propSel.value, joinOnly: false });
+            };
             overlay.querySelector('#_jf_go').onclick = () => {
-                overlay.remove(); resolve({ csvCol: csvSel.value, propKey: propSel.value });
+                const statsSel = overlay.querySelector('#_jf_stats_col');
+                const statsCol = statsSel ? statsSel.value : '__all__';
+                overlay.remove();
+                resolve({ csvCol: csvSel.value, propKey: propSel.value, joinOnly: false, doJoin: true, statsCol });
             };
         });
         if (!choice) return;
 
         // Apply highlight using confirmed join fields
+        // Use highlightedIds (not selectedIds) so user can still make independent selections
         const { csvCol, propKey } = choice;
         const csvVals = new Set(rows.map(r => normVal(r[csvCol])).filter(v => v));
         selectedIds.forEach(id => { try { map.setFeatureState({ source: 'geojson-data', id }, { selected: false }); } catch {} });
@@ -20569,22 +22076,62 @@ async function _loadCSV(file) {
             if (!csvVals.has(fVal)) continue;
             const id = f.id ?? f.properties._gvid;
             if (id == null) continue;
-            selectedIds.add(id);
-            try { map.setFeatureState({ source: 'geojson-data', id }, { selected: true }); } catch {}
+            highlightedIds.add(id);
+            try { map.setFeatureState({ source: 'geojson-data', id }, { highlighted: true }); } catch {}
             matchCount++;
         }
-        const matched = allFeatures.filter(f => selectedIds.has(f.id ?? f.properties._gvid));
+        const matched = allFeatures.filter(f => highlightedIds.has(f.id ?? f.properties._gvid));
         const lngs = [], lats = [];
         for (const f of matched) {
             const c = f.geometry?.coordinates; if (!c) continue;
             const flat = [c].flat(Infinity);
             for (let i = 0; i < flat.length; i += 2) { lngs.push(flat[i]); lats.push(flat[i+1]); }
         }
-        if (lngs.length) map.fitBounds(
+        // Don't fitBounds on join — user is already viewing the right area,
+        // and joined features may include outliers (e.g. Farallon Islands) that
+        // would zoom out unexpectedly. Only fit on plain "Highlight only".
+        if (!choice.doJoin && lngs.length) map.fitBounds(
             [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
             { padding: 80, maxZoom: 17 });
         buildPropData(); updateSelectionBar(); renderSidebar();
-        showToast(`✓ Highlighted ${matchCount} features via ${csvCol} → ${propKey}`, 4000);
+        // Build join store and inject feature states for palette use
+        if (choice.doJoin) {
+            _buildJoinStore(rows, headers, csvCol, propKey, file.name, choice.statsCol);
+            _applyJoinFeatureStates();
+            buildPropData(); renderSidebar(); // rebuild now that join props are available
+            // Auto-apply join_count as palette and label so user sees immediate feedback
+            // Also label with the property being joined on (propKey) for context
+            if (propData['join_count']) {
+                activatePalette('join_count', 'quantile');
+                // Label: the join key from the GeoJSON (e.g. district name) + count
+                const joinKeyPropInData = propKey; // e.g. "sup_dist_abbrev", "cnn"
+                if (propData[joinKeyPropInData]) labelProps.add(joinKeyPropInData);
+                labelProps.add('join_count');
+                updateLabels();
+                renderSidebar(); // sync label checkboxes to reflect new labelProps state
+            }
+            // Expand the join panel so user sees controls immediately
+            const _jb = document.getElementById('join-panel-body');
+            const _ja = document.getElementById('join-panel-arrow');
+            if (_jb) { _jb.style.display = ''; if (_ja) _ja.style.transform = 'rotate(90deg)'; }
+        }
+        // Log join summary
+        const _js = _joinStore;
+        const joinMsg = choice.doJoin
+            ? `✓ ${matchCount} features joined · ${(_js?.numericCols.length||0)} numeric, ${(_js?.catCols.length||0)} categorical columns`
+            : `✓ ${matchCount} features highlighted via ${csvCol} → ${propKey}`;
+        showToast(joinMsg, 5000);
+        console.log(`[join] ✓ Joined ${file.name} via ${csvCol} → ${propKey}`);
+        console.log(`[join] ${matchCount} features matched · ${_js.numericCols.length} numeric cols: [${_js.numericCols.join(', ')}]`);
+        console.log(`[join] ${_js.catCols.length} categorical cols: [${_js.catCols.join(', ')}]`);
+        const numericInjected = ['join_count', ..._js.numericCols.flatMap(c =>
+            ['avg','sum','min','max','median','stddev'].map(a => `join_${a}_${c}`))];
+        const catInjected = _js.catCols.filter(c => propData[`join_mode_${c}`]).map(c => `join_mode_${c}`);
+        console.log(`[join] Injected numeric: ${numericInjected.filter(k => propData[k]).join(', ')}`);
+        if (catInjected.length) console.log(`[join] Injected categorical: ${catInjected.join(', ')}`);
+        else console.log(`[join] No categorical props injected (all cat columns may be empty in CSV)`);
+        // Show the right panel toggle button now that a join is active
+        _renderJoinRightPanel();
         return;
     }
     // ── end ID-list detection ─────────────────────────────────────────────
@@ -21178,22 +22725,55 @@ document.getElementById('save-btn').addEventListener('click', (e) => {
             ? new Set([...selectedIds, ...highlightedIds])
             : numSel > 0 ? selectedIds : highlightedIds;
         const features = allFeatures
-            .filter(f => chosenIds.has(f.properties._gvid))
-            .map(f => { const p = { ...f.properties }; delete p._gvid; return { ...f, id: undefined, properties: p }; });
+            .filter(f => chosenIds.has(f.properties._gvid));
+        // Pass features WITH _gvid so saveGeoJSON can look up join data;
+        // saveGeoJSON's clean() function removes _gvid before writing to disk.
         saveGeoJSON(features, buildSaveFilename('selected'));
     }
 });
 
 async function saveGeoJSON(features, filename) {
-    // Single dialog for all export options — avoids competing Safari download dialogs
     const hasStyle = !!currentSourceName;
-    const choice = await _exportDialog(filename, features.length, hasStyle);
-    // choice: 'geojson' | 'both' | 'style' | 'ids' | null(cancel)
+    const hasJoin  = !!_joinStore && features.some(f => _joinStore.byGvid[f.properties._gvid]);
+    const choice = await _exportDialog(filename, features.length, hasStyle, hasJoin);
     if (!choice) return;
 
-    if (choice === 'geojson' || choice === 'both') {
+    // Helper: attach join aggregation props to a feature's properties
+    const withJoinProps = (f) => {
+        if (!_joinStore) return f;
+        const gvid = f.properties._gvid;
+        const agg  = _joinStore.byGvid[gvid]?.agg;
+        if (!agg) return f;
+        const joinProps = {
+            join_data_source: _joinStore.file,  // provenance: which CSV the join came from
+            join_join_key:    _joinStore.csvCol, // which CSV column was used for matching
+        };
+        if (agg.count !== undefined) joinProps['join_count'] = agg.count;
+        _joinStore.numericCols.forEach(col => {
+            ['avg','sum','min','max','median','stddev','pct'].forEach(a => {
+                const v = agg[`${a}_${col}`];
+                if (v !== null && v !== undefined) joinProps[`join_${a}_${col}`] = v;
+            });
+        });
+        return { ...f, properties: { ...f.properties, ...joinProps } };
+    };
+
+    // Clean internal props before export
+    const clean = (f) => {
+        const p = { ...f.properties };
+        Object.keys(p).forEach(k => {
+            if (k.startsWith('_') || k.startsWith('_jl_')) delete p[k];
+        });
+        return { type: 'Feature', geometry: f.geometry, properties: p };
+    };
+
+    if (choice === 'geojson' || choice === 'both' || choice === 'geojson_join') {
+        const exportFeats = features.map(f => {
+            const withJoin = (choice === 'geojson_join') ? withJoinProps(f) : f;
+            return clean(withJoin);
+        });
         _triggerDownload(
-            new Blob([JSON.stringify({ type: 'FeatureCollection', features }, null, 2)], { type: 'application/json' }),
+            new Blob([serializeGeoJSON(exportFeats)], { type: 'application/json' }),
             filename
         );
     }
@@ -21201,12 +22781,11 @@ async function saveGeoJSON(features, filename) {
         exportStyleJSON(filename.replace(/\.geojson$/i, ''));
     }
     if (choice === 'ids') {
-        // Open the share selection panel (same as shift-click) anchored to save-btn
         _showShareSelPanel();
     }
 }
 
-function _exportDialog(filename, count, hasStyle) {
+function _exportDialog(filename, count, hasStyle, hasJoin) {
     return new Promise(resolve => {
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center';
@@ -21218,6 +22797,7 @@ function _exportDialog(filename, count, hasStyle) {
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px">${escHtml(filename)}</div>
             <div style="display:flex;flex-direction:column;gap:6px">
                 <button id="_ed_geojson" style="${btnPrimary}">⬇ GeoJSON</button>
+                ${hasJoin ? `<button id="_ed_geojson_join" style="${btnStyle}">⬇ GeoJSON + joined properties</button>` : ''}
                 ${hasStyle ? `<button id="_ed_both"  style="${btnStyle}">⬇ GeoJSON + style (.style.json)</button>` : ''}
                 ${hasStyle ? `<button id="_ed_style" style="${btnStyle}">⬇ Style only (.style.json)</button>` : ''}
                 <button id="_ed_ids"    style="${btnStyle}">⬇ Feature IDs…</button>
@@ -21229,11 +22809,28 @@ function _exportDialog(filename, count, hasStyle) {
         overlay.querySelector('#_ed_geojson').onclick = () => pick('geojson');
         overlay.querySelector('#_ed_ids').onclick     = () => pick('ids');
         overlay.querySelector('#_ed_cancel').onclick  = () => pick(null);
+        overlay.querySelector('#_ed_geojson_join')?.addEventListener('click', () => pick('geojson_join'));
         if (hasStyle) {
             overlay.querySelector('#_ed_both').onclick  = () => pick('both');
             overlay.querySelector('#_ed_style').onclick = () => pick('style');
         }
     });
+}
+
+// Serialize GeoJSON with pretty-printed properties but compact coordinates.
+// Standard JSON.stringify(fc, null, 2) puts a newline after every coordinate pair,
+// making large geometry files huge and hard to read. This format:
+//   - Pretty-prints the feature wrapper and properties (readable)
+//   - Compacts coordinates to a single line per ring/linestring (small, scannable)
+function serializeGeoJSON(features) {
+    const lines = ['{\n"type": "FeatureCollection",\n"features": ['];
+    features.forEach((f, fi) => {
+        const props = JSON.stringify(f.properties, null, 2);
+        const geom  = f.geometry ? JSON.stringify(f.geometry) : 'null';
+        lines.push(`  {\n  "type": "Feature",\n  "properties": ${props.replace(/\n/g, '\n  ')},\n  "geometry": ${geom}\n  }${fi < features.length - 1 ? ',' : ''}`);
+    });
+    lines.push(']}');
+    return lines.join('\n');
 }
 
 function _triggerDownload(blob, filename) {
@@ -21531,24 +23128,34 @@ function setupWorkingLayer() {
     const wOpacity = ['case', ['boolean', ['feature-state', 'hidden'], false], 0,
         ['case', ['has', '_selecter_opacity'], ['to-number', ['get', '_selecter_opacity'], 1], 0.85]];
 
-    map.addLayer({ id: 'working-fill', type: 'fill', source: 'working-data',
+    // Use same insertion points as File tab:
+    // fill → before roads (above water, below road lines and bridges)
+    // lines/outlines → before address_label (above bridges, below all labels)
+    // Both fill and lines insert before address_label (the "Over roads" default).
+    // The Draw order pill moves working-fill to roads_tunnels_other_casing for "Under roads".
+    const _wFillBefore   = map.getLayer('address_label') ? 'address_label' : undefined;
+    const _wLineBefore   = map.getLayer('address_label') ? 'address_label' : undefined;
+    const _wAddFill = (def) => map.addLayer(def, _wFillBefore);
+    const _wAddLine = (def) => map.addLayer(def, _wLineBefore);
+
+    _wAddFill({ id: 'working-fill', type: 'fill', source: 'working-data',
         filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
         paint: { 'fill-color': wColor, 'fill-opacity': 0.3 } });
-    map.addLayer({ id: 'working-outline', type: 'line', source: 'working-data',
+    _wAddLine({ id: 'working-outline', type: 'line', source: 'working-data',
         filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
         paint: { 'line-color': wColor, 'line-width': 1, 'line-opacity': wOpacity } });
     const wWidth = ['case', ['has', '_selecter_width'], ['to-number', ['get', '_selecter_width'], 2.5], 2.5];
     // Casing layer sits below working-line — drawn first = underneath
-    map.addLayer({ id: 'working-line-casing', type: 'line', source: 'working-data',
+    _wAddLine({ id: 'working-line-casing', type: 'line', source: 'working-data',
         filter: ['all', ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]], ['!', ['has', '_selecter_dash']]],
         paint: { 'line-color': 'rgba(0,0,0,0)', 'line-width': 0, 'line-opacity': 0 } });
-    map.addLayer({ id: 'working-line', type: 'line', source: 'working-data',
+    _wAddLine({ id: 'working-line', type: 'line', source: 'working-data',
         filter: ['all', ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]], ['!', ['has', '_selecter_dash']]],
         paint: { 'line-color': wColor, 'line-width': wWidth, 'line-opacity': wOpacity } });
-    map.addLayer({ id: 'working-line-dashed', type: 'line', source: 'working-data',
+    _wAddLine({ id: 'working-line-dashed', type: 'line', source: 'working-data',
         filter: ['all', ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]], ['has', '_selecter_dash']],
         paint: { 'line-color': wColor, 'line-width': wWidth, 'line-opacity': wOpacity, 'line-dasharray': [5, 2.5] } });
-    map.addLayer({ id: 'working-point', type: 'circle', source: 'working-data',
+    _wAddLine({ id: 'working-point', type: 'circle', source: 'working-data',
         filter: ['==', ['geometry-type'], 'Point'],
         paint: { 'circle-color': 'rgba(0,0,0,0)', 'circle-radius': 5,
                  'circle-stroke-color': wColor, 'circle-stroke-width': 2,
@@ -21781,14 +23388,32 @@ function addToWorkingLayer(features, removeFromSource) {
     const newFeats = features.map(f => {
         const wid = _workingIdCounter++;
         const srcBase = f.properties._selecter_source || 'file';
-        // Append time if not already timestamped (avoid double-stamping)
         const srcWithTs = srcBase.includes('·') && srcBase.match(/\d{2}:\d{2}$/)
             ? srcBase : `${srcBase}·${_pinTs}`;
+
+        // Copy join aggregation props directly into Working feature properties.
+        let joinProps = {};
+        if (_joinStore) {
+            const gvid = f.properties._gvid;
+            const agg  = _joinStore.byGvid[gvid]?.agg;
+            if (agg) {
+                joinProps['join_data_source'] = _joinStore.file;
+                joinProps['join_join_key']    = _joinStore.csvCol;
+                if (agg.count !== undefined) joinProps['join_count'] = agg.count;
+                _joinStore.numericCols.forEach(col => {
+                    ['avg','sum','min','max','median','pct'].forEach(a => {
+                        const v = agg[`${a}_${col}`];
+                        if (v !== null && v !== undefined) joinProps[`join_${a}_${col}`] = v;
+                    });
+                });
+            }
+        }
+
         return {
             type: 'Feature',
             id: wid,
             geometry: f.geometry,
-            properties: { ...f.properties, _wgvid: wid,
+            properties: { ...f.properties, ...joinProps, _wgvid: wid,
                 _selecter_source: srcWithTs }
         };
     });
@@ -22551,8 +24176,17 @@ function _moveToWorking() {
         addToWorkingLayer(normalized, false);
         return;
     }
-    // File mode — union of explicitly selected + search-highlighted (chosen pool)
-    const chosenIds = new Set([..._fileStore.selectedIds, ..._fileStore.highlightedIds]);
+    // File mode — pin explicitly selected features.
+    // Don't include highlightedIds when a join is active — those are join-context
+    // highlights (all matched districts etc.), not user selections.
+    // Include highlightedIds only when: no join active AND no explicit selection
+    // (i.e. the user highlighted via search/filter and wants to pin results).
+    const useHighlights = _fileStore.highlightedIds.size > 0 &&
+                          _fileStore.selectedIds.size === 0 &&
+                          !_joinStore;
+    const chosenIds = useHighlights
+        ? _fileStore.highlightedIds
+        : _fileStore.selectedIds;
     if (chosenIds.size === 0) { showToast('Nothing selected to move', 2000); return; }
     const feats = allFeatures.filter(f => chosenIds.has(f.properties._gvid));
     const groups = _getStackedGroups(feats, '_gvid');
@@ -22999,6 +24633,19 @@ function _clearFileData() {
     allFeatures = []; _syncFeatures();
     selectedIds.clear(); highlightedIds.clear(); hiddenIds.clear(); filterHiddenIds.clear();
     _setActiveFilter(null);
+    // Clear join store and related state
+    if (_joinStore) {
+        _joinStore = null;
+        _joinHideUnmatched = false;
+        _jrpOpen = false; _jrpCols = []; _jrpExpandedGvid = null; _jrpDetailShowAll = new Set();
+    }
+    // Clear labels (including join labels) and centroid source
+    labelProps.clear();
+    if (map.getSource('geojson-poly-labels'))
+        map.getSource('geojson-poly-labels').setData({ type: 'FeatureCollection', features: [] });
+    // Clear palette
+    paletteProp = null; paletteMap = {}; paletteStops = null;
+    clearPalette();
     pointSizeActive = false; pointSizeProp = null; pointSizeMin = 3; pointSizeMax = 12; pointSizeLog = false;
     _sourceBytes.clear(); datasetBytes = 0;
     try { map.removeFeatureState({source:'geojson-data'}); } catch {}
@@ -23050,10 +24697,15 @@ document.getElementById('clear-data-btn')?.addEventListener('click', async () =>
         _workingStore.geomVisible = { point: true, line: true, poly: true };
         _clearWorkingData(); // clear localStorage cache
 
-        selectedIds.clear(); highlightedIds.clear(); hiddenIds.clear(); filterHiddenIds.clear();
-        openPropKey = null; labelProps.clear(); _setActiveFilter(null);
-        paletteProp = null; paletteMap = {}; paletteStops = null;
-        geomVisible = { point: true, line: true, poly: true };
+        // Only clear the module-level aliases if we're currently on the Working tab.
+        // If on the File tab, these aliases point to _fileStore's sets and clearing them
+        // would wipe the file tab's selection/hidden state.
+        if (activeTab === 'working') {
+            selectedIds.clear(); highlightedIds.clear(); hiddenIds.clear(); filterHiddenIds.clear();
+            openPropKey = null; labelProps.clear(); _setActiveFilter(null);
+            paletteProp = null; paletteMap = {}; paletteStops = null;
+            geomVisible = { point: true, line: true, poly: true };
+        }
 
         resetWorkingStyleState();
         syncWorkingPillUI();
@@ -23071,8 +24723,9 @@ document.getElementById('clear-data-btn')?.addEventListener('click', async () =>
     } else {
         const n = _fileStore.features.length;
         if (!n) return;
+        const joinNote = _joinStore ? ` Joined data from "${_joinStore.file}" will also be cleared.` : '';
         const ok = await _styledConfirm('Clear File Data?',
-            `Remove all ${n} feature${n===1?'':'s'} from the File layer? This cannot be undone.`,
+            `Remove all ${n} feature${n===1?'':'s'} from the File layer? This cannot be undone.${joinNote}`,
             'Clear', 'Cancel');
         if (!ok) return;
         _clearFileData();
