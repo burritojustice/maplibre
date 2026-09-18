@@ -10,6 +10,427 @@ are described by date and feature area only.
 
 ---
 
+## Join Right Panel (Step 3) · Sep 15–16, 2026 · v908–v911
+
+### v911
+`_jrpFieldsExpanded` set (keyed `"gvid:rowIndex"`) tracks per-row field expansion independently of `_jrpDetailShowAll` (row count expansion). "+N more fields" expands a single row's fields; "Show all N rows" expands only the count. Both sets reset on panel open. `_clearJoin` and `_clearFileData` reset all JRP state and call `_renderJoinRightPanel()`.
+
+### v910
+Bidirectional map ↔ table sync: hovering a map feature highlights its table row and scrolls it into view (`_jrpHighlightRow`); clicking a map feature expands its accordion row (`_jrpExpandRow`). Hovering a table row calls `setHoveredFeature()` to highlight the feature on the map. "Show all N rows" button in expanded accordion detail.
+
+### v909
+Fixed missing `<div id="map">` — accidentally consumed by str_replace inserting join panel HTML, causing MapLibre "Container 'map' not found" error.
+
+### v908
+Join right data panel (Step 3) built. Toggle button "⤵ Data" on right map edge, appears when join active on File tab. 400px fixed panel, resizable. Header: filename + join key + feature count. Column pills with × to remove. Sort header bar (click to sort asc/desc with ↑↓). Table rows: one per joined geometry, ▸ expand arrow. Accordion detail: CSV rows for that geometry with key:value pairs, 3 rows / 8 fields by default. Footer CSV totals. `+` picker for adding columns. Default columns: geometry key prop + count + sum/pct per numeric col.
+
+---
+
+## Join Pipeline — Cleanup & Working Tab · Sep 14–15, 2026 · v902–v907
+
+### v907
+Pluralization: "5 rows do not match, and 2 rows are missing data." Export visible now offers "GeoJSON + joined properties" option (was only available on export selected).
+
+### v906
+Fixed `nullRows` undefined ReferenceError crashing join dialog — should have been `nullCount`.
+
+### v905
+Join dialog match summary rewritten: "In the 'Zip Code' column, 18 of 21 unique values (86%) within 76 of 80 CSV rows (95%) match 21 of 32 map features (66%). 3 rows do not match, and 1 row is missing data." Working popup no longer shows stale File join data — `_getJoinEntries` checks `activeTab` and reads from embedded feature properties in Working tab. `join_data_source` property added.
+
+### v904
+Join panel geometry line hover fixed (title= on correct element). CSV rows line font matches geometry line (11px bold). Null row count shown ("· 5 null"). Per-value unmatched counts in hover tooltip. `_joinStore.nullRows` stored.
+
+### v903
+`serializeGeoJSON()`: pretty-prints properties, compact coordinates (no newline per coordinate pair). "GeoJSON + joined properties" export now works — features passed with `_gvid` intact, cleaned in `clean()`. `join_data_source` + `join_join_key` added to exports and Working pin.
+
+### v902
+`_moveToWorking` no longer includes join-highlighted features when pinning selected — only uses `highlightedIds` when no `selectedIds` AND no `_joinStore`. Clearing Working no longer wipes File selection state (conditional on `activeTab === 'working'`). `_getJoinEntries` handles Working tab by looking up `_gvid` from feature properties.
+
+---
+
+## Join Pipeline — Stats, UI & Labels · Sep 11–15, 2026 · v867–v901
+
+### v901
+"Join data" no longer triggers `fitBounds`. "Highlight only" still fits to matched features.
+
+### v900
+`ingestGeoJSON` now respects top-level GeoJSON `bbox` property (RFC 7946) for `fitBounds`. Falls back to coordinate scan. SF Supervisor Districts GeoJSON updated with mainland-only bbox excluding Farallons.
+
+### v899
+Join palette restored after basemap switch: `_applyJoinFeatureStates()` called in `map.once('idle')` callback after `setStyle`.
+
+### v898
+Prefix zoom slider moved inline with checkbox label: "Prefix stats labels (above zoom 12.0)". `.toFixed(1)` prevents jumping between 12 and 12.0.
+
+### v897
+Join dialog layout: `1fr 64px 1fr` grid consistent across header, match rows, samples, and join field dropdowns. Score bar is a proportional-width fill div contained in the center cell.
+
+### v896
+Join dialog header: two-column grid (CSV filename + row/col count | GeoJSON filename + feature/prop count). Match summary shows geometry percentage. Join sidebar panel: file/key moved into toggle bar badge, Color by inline label+select.
+
+### v895
+`$` prefix no longer added to `% of Awarded` labels — pct props excluded from currency prefix via `!isPct` check.
+
+### v894
+`join_pct_X` labels now work: pct values back-filled into each feature's `agg` immediately after `csvTotals` computed, so `_writeJoinLabelProp` can find them via `agg["pct_Awarded"]`.
+
+### v893
+`join_pct_X` and `join_pct_Y` added to Label as multiselect and Color by dropdown (were missing from the stat aggregation iteration).
+
+### v892
+`_isForcecat` partial match switched from `String.includes()` to token split on `_`: `"awarded".includes("ward")` was incorrectly force-categorizing "Awarded Amount". Now `tokens.includes("ward")` — "awarded" splits to `["awarded"]`, no false match.
+
+### v891
+Sidebar title shows join: "SF Supervisor Districts joined to Leader View.csv" at all four `sidebar-subtitle` update sites. Stats column picker in dialog excludes zip/district via `_isForcecatQuick`. `join_pct_X` logging added.
+
+### v890
+`_isForcecat` extended: district/ward/zone/sector names + small-integer identifier heuristic (values 1–99, ≤20 distinct → categorical). Copy ⎘ buttons on unmatched geometry and CSV value lines in join panel. Hover tooltip on CSV rows line shows per-value unmatched counts sorted by frequency.
+
+### v889
+Join dialog: two-column header with file names and counts. Match summary updated: "18 of 21 CSV values match (86%) · 10 of 11 features (91%)". Label as multiselect: CSV stats first, join key prop italicized at top.
+
+### v888
+Label as shows only numeric stats (count, avg, sum, min, max, median, % of). Categorical modes (`join_mode_*`) removed from label menu, prop list, and popups — deferred to right panel (Step 3).
+
+### v887
+Fixed MapLibre error: `['zoom']` must be top-level in `step`/`interpolate`. Zoom threshold now wraps the complete `text-field` expression in `updateLabels()` — builds no-prefix and with-prefix expressions, wraps in `['step', ['zoom'], noPrefix, threshold, withPrefix]`.
+
+### v886
+Prefix stats labels zoom threshold: slider in Join section controls zoom below which labels show plain values, above which they show prefixed values ("avg: $45K"). Default z12.
+
+### v885
+Join props in hover and pinned popups: `_getJoinEntries(gvid)` appends count + formatted numeric agg entries. Join entries render in teal italic with "⤵" prefix. RFC 4180 CSV parser: handles quoted fields containing newlines (fixes phantom extra rows from multi-line cell values).
+
+### v884
+`gv-labels-poly` added to `_tabGvLayers` — centroid labels hidden in Working tab. Palette breakage on tab switch fixed: `switchDataset('file')` rebuilds `propData` and reapplies join feature states. `_joinLabelPrefix` checkbox with zoom threshold slider added to Join section.
+
+### v883
+Zip codes and census IDs force-categorized: `_isForcecat()` checks name list (zip, geoid, fips, tractce, countyfp, phone, year, etc.) and zero-padded string pattern. Two-line join summary: geometries joined and rows joined shown separately. Hover on geometry line shows unmatched feature IDs.
+
+### v882
+Label as multiselect optgroups: "⤵ CSV stats" first, "📍 Geometry" second. `buildFrozenHTML` and hover popup both call `_getJoinEntries()` to show join data.
+
+### v881
+MultiPolygon centroid: **vertex count** used to pick representative sub-polygon instead of bbox area. Farallons fixed — mainland SF has 571 vertices vs 93 for the islands. Sidebar title shows join filename.
+
+### v880
+`updateLayerFilters()` fixed: was resetting `gv-labels` filter back to include Polygons on every palette/filter operation. Now always `['Point','MultiPoint']` only; polygon labels handled via `_updatePolyLabelCentroids()`. Hidden features excluded from centroid source. Auto-apply `join_count` as palette and label after join.
+
+### v879
+Diagnostic logging in `addLabelLayer` and `updateLabels` confirming layer existence, placement, filter, and text-field.
+
+### v878
+Currency detection threshold: ratio lowered from 50% to 10% for name-hinted columns (amount/award/grant/etc.) — fixes "Awarded Amount" at 35% parseable ratio.
+
+### v877
+Currency minimum count: columns with `$` values require only 1 parseable value (not 3). Fixes sparse columns. `numericHeaders` in dialog uses same threshold.
+
+### v876
+Currency support in join pipeline: `parseCurrencyVal()` strips `$` and thousands commas. Name hints detect currency columns. Labels formatted with `toLocaleString` ($45K, $1.2M). `_writeJoinLabelProp` formats pct as "12.3%" and currency as "$45K".
+
+### v875
+Join section in sidebar below Background: collapsible, matching Background header style. File/key in badge. Color by inline dropdown. Label as click-to-toggle multiselect. Stats column picker in dialog. Filename labels above join field dropdowns.
+
+### v874
+Join section panel added to sidebar. `_clearJoin` clears labels, centroid source, palette. Clear file dialog mentions active join. Join panel auto-expands after join completes.
+
+### v873
+Auto-apply `join_count` as palette (quantile) and label after "Join data". `renderSidebar()` called after to sync label checkboxes immediately.
+
+### v872
+Root fix for double polygon labels: `updateLayerFilters()` was resetting `gv-labels` to include Polygon on every palette/filter call. Now always Points-only; polygon labels via centroid source.
+
+### v871
+Centroid labels: `_updatePolyLabelCentroids` filters `hiddenIds` before populating centroid source. Hidden polygons produce no centroid point.
+
+### v870
+`symbol-placement: 'polygon'` not supported in MapLibre 5.x → switched to separate `geojson-poly-labels` GeoJSON source. `_updatePolyLabelCentroids()` computes one point per polygon at blended bbox-center/vertex-centroid. One point = one label, no tile-boundary duplication.
+
+### v869
+Diagnostic logging in label layers: placement, filter, text-field logged on creation and on each `updateLabels()` call.
+
+### v868
+`symbol-placement: 'polygon'` attempted with `symbol-avoid-edges: true` and `symbol-spacing: 5000` (later discovered unsupported in MapLibre 5.x).
+
+### v867
+Join pipeline Steps 1–2 complete. `_joinStore` data model with `byGvid`, `numericCols`, `catCols`, `aggColumns`. `_computeJoinAgg`: count, avg, sum, min, max, median, stddev per feature. `_applyJoinFeatureStates` injects into feature state for palette use. Join dialog: match scoring, column-name + value-based matching, `_displayJoinPropName`. Highway shields hidden by default. Polygon centroid labels via `gv-labels-poly`.
+
+---
+
+## Join Dialog & Matching · Sep 4–11, 2026 · v839–v866
+
+### v866
+Join UI: join section collapsible below Background, status panel with geometry/row counts, hide unmatched checkbox, clear join button. `_displayJoinPropName` formats display names.
+
+### v865
+Filter/select/highlight/exclude work on join props via `_getFeatureVal(f, key)` reading from `_joinStore.byGvid[gvid].agg`.
+
+### v864
+Filter/hide works for join props: `applyPaletteToLayers` detects join props and reads from feature-state. `buildQuantitativePaletteColorExpr` uses `['feature-state', prop]`.
+
+### v863
+Sample values in join dialog: each match row shows CSV samples → GeoJSON samples aligned in grid. Score bar proportional to match quality.
+
+### v862
+Palette activation fixed: `isColorProp: true` on join props caused wrong palette branch.
+
+### v861
+Categorical join prop palette: `buildPaletteColorExpr` uses `['feature-state', prop]` in match expressions.
+
+### v860
+Palette restoration: session restore clears stale join palette props when `_joinStore` is null.
+
+### v859
+`join_count` palette when all values = 1: `injectJoinProp` checks `range > 0` before skipping numeric injection.
+
+### v858
+Label error fixed: `feature-state` not allowed in `text-field` (MapLibre hard restriction). `_writeJoinLabelProp` writes join values into `_jl_*` feature properties for label access.
+
+### v857
+`loSlider` null crash on second join prop: safe element IDs via `key.replace(/[^a-zA-Z0-9]/g, '_')`.
+
+### v856
+`computeNumericStatsFiltered` reads join values from `_joinStore.byGvid[gvid].agg`.
+
+### v855
+`filterLoInput` null crash fixed. Numeric filter panel uses safe element IDs.
+
+### v854
+Join pipeline Steps 1–2: `_joinStore` data model, `_buildJoinStore`, `_computeJoinAgg`, feature-state injection. Palette expressions detect join props via `_isJoinProp` flag.
+
+### v853
+`working-fill` inserts before `address_label` matching polygon layer ordering.
+
+### v852
+Draw order pill added to Working polygons (Under/Over roads).
+
+### v850–v851
+Basemap layer ordering confirmed from live layer dump. `GV_FILL_BEFORE = 'roads_tunnels_other_casing'`, `GV_LINE_BEFORE = 'address_label'` constants established.
+
+### v849
+Diagnostic logging: `[layers] full basemap order:` logs all non-gv layer IDs on data load.
+
+### v848
+Layer insertion logic: `gv-fill` before first road layer; `gv-outline`/`gv-line` before `address_label`.
+
+### v847
+`firstRoadLabelId` was matching `roads_oneway` (arrow symbols) instead of text labels — fixed.
+
+### v846
+Layer ordering console logs: `firstRoadId`, `firstRoadLabelId`, `firstLabelId`.
+
+### v845
+Local server directory listing: nginx autoindex detection, file browser improvements.
+
+### v844
+Welcome screen closes before opening Samples modal.
+
+### v843
+Unified `openSamplesModal()`: centered overlay matching URL dialog style.
+
+### v842
+Samples item in action bar opens centered modal.
+
+### v841
+Samples button delegation chain fixed.
+
+### v840
+`menu.style` null crash fixed; `#sidebar-samples-menu` added to static HTML.
+
+### v839
+Join dialog: two scored sections ("✓ Column-name matches" green, "~ Value matches" yellow). Click row to select join fields.
+
+---
+
+## CSV Import, WKT, Explode & Elevation Fixes · Aug 31–Sep 4, 2026 · v820–v838
+
+### v838
+`_COORD_PAIR_RE` tightened: requires decimal point in matched numbers to reduce false positives.
+
+### v837
+Column-name match priority: exact > prefix > suffix > contains. `_PREFERRED_JOIN_FIELDS` list for common geo keys (district, zip, cnn, etc.).
+
+### v836
+TDZ fix: `const hasTwoPoints` declared after reference — moved before use.
+
+### v835
+Full WKT support in CSV import: POINT, LINESTRING, MULTILINESTRING, POLYGON, MULTIPOLYGON, GEOMETRYCOLLECTION.
+
+### v834
+CSV selecter export detection: reads `# _selecter_export=selection` header and routes to ID-list import.
+
+### v833
+CSV ID-list import: property value index built across all features, matches by any property value.
+
+### v832
+Radio button alignment fixed in join/import dialogs.
+
+### v831
+CSV import column detection rewritten: lat/lng columns first, then geometry column, then coordinate pair parsing.
+
+### v830
+CSV import auto-detection: column names, coordinate formats, WKT geometry columns. Drag-and-drop CSV support.
+
+### v829
+Elevation batch concurrency restored to 8.
+
+### v828
+Elevation CORS cache poisoning root cause identified. DEM fetches use `?src=selecter` query param to prevent cache sharing with MapLibre's internal tile fetches.
+
+### v827
+CORS cache poisoning fix documented. Elevation fetches bypass browser cache via `cache: 'no-store'`.
+
+### v826
+Elevation batch concurrency reduced to 1 (sequential) to diagnose 429 rate limits.
+
+### v825
+Hidden feature elevation points fixed. `debugElevation` console command added.
+
+### v824
+DEM tile cache race condition fixed: canvas cached only after image fully loads, not before.
+
+### v823
+DEM tile cache race condition fixed in batch calculation. Retry logic for failed tiles.
+
+### v822
+Elevation labels: white text with dark halo, rounded meters, zoom-faded between z14–15.
+
+### v821
+Point sampling cap removed. `_computeElevationForFeature` samples every vertex for shorter features.
+
+### v820
+Unified explode dialog: both point and segment options with advisory notes. Dense geometry warning.
+
+---
+
+## Elevation Profiles & Visualize · Aug 15–31, 2026 · v775–v819
+
+### v819
+`calculateElevationBatch` store-aware: detects File vs Working tab context, uses correct feature store. Elevation results stored in `_selecter_elevations` on file store features.
+
+### v818
+`_ttW = 306` undefined fixed (dropped during header rebuild). Elevation hover in Working tab. 💥 Explode button added to selection bar. All elevation calculations use `_fileStore` regardless of active tab.
+
+### v817
+Working line outline fixed. Sidebar panel structure documented as authoritative reference.
+
+### v816
+Tab visibility controls: each of File/Working/Tiles tabs shows its correct panels.
+
+### v815
+Aqua bar: CSS rule on tab content panels instead of JS-toggled visibility.
+
+### v814
+DOM structure rebuilt from v796: `working-panel` inside `settings-panels`, tab visibility JS corrected.
+
+### v813
+Panel DOM order matches v796: Elevation → Basemap → Style → Background.
+
+### v811
+`switchTab` hides `settings-panels` for Working tab via `requestAnimationFrame`.
+
+### v810
+Structural fix: DOM order and tab visibility without JS changes.
+
+### v809
+Globe + terrain in `unfreeze()`: detects globe projection + `_terrainEnabled` and adapts approach.
+
+### v808
+Explode button checks `highlightedIds` when `selectedIds` is empty — works with search/filter results.
+
+### v807
+`unfreeze()` targets MapLibre's internal render loop: clears `map._renderTaskQueue` and `map._frameId`.
+
+### v806
+Working features now visible: `working-line-casing` added to layer teardown list in `setupWorkingLayer`.
+
+### v805
+Explode: consecutive vertex pairs become segments. A 12-vertex street becomes 11 segments.
+
+### v804
+💥 Explode button added to selection bar (orange, beside 📌). Full vertex-based segment explode with slope coloring. Guard against already-exploded features.
+
+### v803
+`_ttW = 306` undefined fixed (elevation hover path).
+
+### v802
+Visualize pill: Off / Net slope / Max slope / Mid elevation options.
+
+### v799
+File tab panel order corrected: Elevation → Basemap → Style → Background.
+
+### v798
+Label cross-tab leaks fixed: `updateLabels()` explicitly hides the other tab's label layers on every call.
+
+### v797
+Elevation panel hidden on Tiles tab. Working tab elevation cursor fixed.
+
+### v796
+`calculateElevationBatch` stores elevation data in `_selecter_elevations` feature property.
+
+### v795
+Visualize pill appears after elevation computed.
+
+### v794
+Hover chart reads `_selecter_elevations` instead of fetching fresh DEM tiles each hover.
+
+### v793
+Fixed-interval elevation sampling strategy: interval varies by feature length (5–100m range).
+
+### v792
+Elevation chart pinned by default. Corner panel appears immediately on first hover.
+
+### v791
+Net rise bullet added. Tunnel warning. Rise/run axis labels.
+
+### v790
+Missing computed properties dialog: Calculate / Skip / Don't ask again.
+
+### v789
+Corner panel hides when elevation inspect turned off. Missing computed properties handled gracefully.
+
+### v788
+Popup positioning improvements for elevation hover tooltip.
+
+### v787
+Elevation chart suppressed from moving tooltip when chart is pinned.
+
+### v786
+Bottom-aligned elevation charts: fixed total SVG height (170px = 14 + 80 + 76).
+
+### v785
+Fixed 306px tooltip width throughout elevation hover path.
+
+### v784
+Elevation tooltip hides when pointer enters sidebar.
+
+### v783
+Elevation chart buckets: inner width and height vary by run/rise range.
+
+### v782
+Chart scaling fixes and dimension adjustments.
+
+### v781
+Chart order pill (Under/Over roads) for elevation layers.
+
+### v780
+Chart distance labels: 0 · ¼ · ½ · ¾ · 1.
+
+### v779
+Hover tooltip shows full elevation profile chart (SVG, 280px wide, locked to tooltip).
+
+### v778
+Popup dismiss timer extended to 8s when elevation cursor is active.
+
+### v777
+Hover popup suppressed when elevation cursor is active.
+
+### v776
+Five-point elevation sampling: start, ¼, mid, ¾, end of each feature.
+
+### v775
+Explicit `type="button"` on elevation control buttons to prevent accidental form submission.
+
 ## 2026-08-24 - 2026-08-29 (v700–v774)
 
 ### v774 · 2026-08-29 — Contour DataCloneError Fix
