@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: v935 -->
+<!-- build: v938 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -2719,7 +2719,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </script>
 
 <script type="text/javascript">
-const _BUILD_VERSION = 'v935';
+const _BUILD_VERSION = 'v938';
 
 // Global unhandled-rejection logger. Without this, an async function called
 // without await/catch (the exact bug class that caused the progress overlay to
@@ -2748,7 +2748,7 @@ function _decodeProtomapsId(featureId) {
         return { osmId: osmId.toString(), osmType };
     } catch { return null; }
 }
-const _BUILD_TIMESTAMP = '2026-09-22T16:23:20Z';
+const _BUILD_TIMESTAMP = '2026-09-22T17:46:46Z';
 const _loadedAt = Date.now(); // session start — use to confirm tab didn't silently reload
 
 // Detect silent reloads: write a heartbeat to sessionStorage on load,
@@ -22595,6 +22595,15 @@ function _parseCSVText(text) {
     }
 
     const allRows = parseCSV(text.trim(), delim);
+    if (allRows.length < 1) return null;
+    // If only one row, treat as data row with auto-generated headers
+    if (allRows.length === 1) {
+        const dataRow = allRows[0];
+        const headers = dataRow.map((_, i) => `col${i+1}`);
+        const rows = [Object.fromEntries(headers.map((h, i) => [h, dataRow[i]?.trim() ?? '']))];
+        return { headers, rows, delim, autoHeaders: true };
+    }
+    // Standard: first row = headers, rest = data
     if (allRows.length < 2) return null;
 
     const headers = allRows[0].map(h => h.trim());
@@ -23941,47 +23950,110 @@ async function _applySelectionPayload(payload) {
 
 // ── CLIPBOARD COPY / PASTE ────────────────────────────────────────────────
 
-// Normalize any GeoJSON-ish or WKT text into a FeatureCollection
-function _normalizeClipboardGeoJSON(text) {
-    // First try JSON parse
-    let parsed;
-    try { parsed = JSON.parse(text.trim()); }
-    catch {
-        // Try WKT — reuse existing WKT parser from CSV import if available
-        const wktMatch = text.trim().match(/^(POINT|LINESTRING|POLYGON|MULTIPOINT|MULTILINESTRING|MULTIPOLYGON|GEOMETRYCOLLECTION)/i);
-        if (wktMatch) {
-            try {
-                const geom = _parseWKT(text.trim());
-                if (geom) return { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: geom, properties: {} }] };
-            } catch {}
-        }
-        return null;
+// Parse decimal degrees or DMS coordinate string → [lng, lat] or null
+function _parseCoordPair(text) {
+    text = text.trim();
+
+    // DMS: 37° 46' 26" N, 122° 25' 53" W  (or with degrees/minutes/seconds spelled out)
+    const dms = text.match(
+        /(\d+)[°d\s]+(\d+)['''m\s]+(\d+(?:\.\d+)?)["""s\s]*([NS])[,\s]+(\d+)[°d\s]+(\d+)['''m\s]+(\d+(?:\.\d+)?)["""s\s]*([EW])/i
+    );
+    if (dms) {
+        const lat = (parseInt(dms[1]) + parseInt(dms[2])/60 + parseFloat(dms[3])/3600) * (/S/i.test(dms[4]) ? -1 : 1);
+        const lng = (parseInt(dms[5]) + parseInt(dms[6])/60 + parseFloat(dms[7])/3600) * (/W/i.test(dms[8]) ? -1 : 1);
+        if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return [lng, lat];
     }
 
-    // Normalize parsed JSON to FeatureCollection
-    if (!parsed || typeof parsed !== 'object') return null;
-
-    if (parsed.type === 'FeatureCollection') return parsed;
-
-    if (parsed.type === 'Feature') {
-        return { type: 'FeatureCollection', features: [parsed] };
+    // Decimal with N/S/E/W: 37.7667 N 122.4929 W  or  N37.7667 W122.4929
+    const ddNSEW = text.match(/([NS]?\s*\d+\.\d+\s*[NS]?)[,\s]+([EW]?\s*\d+\.\d+\s*[EW]?)/i);
+    if (ddNSEW) {
+        const parseDDPart = s => {
+            const sign = /[SW]/i.test(s) ? -1 : 1;
+            return sign * parseFloat(s.replace(/[NSEW\s]/gi, ''));
+        };
+        const a = parseDDPart(ddNSEW[1]), b = parseDDPart(ddNSEW[2]);
+        // Determine which is lat/lng by magnitude
+        if (Math.abs(a) <= 90 && Math.abs(b) <= 180) return [b, a];
+        if (Math.abs(b) <= 90 && Math.abs(a) <= 180) return [a, b];
     }
 
-    // Array of features
-    if (Array.isArray(parsed)) {
-        const features = parsed.filter(f => f?.type === 'Feature' || f?.geometry);
-        if (features.length) return { type: 'FeatureCollection', features };
-    }
-
-    // Geometry only — wrap in a Feature
-    if (parsed.type && parsed.coordinates) {
-        return { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: parsed, properties: {} }] };
+    // Plain decimal: "37.7667 -122.4929" or "37.7667, -122.4929"
+    const dd = text.match(/^(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)$/);
+    if (dd) {
+        const a = parseFloat(dd[1]), b = parseFloat(dd[2]);
+        if (Math.abs(a) <= 90 && Math.abs(b) <= 180) return [b, a];   // lat lng order
+        if (Math.abs(b) <= 90 && Math.abs(a) <= 180) return [a, b];   // lng lat order
     }
 
     return null;
 }
 
-// Copy selected features to clipboard as GeoJSON
+// Normalize clipboard text to a FeatureCollection, or null if unrecognised
+function _normalizeClipboardGeoJSON(text) {
+    const t = text.trim();
+
+    // 1. Try coordinate pair (lat/lon decimal or DMS)
+    const coord = _parseCoordPair(t);
+    if (coord) {
+        return { type: 'FeatureCollection', features: [{
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: coord },
+            properties: { _pasted_coords: t }
+        }]};
+    }
+
+    // 2. Try WKT
+    if (/^(POINT|LINESTRING|POLYGON|MULTI|GEOMETRYCOLLECTION)/i.test(t)) {
+        try {
+            const geom = _parseWKT(t);
+            if (geom) return { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: geom, properties: {} }] };
+        } catch {}
+    }
+
+    // 3. Try JSON
+    let parsed;
+    try { parsed = JSON.parse(t); } catch { return null; }
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    if (parsed.type === 'FeatureCollection') return parsed;
+    if (parsed.type === 'Feature') return { type: 'FeatureCollection', features: [parsed] };
+    if (Array.isArray(parsed)) {
+        const features = parsed.filter(f => f?.type === 'Feature' || f?.geometry);
+        if (features.length) return { type: 'FeatureCollection', features };
+    }
+    if (parsed.type && parsed.coordinates) {
+        return { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: parsed, properties: {} }] };
+    }
+    return null;
+}
+
+// Ask user which column is lat and which is lng when pasting headerless CSV
+function _askHeaderlessCSVColumns(firstRowVals) {
+    return new Promise(resolve => {
+        const a = firstRowVals[0], b = firstRowVals[1];
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center';
+        overlay.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;max-width:360px;width:90%;font-family:var(--sans);box-shadow:0 16px 48px rgba(0,0,0,0.7)">
+            <div style="font-size:13px;font-weight:600;margin-bottom:6px;color:var(--text)">Which column is latitude?</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px">No header row detected. First two values: <strong style="color:var(--text)">${escHtml(String(a))}</strong>, <strong style="color:var(--text)">${escHtml(String(b))}</strong></div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+                <button id="_hcsv_latfirst" style="text-align:left;padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px;font-family:var(--sans)">
+                    <strong>${escHtml(String(a))}</strong> is <strong>latitude</strong>, ${escHtml(String(b))} is longitude
+                </button>
+                <button id="_hcsv_lngfirst" style="text-align:left;padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:11px;font-family:var(--sans)">
+                    <strong>${escHtml(String(a))}</strong> is <strong>longitude</strong>, ${escHtml(String(b))} is latitude
+                </button>
+                <button id="_hcsv_cancel" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:none;color:var(--text-muted);cursor:pointer;font-size:10px;font-family:var(--sans);margin-top:4px">Cancel</button>
+            </div>
+        </div>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#_hcsv_latfirst').onclick = () => { overlay.remove(); resolve('default'); }; // lat,lng order
+        overlay.querySelector('#_hcsv_lngfirst').onclick = () => { overlay.remove(); resolve('swap'); };    // lng,lat order
+        overlay.querySelector('#_hcsv_cancel').onclick   = () => { overlay.remove(); resolve(null); };
+    });
+}
+
+// Copy selected features to clipboard
 async function copySelectedToClipboard() {
     const chosenIds = selectedIds.size > 0 ? selectedIds : highlightedIds;
     if (!chosenIds.size) { showToast('Nothing selected to copy', 2000); return; }
@@ -23992,12 +24064,9 @@ async function copySelectedToClipboard() {
         Object.keys(p).forEach(k => { if (k.startsWith('_') || k.startsWith('_jl_')) delete p[k]; });
         return { type: 'Feature', geometry: f.geometry, properties: p };
     };
-
-    // Include join props if active
     const withJoin = _joinStore
         ? features.map(f => {
-            const gvid = f.properties._gvid;
-            const agg = _joinStore.byGvid[gvid]?.agg;
+            const agg = _joinStore.byGvid[f.properties._gvid]?.agg;
             if (!agg) return clean(f);
             const joinProps = {};
             if (agg.count !== undefined) joinProps.join_count = agg.count;
@@ -24018,7 +24087,6 @@ async function copySelectedToClipboard() {
         await navigator.clipboard.writeText(text);
         showToast(`Copied ${withJoin.length} feature${withJoin.length > 1 ? 's' : ''} to clipboard`, 2500);
     } catch {
-        // Fallback: show in a textarea for manual copy
         const ta = document.createElement('textarea');
         ta.value = text;
         ta.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80vw;height:60vh;z-index:3000;font-family:monospace;font-size:11px;background:#1a1a24;color:#e8e8f0;border:1px solid #444;border-radius:8px;padding:12px';
@@ -24030,19 +24098,16 @@ async function copySelectedToClipboard() {
     }
 }
 
-// Paste GeoJSON from clipboard
+// Paste from clipboard — handles GeoJSON, WKT, coordinates, or CSV
 async function pasteGeoJSON() {
     let text = '';
     try {
         text = await navigator.clipboard.readText();
     } catch {
-        // Clipboard API blocked — show paste dialog
-        const text2 = await _showPasteDialog();
-        if (!text2) return;
-        text = text2;
+        text = await _showPasteDialog();
     }
-    if (!text.trim()) { showToast('Clipboard is empty', 2000); return; }
-    _processPastedText(text);
+    if (!text?.trim()) return;
+    await _processPastedText(text.trim());
 }
 
 function _showPasteDialog() {
@@ -24050,8 +24115,8 @@ function _showPasteDialog() {
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center';
         overlay.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;width:80vw;max-width:560px;font-family:var(--sans);box-shadow:0 16px 48px rgba(0,0,0,0.7);display:flex;flex-direction:column;gap:10px">
-            <div style="font-size:13px;font-weight:600;color:var(--text)">Paste GeoJSON or WKT</div>
-            <textarea id="_paste-ta" style="flex:1;min-height:200px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:10px;padding:10px;resize:vertical" placeholder='{"type":"FeatureCollection","features":[…]}'></textarea>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">Paste GeoJSON, WKT, coordinates, or CSV</div>
+            <textarea id="_paste-ta" style="min-height:200px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:10px;padding:10px;resize:vertical" placeholder='GeoJSON, WKT, "37.7667 -122.4929", or CSV rows…'></textarea>
             <div style="display:flex;gap:8px;justify-content:flex-end">
                 <button id="_paste-cancel" style="padding:6px 16px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer;font-family:var(--sans);font-size:11px">Cancel</button>
                 <button id="_paste-ok" style="padding:6px 16px;border-radius:6px;border:none;background:var(--accent);color:#000;cursor:pointer;font-family:var(--sans);font-size:11px;font-weight:600">Paste</button>
@@ -24060,42 +24125,104 @@ function _showPasteDialog() {
         document.body.appendChild(overlay);
         const ta = overlay.querySelector('#_paste-ta');
         ta.focus();
-        overlay.querySelector('#_paste-ok').onclick = () => { overlay.remove(); resolve(ta.value); };
-        overlay.querySelector('#_paste-cancel').onclick = () => { overlay.remove(); resolve(''); };
-        overlay.querySelector('textarea').addEventListener('keydown', e => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { overlay.remove(); resolve(ta.value); }
-            if (e.key === 'Escape') { overlay.remove(); resolve(''); }
+        const finish = val => { overlay.remove(); resolve(val || ''); };
+        overlay.querySelector('#_paste-ok').onclick    = () => finish(ta.value);
+        overlay.querySelector('#_paste-cancel').onclick = () => finish('');
+        ta.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) finish(ta.value);
+            if (e.key === 'Escape') finish('');
         });
     });
 }
 
-function _processPastedText(text) {
+async function _processPastedText(text) {
+    // 1. Try CSV: comma/tab-separated values (with or without newline for single rows)
+    const hasTabs = text.includes('\t');
+    const hasCommaOrTab = text.includes(',') || hasTabs;
+    const looksLikeCSV = /^[^\[\{<]/.test(text) && hasCommaOrTab && !text.trim().startsWith('{');
+
+    // Single-row tab/comma-separated (no newline) — Numbers, Excel cell copy etc.
+    // Treat as a headerless single-data-row by adding a synthetic newline
+    const isSingleRow = looksLikeCSV && !text.includes('\n') && hasCommaOrTab;
+    const csvText = isSingleRow ? `\n${text}` : text; // empty first line = empty header → all-numeric
+
+    if (looksLikeCSV) {
+        const parsed = _parseCSVText(csvText);
+        if (parsed && parsed.rows.length > 0) {
+            // Detect headerless CSV: all "header" values are numeric, OR auto-generated headers
+            const headersAreNumeric = parsed.headers.every(h => /^-?\d+\.?\d*$/.test(h.trim()));
+            if (headersAreNumeric || parsed.autoHeaders) {
+                // Show actual values in dialog (headers are synthetic col1/col2/... for autoHeaders)
+                const displayVals = parsed.autoHeaders
+                    ? Object.values(parsed.rows[0])
+                    : parsed.headers;
+                const choice = await _askHeaderlessCSVColumns(displayVals);
+                if (!choice) return;
+                const hdr = parsed.headers;  // col1, col2, ... for autoHeaders; numeric values for headersAreNumeric
+                const extraCols = hdr.slice(2).map((_,i) => `col${i+3}`).join(',');
+                let synth;
+                if (parsed.autoHeaders) {
+                    // Single data row — synthesize header + reconstruct the data line from row values
+                    const rowVals = Object.values(parsed.rows[0]);
+                    const dataLine = rowVals.join(parsed.delim);
+                    const latLng = choice === 'swap' ? 'longitude,latitude' : 'latitude,longitude';
+                    synth = `${latLng}${extraCols ? ',' + extraCols : ''}\n${dataLine}`;
+                } else {
+                    synth = choice === 'swap'
+                        ? `longitude,latitude${extraCols ? ',' + extraCols : ''}\n${csvText}`
+                        : `latitude,longitude${extraCols ? ',' + extraCols : ''}\n${csvText}`;
+                }
+                const blob2 = new Blob([synth], { type: 'text/csv' });
+                const file2 = new File([blob2], 'Pasted data.csv', { type: 'text/csv' });
+                showProgress('Pasting CSV\u2026');
+                try { await _loadCSV(file2); } catch(e) { console.warn('[paste] headerless CSV failed:', e); } finally { hideProgress(); }
+                return;
+            }
+            showProgress(`Parsing ${parsed.rows.length} CSV rows\u2026`);
+            try {
+                const blob = new Blob([text], { type: 'text/csv' });
+                const file = new File([blob], 'Pasted data.csv', { type: 'text/csv' });
+                await _loadCSV(file);
+                hideProgress();
+                return;
+            } catch (e) {
+                hideProgress();
+                console.warn('[paste] CSV path failed:', e);
+                // Fall through to GeoJSON/WKT attempt
+            }
+        }
+    }
+
+    // 2. Try GeoJSON
+
+    // 2. Try GeoJSON / WKT / coordinates
     const fc = _normalizeClipboardGeoJSON(text);
     if (!fc || !fc.features?.length) {
-        showToast('Could not parse clipboard content as GeoJSON or WKT', 4000);
+        showToast('Could not parse — try GeoJSON, WKT, decimal coordinates, or CSV', 4000);
         return;
     }
+
     const count = fc.features.length;
     if (count > 500) {
-        // Confirm for large pastes
         const confirmed = confirm(`Paste ${count.toLocaleString()} features?`);
         if (!confirmed) return;
     }
+
     showProgress(`Pasting ${count} feature${count > 1 ? 's' : ''}…`);
-    setTimeout(() => {
-        try {
-            ingestGeoJSON(fc, 'Pasted features');
-        } catch (e) {
-            hideProgress();
-            showToast(`Paste failed: ${e.message}`, 4000);
-        }
-    }, 0);
+    try {
+        await ingestGeoJSON(fc, 'Pasted features');
+    } catch (e) {
+        console.error('[paste] ingestGeoJSON error:', e);
+        showToast(`Paste failed: ${e.message}`, 4000);
+    } finally {
+        hideProgress();
+    }
 }
 
 // Wire copy button
 document.getElementById('copy-sel-btn')?.addEventListener('click', () => copySelectedToClipboard());
 
-// Global keyboard shortcuts — ⌘C to copy, ⌘V to paste (when no input focused)
+// ⌘C / ⌘V keyboard shortcuts (when no input is focused)
 document.addEventListener('keydown', e => {
     const inInput = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
     if (inInput) return;
