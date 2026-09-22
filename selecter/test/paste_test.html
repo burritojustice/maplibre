@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- build: v938 -->
+<!-- build: v941 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -2719,7 +2719,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </script>
 
 <script type="text/javascript">
-const _BUILD_VERSION = 'v938';
+const _BUILD_VERSION = 'v941';
 
 // Global unhandled-rejection logger. Without this, an async function called
 // without await/catch (the exact bug class that caused the progress overlay to
@@ -2748,7 +2748,7 @@ function _decodeProtomapsId(featureId) {
         return { osmId: osmId.toString(), osmType };
     } catch { return null; }
 }
-const _BUILD_TIMESTAMP = '2026-09-22T17:46:46Z';
+const _BUILD_TIMESTAMP = '2026-09-22T20:08:49Z';
 const _loadedAt = Date.now(); // session start — use to confirm tab didn't silently reload
 
 // Detect silent reloads: write a heartbeat to sessionStorage on load,
@@ -23992,14 +23992,45 @@ function _parseCoordPair(text) {
 function _normalizeClipboardGeoJSON(text) {
     const t = text.trim();
 
-    // 1. Try coordinate pair (lat/lon decimal or DMS)
-    const coord = _parseCoordPair(t);
-    if (coord) {
-        return { type: 'FeatureCollection', features: [{
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: coord },
-            properties: { _pasted_coords: t }
-        }]};
+    // 1. JSON — try first for anything that looks like JSON (starts with { or [)
+    if (/^\s*[\[\{]/.test(t)) {
+        // Strip trailing comma (common when copying one item from an array)
+        const cleaned = t.replace(/,\s*$/, '');
+        let parsed;
+        try { parsed = JSON.parse(cleaned); } catch {
+            // Try wrapping in array in case it's a bare Feature without {}
+            try { parsed = JSON.parse(`[${cleaned}]`); }
+            catch { return null; }
+            if (Array.isArray(parsed)) parsed = parsed[0];
+        }
+        if (!parsed || typeof parsed !== 'object') return null;
+
+        // Standard GeoJSON types
+        if (parsed.type === 'FeatureCollection') return parsed;
+        if (parsed.type === 'Feature') return { type: 'FeatureCollection', features: [parsed] };
+        if (Array.isArray(parsed)) {
+            const features = parsed.filter(f => f?.type === 'Feature' || f?.geometry);
+            if (features.length) return { type: 'FeatureCollection', features };
+        }
+        if (parsed.type && parsed.coordinates) {
+            return { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: parsed, properties: {} }] };
+        }
+
+        // Plain JSON object with latitude/longitude keys — synthesize a Point feature
+        const props = parsed;
+        const latKey = Object.keys(props).find(k => /^lati?t?u?d?e?$/i.test(k) || k.toLowerCase() === 'lat');
+        const lngKey = Object.keys(props).find(k => /^lon[gi]*t?u?d?e?$/i.test(k) || k.toLowerCase() === 'lng' || k.toLowerCase() === 'lon');
+        if (latKey && lngKey) {
+            const lat = parseFloat(props[latKey]), lng = parseFloat(props[lngKey]);
+            if (isFinite(lat) && isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+                return { type: 'FeatureCollection', features: [{
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: [lng, lat] },
+                    properties: props
+                }]};
+            }
+        }
+        return null;
     }
 
     // 2. Try WKT
@@ -24010,20 +24041,18 @@ function _normalizeClipboardGeoJSON(text) {
         } catch {}
     }
 
-    // 3. Try JSON
-    let parsed;
-    try { parsed = JSON.parse(t); } catch { return null; }
-    if (!parsed || typeof parsed !== 'object') return null;
+    // 3. Coordinate pair — only on short single-line text
+    if (!t.includes('\n') && t.length < 80) {
+        const coord = _parseCoordPair(t);
+        if (coord) {
+            return { type: 'FeatureCollection', features: [{
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: coord },
+                properties: { _pasted_coords: t }
+            }]};
+        }
+    }
 
-    if (parsed.type === 'FeatureCollection') return parsed;
-    if (parsed.type === 'Feature') return { type: 'FeatureCollection', features: [parsed] };
-    if (Array.isArray(parsed)) {
-        const features = parsed.filter(f => f?.type === 'Feature' || f?.geometry);
-        if (features.length) return { type: 'FeatureCollection', features };
-    }
-    if (parsed.type && parsed.coordinates) {
-        return { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: parsed, properties: {} }] };
-    }
     return null;
 }
 
@@ -24136,33 +24165,54 @@ function _showPasteDialog() {
 }
 
 async function _processPastedText(text) {
-    // 1. Try CSV: comma/tab-separated values (with or without newline for single rows)
+    // Try GeoJSON / WKT / coordinate pair FIRST — GeoJSON contains commas/newlines
+    // that would fool the CSV detector if we checked CSV first
+    const fc = _normalizeClipboardGeoJSON(text);
+    if (fc && fc.features?.length) {
+        const count = fc.features.length;
+        console.log(`[paste] recognised ${count} feature${count>1?'s':''} as GeoJSON/WKT/coords`);
+        if (count > 500) {
+            const confirmed = confirm(`Paste ${count.toLocaleString()} features?`);
+            if (!confirmed) return;
+        }
+        showProgress(`Pasting ${count} feature${count > 1 ? 's' : ''}\u2026`);
+        try {
+            await ingestGeoJSON(fc, 'Pasted features');
+            console.log(`[paste] \u2713 ingested ${count} feature${count>1?'s':''}`);
+        } catch (e) {
+            console.error('[paste] ingestGeoJSON error:', e);
+            showToast(`Paste failed: ${e.message}`, 4000);
+        } finally {
+            hideProgress();
+        }
+        return;
+    }
+
+    // Try CSV: comma/tab-separated (with or without newline for single rows)
     const hasTabs = text.includes('\t');
     const hasCommaOrTab = text.includes(',') || hasTabs;
-    const looksLikeCSV = /^[^\[\{<]/.test(text) && hasCommaOrTab && !text.trim().startsWith('{');
+    const looksLikeCSV = hasCommaOrTab &&
+        !/^\s*[\[\{]/.test(text) &&
+        !/^(POINT|LINESTRING|POLYGON|MULTI|GEOMETRY)/i.test(text.trim());
 
-    // Single-row tab/comma-separated (no newline) — Numbers, Excel cell copy etc.
-    // Treat as a headerless single-data-row by adding a synthetic newline
-    const isSingleRow = looksLikeCSV && !text.includes('\n') && hasCommaOrTab;
-    const csvText = isSingleRow ? `\n${text}` : text; // empty first line = empty header → all-numeric
+    // Single-row with no newline (Numbers/Excel single cell row copy)
+    const isSingleRow = looksLikeCSV && !text.includes('\n');
+    const csvText = isSingleRow ? `\n${text}` : text;
 
     if (looksLikeCSV) {
         const parsed = _parseCSVText(csvText);
         if (parsed && parsed.rows.length > 0) {
-            // Detect headerless CSV: all "header" values are numeric, OR auto-generated headers
             const headersAreNumeric = parsed.headers.every(h => /^-?\d+\.?\d*$/.test(h.trim()));
             if (headersAreNumeric || parsed.autoHeaders) {
-                // Show actual values in dialog (headers are synthetic col1/col2/... for autoHeaders)
+                console.log(`[paste] headerless CSV — asking column order`);
                 const displayVals = parsed.autoHeaders
-                    ? Object.values(parsed.rows[0])
-                    : parsed.headers;
+                    ? Object.values(parsed.rows[0]) : parsed.headers;
                 const choice = await _askHeaderlessCSVColumns(displayVals);
                 if (!choice) return;
-                const hdr = parsed.headers;  // col1, col2, ... for autoHeaders; numeric values for headersAreNumeric
+                const hdr = parsed.headers;
                 const extraCols = hdr.slice(2).map((_,i) => `col${i+3}`).join(',');
                 let synth;
                 if (parsed.autoHeaders) {
-                    // Single data row — synthesize header + reconstruct the data line from row values
                     const rowVals = Object.values(parsed.rows[0]);
                     const dataLine = rowVals.join(parsed.delim);
                     const latLng = choice === 'swap' ? 'longitude,latitude' : 'latitude,longitude';
@@ -24178,6 +24228,7 @@ async function _processPastedText(text) {
                 try { await _loadCSV(file2); } catch(e) { console.warn('[paste] headerless CSV failed:', e); } finally { hideProgress(); }
                 return;
             }
+            console.log(`[paste] CSV — ${parsed.rows.length} rows, headers: ${parsed.headers.slice(0,4).join(', ')}`);
             showProgress(`Parsing ${parsed.rows.length} CSV rows\u2026`);
             try {
                 const blob = new Blob([text], { type: 'text/csv' });
@@ -24188,36 +24239,14 @@ async function _processPastedText(text) {
             } catch (e) {
                 hideProgress();
                 console.warn('[paste] CSV path failed:', e);
-                // Fall through to GeoJSON/WKT attempt
             }
         }
     }
 
-    // 2. Try GeoJSON
-
-    // 2. Try GeoJSON / WKT / coordinates
-    const fc = _normalizeClipboardGeoJSON(text);
-    if (!fc || !fc.features?.length) {
-        showToast('Could not parse — try GeoJSON, WKT, decimal coordinates, or CSV', 4000);
-        return;
-    }
-
-    const count = fc.features.length;
-    if (count > 500) {
-        const confirmed = confirm(`Paste ${count.toLocaleString()} features?`);
-        if (!confirmed) return;
-    }
-
-    showProgress(`Pasting ${count} feature${count > 1 ? 's' : ''}…`);
-    try {
-        await ingestGeoJSON(fc, 'Pasted features');
-    } catch (e) {
-        console.error('[paste] ingestGeoJSON error:', e);
-        showToast(`Paste failed: ${e.message}`, 4000);
-    } finally {
-        hideProgress();
-    }
+    console.warn('[paste] could not parse clipboard content:', text.slice(0, 120));
+    showToast('Could not parse — try GeoJSON, WKT, decimal coordinates, or CSV', 4000);
 }
+
 
 // Wire copy button
 document.getElementById('copy-sel-btn')?.addEventListener('click', () => copySelectedToClipboard());
