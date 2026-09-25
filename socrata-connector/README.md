@@ -37,11 +37,24 @@ await connector.fetchRows('g8m3-pdis', { limit: 100 });
 await connector.fetchGeoJSON('g8m3-pdis', { limit: 100 });
 ```
 
-Rows without a `Point`-typed geometry column are dropped rather than failing the whole
-request - only tested against Point columns so far, so it's a fit for point-of-interest
-datasets (businesses, trees, incidents), not polygon/line datasets (parcels, boundaries).
+Rows without a recognized point value are dropped rather than failing the whole request -
+handles a GeoJSON Point, Socrata's legacy `{latitude, longitude}` "Location" dict, and WKT
+text (`"POINT(lon lat)"`), covering all three shapes seen across real portals. It's a fit
+for point-of-interest datasets (businesses, trees, incidents), not polygon/line datasets
+(parcels, boundaries).
+
+**`bbox`/viewport auto-refresh needs a real spatial column.** `within_box` only works when
+the portal's geometry column is actually typed as Point - some datasets store it as plain
+text (WKT), which throws a `type-mismatch` error from `within_box`. If `addSocrataLayer`'s
+`moveend` refetch throws immediately, drop `refreshOnMoveEnd: false` and fetch the dataset
+without a `bbox` instead.
 
 ## Demo
 
 `index.html` renders San Francisco's [registered business locations](https://data.sf.gov/d/g8m3-pdis)
 dataset - no app token needed, it's a public read.
+
+Also verified against a much larger, differently-shaped dataset: SF's 144k-row
+[Street Tree Inventory](https://data.sf.gov/City-Infrastructure/San-Francisco-Street-Tree-Inventory/tkzw-k3nq)
+(WKT `point` column, not spatially typed) loaded successfully into
+[burritojustice/maplibre's `selecter`](../selecter) tool via this module.

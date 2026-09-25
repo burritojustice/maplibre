@@ -55,12 +55,31 @@ class SocrataConnector {
     return { type: 'FeatureCollection', features };
   }
 
+  // Socrata portals return one of three shapes for a point column: a GeoJSON
+  // Point, a legacy {latitude, longitude} "Location" dict, or WKT text - which
+  // one depends on how that column was configured on the portal.
   static rowToFeature(row, geometryField = 'location') {
-    const point = row[geometryField];
-    if (!point || point.type !== 'Point' || !Array.isArray(point.coordinates)) return null;
+    const value = row[geometryField];
+    const geometry = SocrataConnector.parseGeometry(value);
+    if (!geometry) return null;
     const properties = { ...row };
     delete properties[geometryField];
-    return { type: 'Feature', geometry: point, properties };
+    return { type: 'Feature', geometry, properties };
+  }
+
+  static parseGeometry(value) {
+    if (typeof value === 'string') {
+      const match = /^POINT\s*\(\s*(-?[\d.]+)\s+(-?[\d.]+)\s*\)$/i.exec(value.trim());
+      return match ? { type: 'Point', coordinates: [parseFloat(match[1]), parseFloat(match[2])] } : null;
+    }
+    if (!value || typeof value !== 'object') return null;
+    if (value.type === 'Point' && Array.isArray(value.coordinates)) return value;
+    if ('latitude' in value && 'longitude' in value) {
+      const lat = parseFloat(value.latitude);
+      const lon = parseFloat(value.longitude);
+      return Number.isFinite(lat) && Number.isFinite(lon) ? { type: 'Point', coordinates: [lon, lat] } : null;
+    }
+    return null;
   }
 }
 
