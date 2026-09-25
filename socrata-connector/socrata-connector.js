@@ -55,6 +55,33 @@ class SocrataConnector {
     return { type: 'FeatureCollection', features };
   }
 
+  // Pages through every row matching options (ignores options.limit/offset), not just
+  // the first page - a plain `limit` with no `$order` returns Socrata's arbitrary scan
+  // order, which can be geographically clustered rather than representative of the bbox.
+  async fetchAllRows(resourceId, options = {}, { pageSize = 1000, maxPages = null } = {}) {
+    const rows = [];
+    let offset = 0;
+    let page = 0;
+    while (maxPages === null || page < maxPages) {
+      const page_rows = await this.fetchRows(resourceId, { ...options, limit: pageSize, offset });
+      if (!page_rows.length) break;
+      rows.push(...page_rows);
+      if (page_rows.length < pageSize) break;
+      offset += pageSize;
+      page += 1;
+    }
+    return rows;
+  }
+
+  async fetchAllGeoJSON(resourceId, options = {}, pagingOptions = {}) {
+    const geometryField = options.geometryField || 'location';
+    const rows = await this.fetchAllRows(resourceId, options, pagingOptions);
+    const features = rows
+      .map((row) => SocrataConnector.rowToFeature(row, geometryField))
+      .filter((feature) => feature !== null);
+    return { type: 'FeatureCollection', features };
+  }
+
   // Socrata portals return one of three shapes for a point column: a GeoJSON
   // Point, a legacy {latitude, longitude} "Location" dict, or WKT text - which
   // one depends on how that column was configured on the portal.

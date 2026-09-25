@@ -37,6 +37,18 @@ await connector.fetchRows('g8m3-pdis', { limit: 100 });
 await connector.fetchGeoJSON('g8m3-pdis', { limit: 100 });
 ```
 
+**A `limit` smaller than the true match count returns Socrata's arbitrary scan order, not
+a representative sample** - with no `$order`, "first 2,000 of 13,629 matching rows" can come
+back geographically clustered (e.g. one corner of your bbox) rather than spread across it.
+Use `fetchAllRows`/`fetchAllGeoJSON` to page through every matching row instead of guessing
+a `limit`:
+
+```js
+const geojson = await connector.fetchAllGeoJSON('tkzw-k3nq', {
+  where: 'point IS NOT NULL', geometryField: 'point',
+}, { pageSize: 5000 });
+```
+
 Rows without a recognized point value are dropped rather than failing the whole request -
 handles a GeoJSON Point, Socrata's legacy `{latitude, longitude}` "Location" dict, and WKT
 text (`"POINT(lon lat)"`), covering all three shapes seen across real portals. It's a fit
