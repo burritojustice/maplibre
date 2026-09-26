@@ -8,6 +8,10 @@
  */
 
 class SocrataConnector {
+  // Only the classic X-App-Token string works from a browser. Socrata's newer API key
+  // ID/secret pair (HTTP Basic Auth) is CORS-blocked cross-origin - its preflight omits
+  // Access-Control-Allow-Headers for Authorization, unlike X-App-Token - so it only works
+  // from server-side code (see the Python client in the same PR).
   constructor(portalBaseUrl, { appToken } = {}) {
     this.portalBaseUrl = portalBaseUrl.replace(/\/+$/, '');
     this.appToken = appToken || null;

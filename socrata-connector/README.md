@@ -29,6 +29,14 @@ for anything beyond casual use, to get out of the shared per-IP rate-limit pool)
 const connector = new SocrataConnector('https://data.sf.gov', { appToken: 'YOUR_TOKEN' });
 ```
 
+**Only the app-token string works from a browser.** Socrata's current developer console
+issues an API key ID/secret pair instead, meant for HTTP Basic Auth - but Socrata's CORS
+policy doesn't allow the `Authorization` header cross-origin (its preflight response omits
+it from `Access-Control-Allow-Headers`, unlike `X-App-Token`), so that pair can only be used
+from server-side code, never from this browser-side module. If you generated a key ID/secret
+pair rather than a plain app token and need it client-side, you'll need a server-side proxy -
+see the Python `SocrataClient` in the same PR for a Basic Auth-capable example.
+
 Lower-level building blocks are exposed too:
 
 ```js
