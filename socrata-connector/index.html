@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Socrata + MapLibre connector demo</title>
+<meta name="viewport" content="initial-scale=1,width=device-width">
+<script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
+<link href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" rel="stylesheet">
+<script src="socrata-connector.js"></script>
+<style>
+  body { margin: 0; padding: 0; font: 13px/1.4 sans-serif; }
+  #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+  #status {
+    position: absolute; top: 8px; left: 8px; z-index: 1;
+    background: rgba(255, 255, 255, 0.9); padding: 6px 10px; border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+<div id="status">loading&hellip;</div>
+<div id="map"></div>
+<script>
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: 'https://demotiles.maplibre.org/style.json',
+    center: [-122.4194, 37.7749],
+    zoom: 12,
+  });
+  map.addControl(new maplibregl.NavigationControl());
+
+  const status = document.getElementById('status');
+  const connector = new SocrataConnector('https://data.sf.gov');
+
+  map.on('load', () => {
+    // SF's registered business locations dataset - a `location` Point column, no app token needed for public reads
+    addSocrataLayer(map, connector, 'g8m3-pdis', {
+      where: 'location IS NOT NULL',
+      limit: 500,
+    }).then((geojson) => {
+      status.textContent = `${geojson.features.length} businesses loaded`;
+    }).catch((err) => {
+      status.textContent = `load failed: ${err.message}`;
+    });
+
+    map.on('click', 'socrata-layer', (e) => {
+      const props = e.features[0].properties;
+      new maplibregl.Popup()
+        .setLngLat(e.lngLat)
+        .setHTML(`<strong>${props.dba_name || 'Unknown'}</strong><br>${props.full_business_address || ''}`)
+        .addTo(map);
+    });
+    map.on('mouseenter', 'socrata-layer', () => { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'socrata-layer', () => { map.getCanvas().style.cursor = ''; });
+  });
+</script>
+</body>
+</html>
