@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360">
+<defs>
+  <clipPath id="tile">
+    <rect x="0" y="0" width="360" height="360" rx="28"/>
+  </clipPath>
+  <clipPath id="tl">
+    <polygon points="0,0 360,0 0,360"/>
+  </clipPath>
+  <clipPath id="br">
+    <polygon points="360,0 360,360 0,360"/>
+  </clipPath>
+</defs>
+
+<rect x="0" y="0" width="360" height="360" rx="28" fill="#0f0f11"/>
+
+<g clip-path="url(#tile)">
+
+  <!-- Magenta: top-left cell -->
+  <rect x="0" y="0" width="120" height="120" fill="#e621f5" clip-path="url(#tl)"/>
+
+  <!-- TL orthogonal grid -->
+  <g clip-path="url(#tl)" stroke="#f0f0f0" stroke-width="22" stroke-linecap="round">
+    <line x1="0"   y1="120" x2="360" y2="120"/>
+    <line x1="0"   y1="240" x2="360" y2="240"/>
+    <line x1="120" y1="0"   x2="120" y2="360"/>
+    <line x1="240" y1="0"   x2="240" y2="360"/>
+  </g>
+
+  <!-- BR diagonal grid -->
+  <g clip-path="url(#br)" stroke="#f0f0f0" stroke-width="22" stroke-linecap="round">
+    <line x1="240" y1="0"   x2="360" y2="120"/>
+    <line x1="120" y1="0"   x2="360" y2="240"/>
+    <line x1="180" y1="180" x2="360" y2="360"/>
+    <line x1="0"   y1="120" x2="240" y2="360"/>
+    <line x1="0"   y1="240" x2="120" y2="360"/>
+    <line x1="120" y1="360" x2="360" y2="120"/>
+    <line x1="240" y1="360" x2="360" y2="240"/>
+  </g>
+
+  <!-- Full diagonal street -->
+  <line x1="0" y1="360" x2="360" y2="0"
+        stroke="#f0f0f0" stroke-width="22" stroke-linecap="round"/>
+
+  <!-- Teal pin line: from head (300,60) to SW corner (0,360) -->
+  <line x1="300" y1="60" x2="0" y2="360"
+        stroke="#6ee7b7" stroke-width="38" stroke-linecap="round"/>
+
+  <!-- Pin head: r=50, centered in top-right cell (300,60), 10px from edges -->
+  <circle cx="300" cy="60" r="50" fill="#6ee7b7"/>
+  <!-- Black dot in centre -->
+  <circle cx="300" cy="60" r="16" fill="#0f0f11"/>
+
+</g>
+</svg>
