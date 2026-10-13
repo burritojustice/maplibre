@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Not found</title>
+<meta name="viewport" content="initial-scale=1,width=device-width">
+<script>
+  // GitHub Pages serves this for any missing path on the site. If someone pasted a dataset
+  // URL straight onto a tool's path, e.g.
+  //   /maplibre/socrata-connector/https://data.sf.gov/City-Infrastructure/.../tkzw-k3nq/about_data
+  // send them to the tool with the dataset URL moved into the hash, where it's parsed.
+  (function () {
+    var tools = ['socrata-connector'];
+    var path = location.pathname;
+    for (var i = 0; i < tools.length; i++) {
+      var marker = '/' + tools[i] + '/';
+      var at = path.indexOf(marker);
+      if (at < 0) continue;
+      var rest = path.slice(at + marker.length) + location.search + location.hash;
+      if (!/^(https?:|[\w-]+\.[\w.-]+\/)/i.test(decodeURIComponent(rest))) continue;
+      location.replace(path.slice(0, at + marker.length) + '#url=' + rest);
+      return;
+    }
+  })();
+</script>
+<style>body { font: 14px/1.5 system-ui, sans-serif; margin: 40px; color: #333; }</style>
+</head>
+<body>
+<h1>404</h1>
+<p>Nothing here. <a href="/maplibre/">Back to maplibre</a></p>
+</body>
+</html>

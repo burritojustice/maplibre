@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Socrata + MapLibre connector</title>
+<meta name="viewport" content="initial-scale=1,width=device-width">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="socrata-connector.js"></script>
+<style>
+  :root {
+    --ink: #1c1c22; --muted: #6b6b7b; --line: #dcdce3; --panel: rgba(255,255,255,0.96);
+    --accent: #d6336c; --err: #c92a2a;
+    --mono: 'DM Mono', ui-monospace, monospace; --sans: 'DM Sans', system-ui, sans-serif;
+  }
+  html, body { margin: 0; height: 100%; background: #fff; font: 13px/1.4 var(--sans); color: var(--ink); }
+  #map { position: absolute; inset: 0; }
+  #panel {
+    position: absolute; top: 10px; left: 10px; z-index: 2; width: 340px; max-width: calc(100vw - 20px);
+    box-sizing: border-box; background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08); padding: 10px 12px; display: grid; gap: 8px;
+  }
+  #panel h1 { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.3; }
+  #panel h1 a { color: inherit; text-decoration: none; }
+  #panel h1 a:hover { text-decoration: underline; }
+  .row { display: flex; gap: 6px; align-items: center; }
+  .row > label:first-child { width: 58px; flex: none; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  input, select, button { font: 12px var(--mono); color: var(--ink); }
+  input[type=text], input[type=number], select {
+    flex: 1; min-width: 0; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: #fff;
+  }
+  input[type=number] { flex: none; width: 80px; }
+  button { padding: 4px 10px; border: 1px solid var(--ink); border-radius: 4px; background: var(--ink); color: #fff; cursor: pointer; }
+  button:hover { background: var(--accent); border-color: var(--accent); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .seg label { padding: 3px 8px; cursor: pointer; font: 12px var(--mono); }
+  .seg input { display: none; }
+  .seg input:checked + span { color: #fff; }
+  .seg label:has(input:checked) { background: var(--ink); color: #fff; }
+  #latlon { display: none; }
+  #latlon.on { display: flex; }
+  #status { font: 12px var(--mono); color: var(--muted); }
+  #status.err { color: var(--err); }
+  #note { font-size: 12px; color: var(--muted); display: none; }
+  #note.on { display: block; }
+  .maplibregl-popup-content { font: 12px var(--sans); max-height: 300px; overflow: auto; padding: 8px 10px; }
+  .props { border-collapse: collapse; }
+  .props td { padding: 1px 8px 1px 0; vertical-align: top; }
+  .props td:first-child { color: var(--muted); font-family: var(--mono); white-space: nowrap; }
+  .props td:last-child { max-width: 240px; overflow-wrap: anywhere; }
+  @media (max-width: 480px) { #panel { width: auto; right: 10px; } }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="panel">
+  <form id="url-form" class="row">
+    <input id="url-input" type="text" placeholder="Paste a Socrata dataset URL" aria-label="Socrata dataset URL">
+    <button type="submit">Load</button>
+  </form>
+  <h1 id="title">&nbsp;</h1>
+  <div class="row">
+    <label for="geom-select">Geometry</label>
+    <select id="geom-select"></select>
+  </div>
+  <div class="row" id="latlon">
+    <label>Lat / Lon</label>
+    <select id="lat-select" aria-label="Latitude column"></select>
+    <select id="lon-select" aria-label="Longitude column"></select>
+  </div>
+  <div class="row">
+    <label>Rows</label>
+    <div class="seg" role="radiogroup">
+      <label><input type="radio" name="mode" value="viewport" checked><span>in view</span></label>
+      <label><input type="radio" name="mode" value="all"><span>all</span></label>
+    </div>
+    <label for="limit-input" style="width:auto;color:var(--muted);font-size:11px">LIMIT</label>
+    <input id="limit-input" type="number" min="1" step="100" value="1000">
+  </div>
+  <div id="note"></div>
+  <div id="status">loading&hellip;</div>
+</div>
+<script>
+// ── Config ──────────────────────────────────────────────────────────────────
+const STYLE_URL = 'https://api.protomaps.com/styles/v5/white/en.json?key=ffc24a4325d458ce'; // Selecter's key
+const DEFAULT_URL = 'https://data.sf.gov/d/g8m3-pdis'; // SF registered business locations
+const DEFAULT_LIMIT = 1000;
+const HASH_KEYS = ['url', 'limit', 'geom', 'mode', 'where', 'select', 'order', 'map', 'token'];
+
+const $ = (id) => document.getElementById(id);
+const statusEl = $('status');
+const fmt = (n) => Number(n).toLocaleString();
+
+// ── URL / hash parsing ──────────────────────────────────────────────────────
+// Accepts any of:
+//   #url=https://data.sf.gov/d/tkzw-k3nq&limit=500&geom=latitude,longitude&map=14/37.77/-122.42
+//   #https://data.sf.gov/City-Infrastructure/San-Francisco-Street-Tree-Inventory/tkzw-k3nq/about_data
+//   ?url=...  (query string)
+//   .../socrata-connector/https://data.sf.gov/...  (path form; ../404.html redirects it here)
+// `url=` takes everything up to the next known key, so a pasted URL with its own
+// unencoded `?$where=...&$limit=...` survives intact.
+function readParams() {
+  const out = {};
+  for (const [k, v] of new URLSearchParams(location.search)) out[k] = v;
+  let h = location.hash.slice(1);
+  if (!h) return out;
+  if (!new RegExp(`^(${HASH_KEYS.join('|')})=`).test(h)) h = `url=${h}`; // bare pasted URL
+  const re = new RegExp(`(?:^|&)(${HASH_KEYS.join('|')})=`, 'g');
+  const marks = [...h.matchAll(re)];
+  marks.forEach((m, i) => {
+    const start = m.index + m[0].length;
+    const end = i + 1 < marks.length ? marks[i + 1].index : h.length;
+    const raw = h.slice(start, end);
+    try { out[m[1]] = decodeURIComponent(raw); } catch { out[m[1]] = raw; }
+  });
+  return out;
+}
+
+let lastWrittenHash = '';
+function writeHash() {
+  if (!state.id) return;
+  const parts = [`url=${state.portal}/d/${state.id}`];
+  if (state.limit !== DEFAULT_LIMIT) parts.push(`limit=${state.limit}`);
+  if (state.geomString && state.geomString !== state.autoGeomString) parts.push(`geom=${encodeURIComponent(state.geomString)}`);
+  if (state.mode !== 'viewport') parts.push(`mode=${state.mode}`);
+  for (const k of ['where', 'select', 'order']) if (state[k]) parts.push(`${k}=${encodeURIComponent(state[k])}`);
+  const c = map.getCenter();
+  parts.push(`map=${map.getZoom().toFixed(2)}/${c.lat.toFixed(5)}/${c.lng.toFixed(5)}`);
+  lastWrittenHash = `#${parts.join('&')}`;
+  history.replaceState(null, '', lastWrittenHash);
+}
+
+// ── State ───────────────────────────────────────────────────────────────────
+const state = {
+  portal: null, id: null, connector: null, schema: null, layer: null,
+  geometry: null, geomString: '', autoGeomString: '',
+  limit: DEFAULT_LIMIT, mode: 'viewport', where: '', select: '', order: '', token: '',
+};
+
+const map = new maplibregl.Map({ container: 'map', style: STYLE_URL, center: [-122.4194, 37.7749], zoom: 12, hash: false });
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
+map.on('moveend', () => writeHash());
+
+// ── Loading ─────────────────────────────────────────────────────────────────
+async function loadFromParams(params) {
+  const parsed = SocrataConnector.parseUrl(params.url || DEFAULT_URL);
+  if (!parsed) return setStatus(`Couldn't find a dataset id (like abcd-1234) in: ${params.url}`, true);
+
+  const q = parsed.query;
+  Object.assign(state, {
+    portal: parsed.portal,
+    id: parsed.id,
+    limit: Number(params.limit || q.limit) || DEFAULT_LIMIT,
+    mode: params.mode === 'all' ? 'all' : 'viewport',
+    where: params.where || q.where || '',
+    select: params.select || q.select || '',
+    order: params.order || q.order || '',
+    token: params.token || '',
+  });
+  state.connector = new SocrataConnector(state.portal, { appToken: state.token || undefined });
+  $('url-input').value = `${state.portal}/d/${state.id}`;
+  $('limit-input').value = state.limit;
+  document.querySelector(`input[name=mode][value=${state.mode}]`).checked = true;
+
+  setStatus('reading schema…');
+  try {
+    state.schema = await state.connector.fetchSchema(state.id);
+  } catch (err) {
+    return setStatus(`Couldn't read dataset: ${err.message}`, true);
+  }
+  $('title').innerHTML = `<a href="${esc(state.schema.permalink)}" target="_blank" rel="noopener">${esc(state.schema.name)}</a>`;
+
+  state.autoGeomString = SocrataConnector.geometryToString(state.schema.geometry);
+  state.geomString = params.geom || state.autoGeomString;
+  buildGeometryPicker();
+
+  if (params.map) {
+    const [z, lat, lng] = params.map.split('/').map(Number);
+    if ([z, lat, lng].every(Number.isFinite)) map.jumpTo({ center: [lng, lat], zoom: z });
+    startLayer({ fit: false });
+  } else {
+    startLayer({ fit: true });
+  }
+}
+
+// Robust initial view: fit to a sample, trimming the outer 2% so a stray (0,0) or
+// out-of-county point doesn't zoom the map out to the whole planet.
+async function fitToSample() {
+  const gj = await state.connector.fetchGeoJSON(state.id, { ...queryOptions(), limit: Math.min(state.limit, 2000) });
+  const xs = [], ys = [];
+  for (const f of gj.features) {
+    for (const [x, y] of flatCoords(f.geometry.coordinates)) {
+      if (Math.abs(x) <= 180 && Math.abs(y) <= 90 && !(x === 0 && y === 0)) { xs.push(x); ys.push(y); }
+    }
+  }
+  if (!xs.length) return;
+  xs.sort((a, b) => a - b); ys.sort((a, b) => a - b);
+  const q = (arr, p) => arr[Math.min(arr.length - 1, Math.max(0, Math.round(p * (arr.length - 1))))];
+  const bounds = [[q(xs, 0.02), q(ys, 0.02)], [q(xs, 0.98), q(ys, 0.98)]];
+  map.fitBounds(bounds, { padding: { top: 40, bottom: 40, left: 370, right: 40 }, maxZoom: 16, duration: 0 });
+}
+function flatCoords(c) { return typeof c[0] === 'number' ? [c] : c.flatMap(flatCoords); }
+
+function queryOptions() {
+  return { geometry: state.geometry, where: state.where || undefined, select: state.select || undefined, order: state.order || undefined };
+}
+
+async function startLayer({ fit }) {
+  if (state.layer) { state.layer.destroy(); state.layer = null; }
+  state.geometry = state.geomString ? SocrataConnector.normalizeGeometry(resolveGeometry(state.geomString)) : null;
+  if (!state.geometry) {
+    setNote('No geometry column detected. Pick one above, or choose two columns as latitude / longitude.');
+    return setStatus('waiting for a geometry column', true);
+  }
+  const bboxable = SocrataConnector.supportsBbox(state.geometry);
+  setNote(state.mode === 'viewport' && !bboxable
+    ? `“${state.geometry.field}” is a text column, so Socrata can't filter it to the map view. Showing the first ${fmt(state.limit)} rows; use “all” to load everything, or pick latitude / longitude columns if the dataset has them.`
+    : '');
+  if (state.mode === 'all') setNote('Loading every matching row. Large datasets can take a while.');
+
+  try {
+    if (fit) { setStatus('finding the data…'); await fitToSample(); }
+  } catch (err) {
+    return setStatus(err.message, true);
+  }
+  writeHash();
+
+  state.layer = addSocrataLayer(map, state.connector, state.id, {
+    ...queryOptions(),
+    limit: state.limit,
+    mode: state.mode,
+    onUpdate: renderStatus,
+  });
+  state.layer.ready.catch(() => {});
+}
+
+// Resolve a geom string against the schema so typed columns keep spatial:true/false.
+function resolveGeometry(str) {
+  if (str.includes(',')) return str;
+  const col = state.schema?.columns.find((c) => c.field === str);
+  const cand = state.schema?.candidates.find((c) => c.field === str);
+  if (cand) return cand;
+  if (col) return { field: str, spatial: ['point','location','multipoint','line','multiline','polygon','multipolygon'].includes(col.type) ? true : false };
+  return str;
+}
+
+function renderStatus({ shown, total, loading, error, mode, progress }) {
+  if (error) return setStatus(error.message, true);
+  if (loading) return setStatus(progress ? `loaded ${fmt(progress)} rows…` : 'loading…');
+  const where = mode === 'viewport' ? ' in view' : '';
+  if (total != null && total > shown) {
+    setStatus(`${fmt(shown)} of ${fmt(total)}${where} — ${mode === 'viewport' ? 'zoom in or raise the limit' : 'raise the limit or switch to “all”'}`);
+  } else {
+    setStatus(`${fmt(shown)} feature${shown === 1 ? '' : 's'}${where}`);
+  }
+}
+function setStatus(msg, isErr = false) { statusEl.textContent = msg; statusEl.classList.toggle('err', isErr); }
+function setNote(msg) { $('note').textContent = msg; $('note').classList.toggle('on', !!msg); }
+
+// ── Geometry picker ─────────────────────────────────────────────────────────
+function buildGeometryPicker() {
+  const sel = $('geom-select');
+  const { candidates, columns } = state.schema;
+  const opts = candidates.map((c) => {
+    const v = SocrataConnector.geometryToString(c);
+    const label = c.lat ? `${c.lat} / ${c.lon} (numeric)` : `${c.field} (${c.type === 'wkt' ? 'WKT text' : c.type})`;
+    return `<option value="${esc(v)}">${esc(label)}</option>`;
+  });
+  // a geom= from the hash that detection didn't find (e.g. a column whose sample row was null)
+  if (state.geomString && !state.geomString.includes(',') && !candidates.some((c) => c.field === state.geomString)) {
+    opts.push(`<option value="${esc(state.geomString)}">${esc(state.geomString)} (from URL)</option>`);
+  }
+  opts.push('<option value="__latlon">pick latitude / longitude columns…</option>');
+  sel.innerHTML = opts.join('');
+
+  const colOpts = '<option value="">—</option>' + columns.map((c) => `<option value="${esc(c.field)}">${esc(c.field)} · ${esc(c.type)}</option>`).join('');
+  $('lat-select').innerHTML = colOpts;
+  $('lon-select').innerHTML = colOpts;
+
+  const known = [...sel.options].some((o) => o.value === state.geomString);
+  if (state.geomString && known) {
+    sel.value = state.geomString;
+    $('latlon').classList.remove('on');
+  } else {
+    sel.value = '__latlon';
+    $('latlon').classList.add('on');
+    const [lat, lon] = (state.geomString || '').split(',');
+    $('lat-select').value = lat || '';
+    $('lon-select').value = lon || '';
+  }
+}
+
+$('geom-select').addEventListener('change', (e) => {
+  if (e.target.value === '__latlon') {
+    $('latlon').classList.add('on');
+    return onLatLonPick();
+  }
+  $('latlon').classList.remove('on');
+  state.geomString = e.target.value;
+  startLayer({ fit: false });
+});
+function onLatLonPick() {
+  const lat = $('lat-select').value, lon = $('lon-select').value;
+  if (!lat || !lon) return setStatus('choose both a latitude and a longitude column', true);
+  state.geomString = `${lat},${lon}`;
+  startLayer({ fit: true });
+}
+$('lat-select').addEventListener('change', onLatLonPick);
+$('lon-select').addEventListener('change', onLatLonPick);
+
+// ── Other controls ──────────────────────────────────────────────────────────
+$('limit-input').addEventListener('change', (e) => {
+  const n = Math.max(1, Math.round(Number(e.target.value) || DEFAULT_LIMIT));
+  e.target.value = n;
+  state.limit = n;
+  startLayer({ fit: false });
+});
+document.querySelectorAll('input[name=mode]').forEach((r) => r.addEventListener('change', (e) => {
+  state.mode = e.target.value;
+  startLayer({ fit: false });
+}));
+$('url-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const v = $('url-input').value.trim();
+  if (!v) return;
+  location.hash = `url=${v}`; // hashchange handler takes it from here
+});
+window.addEventListener('hashchange', () => {
+  if (location.hash === lastWrittenHash) return;
+  loadFromParams(readParams());
+});
+
+// ── Popups ──────────────────────────────────────────────────────────────────
+const LAYERS = ['socrata-layer', 'socrata-layer-line', 'socrata-layer-fill'];
+map.on('click', (e) => {
+  // one handler for all three layers so overlapping fill + line don't open two popups
+  const [f] = map.queryRenderedFeatures(e.point, { layers: LAYERS.filter((id) => map.getLayer(id)) });
+  if (!f) return;
+  const rows = Object.entries(f.properties)
+    .filter(([, v]) => v !== null && v !== '' && v !== undefined)
+    .map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(typeof v === 'object' ? JSON.stringify(v) : v)}</td></tr>`)
+    .join('');
+  new maplibregl.Popup({ maxWidth: '380px' }).setLngLat(e.lngLat).setHTML(`<table class="props">${rows}</table>`).addTo(map);
+});
+map.on('mouseenter', LAYERS, () => { map.getCanvas().style.cursor = 'pointer'; });
+map.on('mouseleave', LAYERS, () => { map.getCanvas().style.cursor = ''; });
+
+function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+map.on('load', () => loadFromParams(readParams()));
+</script>
+</body>
+</html>
