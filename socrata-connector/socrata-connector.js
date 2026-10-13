@@ -3,9 +3,22 @@
  * https://data.sf.gov, as a GeoJSON source for MapLibre GL JS. No build step,
  * no dependencies beyond `fetch`.
  *
- * const connector = new SocrataConnector('https://data.sf.gov');
- * addSocrataLayer(map, connector, 'g8m3-pdis', { where: 'location IS NOT NULL' });
+ *   const { portal, id } = SocrataConnector.parseUrl('https://data.sf.gov/d/tkzw-k3nq');
+ *   const connector = new SocrataConnector(portal);
+ *   const schema = await connector.fetchSchema(id);          // columns + detected geometry
+ *   addSocrataLayer(map, connector, id, { geometry: schema.geometry });
+ *
+ * Geometry spec (the `geometry` option everywhere below) is one of:
+ *   'location'                                  field name; value sniffed per row
+ *   { field: 'location', spatial: true }        Socrata point/line/polygon column (bbox via within_box)
+ *   { field: 'point', spatial: false }          text column holding WKT (no server-side bbox)
+ *   { lat: 'latitude', lon: 'longitude' }       two numeric columns (bbox via BETWEEN)
+ * The old `geometryField` option is still accepted as an alias for a field-name spec.
  */
+
+const SPATIAL_TYPES = new Set(['point', 'location', 'multipoint', 'line', 'multiline', 'polygon', 'multipolygon']);
+const LAT_NAMES = ['latitude', 'lat', 'y_lat', 'lat_y', 'point_y', 'y'];
+const LON_NAMES = ['longitude', 'lon', 'lng', 'long', 'x_long', 'long_x', 'point_x', 'x'];
 
 class SocrataConnector {
   // Only the classic X-App-Token string works from a browser. Socrata's newer API key
@@ -13,64 +26,239 @@ class SocrataConnector {
   // Access-Control-Allow-Headers for Authorization, unlike X-App-Token - so it only works
   // from server-side code (see the Python client in the same PR).
   constructor(portalBaseUrl, { appToken } = {}) {
-    this.portalBaseUrl = portalBaseUrl.replace(/\/+$/, '');
+    let base = String(portalBaseUrl).trim();
+    if (!/^https?:\/\//i.test(base)) base = `https://${base}`;
+    this.portalBaseUrl = base.replace(/\/+$/, '');
     this.appToken = appToken || null;
   }
 
-  // 'west,south,east,north' bbox -> SoQL within_box args are (field, north, west, south, east)
-  static bboxClause(geometryField, [west, south, east, north]) {
-    return `within_box(${geometryField}, ${north}, ${west}, ${south}, ${east})`;
+  // ── URL parsing ────────────────────────────────────────────────────────────
+
+  /**
+   * Pull the portal + dataset id (the "4x4", e.g. tkzw-k3nq) out of any Socrata URL:
+   *   https://data.sf.gov/City-Infrastructure/San-Francisco-Street-Tree-Inventory/tkzw-k3nq/about_data
+   *   https://data.sf.gov/d/tkzw-k3nq
+   *   https://data.sf.gov/resource/tkzw-k3nq.json?$where=...&$limit=500
+   *   https://data.sf.gov/api/views/tkzw-k3nq
+   *   data.cityofchicago.org/resource/ijzp-q8t2.geojson   (scheme optional)
+   * SoQL params on a /resource/ URL ($where, $select, $order, $limit) are carried over.
+   * Returns null if no dataset id is found.
+   */
+  static parseUrl(input) {
+    if (!input) return null;
+    let s = String(input).trim();
+    s = s.replace(/^(https?):\/+/i, '$1://'); // repair "https:/host" (paths can collapse //)
+    if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
+    let u;
+    try { u = new URL(s); } catch { return null; }
+    const ids = u.pathname.match(/\b[a-z0-9]{4}-[a-z0-9]{4}\b/gi);
+    if (!ids) return null;
+    const query = {};
+    for (const key of ['where', 'select', 'order', 'limit']) {
+      const v = u.searchParams.get(`$${key}`);
+      if (v) query[key] = key === 'limit' ? Number(v) : v;
+    }
+    return { portal: `${u.protocol}//${u.host}`, id: ids[ids.length - 1].toLowerCase(), query };
   }
 
-  buildUrl(resourceId, { select, where, order, limit = 1000, offset = 0, bbox, geometryField = 'location' } = {}) {
+  // ── Schema + geometry detection ────────────────────────────────────────────
+
+  /**
+   * Fetch column metadata from /api/views/{id}.json and detect geometry candidates.
+   * Falls back to sniffing a single row if the metadata endpoint is unavailable.
+   * Returns { name, columns: [{field, type, name}], candidates: [spec...], geometry: spec|null, permalink }.
+   */
+  async fetchSchema(resourceId, { signal } = {}) {
+    let name = resourceId;
+    let columns = null;
+    try {
+      const res = await fetch(`${this.portalBaseUrl}/api/views/${resourceId}.json`, { headers: this._headers(), signal });
+      if (res.ok) {
+        const meta = await res.json();
+        name = meta.name || name;
+        columns = (meta.columns || [])
+          .filter((c) => c.fieldName && !c.fieldName.startsWith(':'))
+          .map((c) => ({ field: c.fieldName, type: (c.dataTypeName || '').toLowerCase(), name: c.name || c.fieldName }));
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') throw err;
+    }
+    const [sample] = await this.fetchRows(resourceId, { limit: 1, signal });
+    if (!columns) columns = SocrataConnector.columnsFromRow(sample || {});
+    const candidates = SocrataConnector.detectGeometry(columns, sample || {});
+    return {
+      name,
+      columns,
+      candidates,
+      geometry: candidates[0] || null,
+      permalink: `${this.portalBaseUrl}/d/${resourceId}`,
+    };
+  }
+
+  // Best-effort column typing from one row when /api/views isn't reachable.
+  static columnsFromRow(row) {
+    return Object.keys(row).filter((k) => !k.startsWith(':')).map((field) => {
+      const v = row[field];
+      let type = 'text';
+      if (v && typeof v === 'object') type = v.type ? String(v.type).toLowerCase() : ('latitude' in v ? 'location' : 'text');
+      else if (typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v))) type = 'number';
+      return { field, type, name: field };
+    });
+  }
+
+  /**
+   * Ranked geometry candidates: typed spatial columns first (fast server-side bbox,
+   * any geometry type), then numeric lat/lon pairs (bbox via BETWEEN), then text
+   * columns whose sample value parses as WKT (works, but no server-side bbox).
+   */
+  static detectGeometry(columns, sampleRow = {}) {
+    const out = [];
+    for (const c of columns) {
+      if (SPATIAL_TYPES.has(c.type)) out.push({ field: c.field, spatial: true, type: c.type });
+    }
+    const numeric = columns.filter((c) => c.type === 'number' || c.type === 'double');
+    const findNum = (names) => {
+      for (const n of names) {
+        const hit = numeric.find((c) => c.field.toLowerCase() === n);
+        if (hit) return hit.field;
+      }
+      return null;
+    };
+    const lat = findNum(LAT_NAMES);
+    const lon = findNum(LON_NAMES);
+    // Plain x/y is often a state-plane projection, so only accept it if the sample looks like degrees.
+    if (lat && lon && SocrataConnector._looksLikeLatLon(sampleRow[lat], sampleRow[lon])) {
+      out.push({ lat, lon });
+    }
+    for (const c of columns) {
+      if (c.type === 'text' && typeof sampleRow[c.field] === 'string'
+          && SocrataConnector.parseWkt(sampleRow[c.field])) {
+        out.push({ field: c.field, spatial: false, type: 'wkt' });
+      }
+    }
+    return out;
+  }
+
+  static _looksLikeLatLon(lat, lon) {
+    if (lat === undefined || lon === undefined) return true; // null in the sample row; trust the names
+    const a = Number(lat), o = Number(lon);
+    return Number.isFinite(a) && Number.isFinite(o) && Math.abs(a) <= 90 && Math.abs(o) <= 180;
+  }
+
+  // Normalize the many accepted shapes of the geometry option into one spec object.
+  static normalizeGeometry(geometry, geometryField) {
+    const g = geometry ?? geometryField ?? 'location';
+    if (typeof g === 'string') {
+      const [a, b] = g.split(',').map((s) => s.trim());
+      return b ? { lat: a, lon: b } : { field: a, spatial: null };
+    }
+    return g;
+  }
+
+  // Short string form used in the URL hash: "location" or "latitude,longitude".
+  static geometryToString(spec) {
+    if (!spec) return '';
+    return spec.lat ? `${spec.lat},${spec.lon}` : spec.field;
+  }
+
+  // ── Query building ─────────────────────────────────────────────────────────
+
+  // 'west,south,east,north' bbox -> SoQL within_box args are (field, north, west, south, east)
+  static bboxClause(geometry, [west, south, east, north]) {
+    const g = SocrataConnector.normalizeGeometry(geometry);
+    if (g.lat) {
+      return `${g.lat} between ${south} and ${north} AND ${g.lon} between ${west} and ${east}`;
+    }
+    if (g.spatial === false) return null; // text/WKT columns can't be spatially filtered server-side
+    return `within_box(${g.field}, ${north}, ${west}, ${south}, ${east})`;
+  }
+
+  // Can this geometry be filtered to a bbox on the server?
+  static supportsBbox(geometry) {
+    const g = SocrataConnector.normalizeGeometry(geometry);
+    return Boolean(g.lat) || g.spatial !== false;
+  }
+
+  static notNullClause(geometry) {
+    const g = SocrataConnector.normalizeGeometry(geometry);
+    return g.lat ? `${g.lat} IS NOT NULL AND ${g.lon} IS NOT NULL` : `${g.field} IS NOT NULL`;
+  }
+
+  _where({ where, bbox, geometry, geometryField, skipNotNull } = {}) {
+    const g = SocrataConnector.normalizeGeometry(geometry, geometryField);
+    const parts = [];
+    if (where) parts.push(`(${where})`);
+    if (!skipNotNull) parts.push(SocrataConnector.notNullClause(g));
+    if (bbox) {
+      const b = SocrataConnector.bboxClause(g, bbox);
+      if (b) parts.push(b);
+    }
+    return parts.join(' AND ');
+  }
+
+  buildUrl(resourceId, { select, where, order, limit = 1000, offset = 0, bbox, geometry, geometryField, skipNotNull } = {}) {
     const params = new URLSearchParams({ $limit: String(limit), $offset: String(offset) });
     if (select) params.set('$select', select);
-    let clause = where || null;
-    if (bbox) {
-      const bboxClause = SocrataConnector.bboxClause(geometryField, bbox);
-      clause = clause ? `(${clause}) AND ${bboxClause}` : bboxClause;
-    }
+    const clause = this._where({ where, bbox, geometry, geometryField, skipNotNull });
     if (clause) params.set('$where', clause);
     if (order) params.set('$order', order);
     return `${this.portalBaseUrl}/resource/${resourceId}.json?${params.toString()}`;
   }
 
-  async fetchRows(resourceId, options = {}) {
-    const url = this.buildUrl(resourceId, options);
-    const headers = this.appToken ? { 'X-App-Token': this.appToken } : {};
-    const response = await fetch(url, { headers });
+  _headers() {
+    return this.appToken ? { 'X-App-Token': this.appToken } : {};
+  }
+
+  // ── Fetching ───────────────────────────────────────────────────────────────
+
+  async _get(url, signal) {
+    const response = await fetch(url, { headers: this._headers(), signal });
     if (response.status === 403) {
       throw new Error(`Socrata rejected app token: ${await response.text()}`);
     }
     if (!response.ok) {
-      throw new Error(`Socrata request failed: HTTP ${response.status}`);
+      // SODA puts the useful bit (e.g. "No such column: location") in the JSON body
+      let detail = '';
+      try { const body = await response.json(); detail = body.message || body.error || ''; } catch {}
+      throw new Error(`Socrata request failed: HTTP ${response.status}${detail ? ` - ${detail}` : ''}`);
     }
     return response.json();
   }
 
-  // Converts rows to a GeoJSON FeatureCollection; rows without a Point-typed
-  // geometryField column are dropped rather than failing the whole request.
-  async fetchGeoJSON(resourceId, options = {}) {
-    const geometryField = options.geometryField || 'location';
-    const rows = await this.fetchRows(resourceId, options);
-    const features = rows
-      .map((row) => SocrataConnector.rowToFeature(row, geometryField))
-      .filter((feature) => feature !== null);
-    return { type: 'FeatureCollection', features };
+  async fetchRows(resourceId, options = {}) {
+    // Bare row fetch (schema sniffing) shouldn't add a NOT NULL clause for a guessed field.
+    const opts = options.geometry || options.geometryField ? options : { ...options, skipNotNull: true };
+    return this._get(this.buildUrl(resourceId, opts), options.signal);
   }
 
-  // Pages through every row matching options (ignores options.limit/offset), not just
-  // the first page - a plain `limit` with no `$order` returns Socrata's arbitrary scan
-  // order, which can be geographically clustered rather than representative of the bbox.
-  async fetchAllRows(resourceId, options = {}, { pageSize = 1000, maxPages = null } = {}) {
+  // Total matching rows for the same where/bbox - lets the UI say "500 of 8,963".
+  async count(resourceId, options = {}) {
+    const params = new URLSearchParams({ $select: 'count(*) AS n' });
+    const clause = this._where(options);
+    if (clause) params.set('$where', clause);
+    const [row] = await this._get(`${this.portalBaseUrl}/resource/${resourceId}.json?${params}`, options.signal);
+    return Number(row?.n ?? 0);
+  }
+
+  async fetchGeoJSON(resourceId, options = {}) {
+    const rows = await this.fetchRows(resourceId, options);
+    return SocrataConnector.rowsToGeoJSON(rows, SocrataConnector.normalizeGeometry(options.geometry, options.geometryField));
+  }
+
+  // Pages through every row matching options (ignores options.limit/offset). Orders by
+  // the system :id so pages are stable - SODA doesn't guarantee a consistent order across
+  // $offset pages otherwise, which can duplicate or skip rows. SODA 2.1 has no hard $limit
+  // cap, so a large pageSize (e.g. 50000) is usually faster than many small pages.
+  async fetchAllRows(resourceId, options = {}, { pageSize = 1000, maxPages = null, onPage } = {}) {
     const rows = [];
     let offset = 0;
     let page = 0;
     while (maxPages === null || page < maxPages) {
-      const page_rows = await this.fetchRows(resourceId, { ...options, limit: pageSize, offset });
-      if (!page_rows.length) break;
-      rows.push(...page_rows);
-      if (page_rows.length < pageSize) break;
+      const pageRows = await this.fetchRows(resourceId, { order: ':id', ...options, limit: pageSize, offset });
+      if (!pageRows.length) break;
+      rows.push(...pageRows);
+      if (onPage) onPage(rows.length);
+      if (pageRows.length < pageSize) break;
       offset += pageSize;
       page += 1;
     }
@@ -78,33 +266,45 @@ class SocrataConnector {
   }
 
   async fetchAllGeoJSON(resourceId, options = {}, pagingOptions = {}) {
-    const geometryField = options.geometryField || 'location';
     const rows = await this.fetchAllRows(resourceId, options, pagingOptions);
-    const features = rows
-      .map((row) => SocrataConnector.rowToFeature(row, geometryField))
-      .filter((feature) => feature !== null);
+    return SocrataConnector.rowsToGeoJSON(rows, SocrataConnector.normalizeGeometry(options.geometry, options.geometryField));
+  }
+
+  // ── Row → GeoJSON ──────────────────────────────────────────────────────────
+
+  static rowsToGeoJSON(rows, geometry) {
+    const features = [];
+    for (const row of rows) {
+      const f = SocrataConnector.rowToFeature(row, geometry);
+      if (f) features.push(f);
+    }
     return { type: 'FeatureCollection', features };
   }
 
-  // Socrata portals return one of three shapes for a point column: a GeoJSON
-  // Point, a legacy {latitude, longitude} "Location" dict, or WKT text - which
-  // one depends on how that column was configured on the portal.
-  static rowToFeature(row, geometryField = 'location') {
-    const value = row[geometryField];
-    const geometry = SocrataConnector.parseGeometry(value);
-    if (!geometry) return null;
+  static rowToFeature(row, geometry = 'location') {
+    const g = SocrataConnector.normalizeGeometry(geometry);
+    let geom;
     const properties = { ...row };
-    delete properties[geometryField];
-    return { type: 'Feature', geometry, properties };
+    if (g.lat) {
+      const lat = parseFloat(row[g.lat]);
+      const lon = parseFloat(row[g.lon]);
+      geom = Number.isFinite(lat) && Number.isFinite(lon) ? { type: 'Point', coordinates: [lon, lat] } : null;
+    } else {
+      geom = SocrataConnector.parseGeometry(row[g.field]);
+      delete properties[g.field];
+    }
+    if (!geom) return null;
+    for (const k of Object.keys(properties)) if (k.startsWith(':')) delete properties[k];
+    return { type: 'Feature', geometry: geom, properties };
   }
 
+  // Socrata returns a GeoJSON geometry for typed spatial columns (any type), a legacy
+  // {latitude, longitude} dict for old "Location" columns, or WKT text for columns that
+  // were published as plain text.
   static parseGeometry(value) {
-    if (typeof value === 'string') {
-      const match = /^POINT\s*\(\s*(-?[\d.]+)\s+(-?[\d.]+)\s*\)$/i.exec(value.trim());
-      return match ? { type: 'Point', coordinates: [parseFloat(match[1]), parseFloat(match[2])] } : null;
-    }
+    if (typeof value === 'string') return SocrataConnector.parseWkt(value);
     if (!value || typeof value !== 'object') return null;
-    if (value.type === 'Point' && Array.isArray(value.coordinates)) return value;
+    if (typeof value.type === 'string' && Array.isArray(value.coordinates)) return value;
     if ('latitude' in value && 'longitude' in value) {
       const lat = parseFloat(value.latitude);
       const lon = parseFloat(value.longitude);
@@ -112,44 +312,149 @@ class SocrataConnector {
     }
     return null;
   }
+
+  // Minimal WKT reader: POINT, LINESTRING, POLYGON and their MULTI* forms (2D; Z/M dropped).
+  static parseWkt(text) {
+    const m = /^\s*(MULTIPOINT|MULTILINESTRING|MULTIPOLYGON|POINT|LINESTRING|POLYGON)\s*(?:Z|M|ZM)?\s*(\(.*\))\s*$/is.exec(text);
+    if (!m) return null;
+    const type = m[1].toUpperCase();
+    let body = m[2];
+    if (type === 'MULTIPOINT' && !/\(\s*\(/.test(body)) body = body.replace(/(-?[\d.eE+-]+\s+-?[\d.eE+-]+)(?=\s*[,)])/g, '($1)'); // "1 2, 3 4" -> "(1 2), (3 4)"
+    let json = body
+      .replace(/(-?[\d.eE+-]+)\s+(-?[\d.eE+-]+)(?:\s+-?[\d.eE+-]+)*/g, '[$1,$2]')
+      .replace(/\(/g, '[').replace(/\)/g, ']');
+    let coords;
+    try { coords = JSON.parse(json); } catch { return null; }
+    const names = { POINT: 'Point', LINESTRING: 'LineString', POLYGON: 'Polygon', MULTIPOINT: 'MultiPoint', MULTILINESTRING: 'MultiLineString', MULTIPOLYGON: 'MultiPolygon' };
+    if (type === 'POINT') coords = coords[0];
+    if (type === 'MULTIPOINT') coords = coords.map((c) => (Array.isArray(c[0]) ? c[0] : c));
+    if (!Array.isArray(coords) || coords.flat(Infinity).some((n) => !Number.isFinite(n))) return null;
+    return { type: names[type], coordinates: coords };
+  }
 }
 
 /**
- * Wire a SocrataConnector resource into a MapLibre GeoJSON source + circle layer.
- * With refreshOnMoveEnd (default), refetches bounded to the current viewport on
- * every `moveend` - a live, panning-aware version of the source.
+ * Wire a SocrataConnector resource into a MapLibre GeoJSON source with circle, line and
+ * fill layers (each filtered by geometry type, so points, lines and polygons all draw).
+ *
+ * mode 'viewport' (default): refetch bounded to the visible map on every pan/zoom, debounced,
+ *   with in-flight requests aborted so a slow old response can't overwrite a newer one.
+ *   Falls back to 'once' automatically when the geometry can't be bbox-filtered (WKT text).
+ * mode 'all': page through every matching row once (no limit), then let MapLibre handle it.
+ * mode 'once': one request of `limit` rows, no refetching.
+ *
+ * Returns a controller: { ready: Promise<{shown,total}>, reload(), destroy(), mode }.
+ * `onUpdate({ shown, total, loading, error, mode })` fires on every state change.
  */
 function addSocrataLayer(map, connector, resourceId, {
   sourceId = 'socrata-source',
   layerId = 'socrata-layer',
-  paint = { 'circle-radius': 5, 'circle-color': '#1d72b8', 'circle-opacity': 0.8 },
-  geometryField = 'location',
+  color = '#d6336c',
+  paint,
+  geometry,
+  geometryField,
   select,
   where,
   order,
   limit = 1000,
-  refreshOnMoveEnd = true,
+  mode,
+  refreshOnMoveEnd,
+  pageSize = 50000,
+  debounceMs = 250,
+  onUpdate = () => {},
 } = {}) {
-  const load = async () => {
-    const options = { select, where, order, limit, geometryField };
-    if (refreshOnMoveEnd) {
-      const bounds = map.getBounds();
-      options.bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
-    }
-    const geojson = await connector.fetchGeoJSON(resourceId, options);
-    const source = map.getSource(sourceId);
-    if (source) {
-      source.setData(geojson);
-    } else {
-      map.addSource(sourceId, { type: 'geojson', data: geojson });
-      map.addLayer({ id: layerId, type: 'circle', source: sourceId, paint });
-    }
-    return geojson;
+  const geom = SocrataConnector.normalizeGeometry(geometry, geometryField);
+  if (!mode) mode = refreshOnMoveEnd === false ? 'once' : 'viewport';
+  if (mode === 'viewport' && !SocrataConnector.supportsBbox(geom)) mode = 'once';
+
+  const layerIds = [`${layerId}-fill`, `${layerId}-line`, layerId];
+  const ensureLayers = (data) => {
+    if (map.getSource(sourceId)) { map.getSource(sourceId).setData(data); return; }
+    map.addSource(sourceId, { type: 'geojson', data });
+    map.addLayer({
+      id: layerIds[0], type: 'fill', source: sourceId,
+      filter: ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]],
+      paint: { 'fill-color': color, 'fill-opacity': 0.2 },
+    });
+    map.addLayer({
+      id: layerIds[1], type: 'line', source: sourceId,
+      filter: ['!=', ['geometry-type'], 'Point'],
+      paint: { 'line-color': color, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 16, 3] },
+    });
+    map.addLayer({
+      id: layerIds[2], type: 'circle', source: sourceId,
+      filter: ['in', ['geometry-type'], ['literal', ['Point', 'MultiPoint']]],
+      paint: paint || {
+        'circle-color': color,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2, 14, 4, 18, 8],
+        'circle-stroke-color': '#fff',
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 10, 0, 14, 1],
+        'circle-opacity': 0.85,
+      },
+    });
   };
 
-  const initialLoad = load();
-  if (refreshOnMoveEnd) {
-    map.on('moveend', () => { load().catch((err) => console.error('SocrataConnector refresh failed:', err)); });
-  }
-  return initialLoad;
+  let controller = null;
+  let timer = null;
+  const base = { select, where, order, geometry: geom };
+
+  const load = async () => {
+    if (controller) controller.abort();
+    controller = new AbortController();
+    const { signal } = controller;
+    onUpdate({ loading: true, mode });
+    try {
+      let geojson;
+      let total;
+      if (mode === 'all') {
+        geojson = await connector.fetchAllGeoJSON(resourceId, { ...base, signal }, {
+          pageSize, onPage: (n) => onUpdate({ loading: true, mode, progress: n }),
+        });
+        total = geojson.features.length;
+      } else {
+        const opts = { ...base, limit, signal };
+        if (mode === 'viewport') {
+          const b = map.getBounds();
+          opts.bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+        }
+        const [gj, n] = await Promise.all([
+          connector.fetchGeoJSON(resourceId, opts),
+          connector.count(resourceId, opts).catch(() => null),
+        ]);
+        geojson = gj;
+        total = n;
+      }
+      if (signal.aborted) return null;
+      ensureLayers(geojson);
+      const state = { shown: geojson.features.length, total, loading: false, mode, geojson };
+      onUpdate(state);
+      return state;
+    } catch (err) {
+      if (err.name === 'AbortError') return null;
+      onUpdate({ loading: false, mode, error: err });
+      throw err;
+    }
+  };
+
+  const onMove = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { load().catch((err) => console.error('SocrataConnector refresh failed:', err)); }, debounceMs);
+  };
+  if (mode === 'viewport') map.on('moveend', onMove);
+
+  return {
+    mode,
+    layerIds,
+    ready: load(),
+    reload: load,
+    destroy() {
+      clearTimeout(timer);
+      if (controller) controller.abort();
+      map.off('moveend', onMove);
+      for (const id of layerIds) if (map.getLayer(id)) map.removeLayer(id);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+    },
+  };
 }
+
+if (typeof module !== 'undefined') module.exports = { SocrataConnector, addSocrataLayer };
