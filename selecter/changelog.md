@@ -10,6 +10,67 @@ are described by date and feature area only.
 
 ---
 
+## Welcome Panel Redesign & Docs Export · Oct 7–8, 2026 · v965
+
+### v965
+Welcome panel redesigned: `#welcome-modes` 2-column grid replaced with `#welcome-cards` scrollable flex column listing 7 feature cards (File mode, Map mode, Sample library, Load from URL, Style your data, Join data, Select and export). Each card has an icon, title, description, and a small tag pill (green for File mode, orange for Map mode). CSS classes: `.wcard`, `.wcard-icon`, `.wcard-body`, `.wcard-title`, `.wcard-desc`, `.wcard-tag`. The four action buttons (`#welcome-file-btn`, `#welcome-browse-btn`, `#welcome-url-btn`, `#welcome-geojson-btn`) preserved exactly. Mobile breakpoint hides card list below 500px viewport height. Markdown exports of Quick Start and Shapes docs added to repo. NOTES.md handoff document added.
+
+---
+
+## Join Right Panel — Polish · Sep 26, 2026 · v964
+
+### v964
+Name col select fixed: `_jrpCols[0]` is always forced to `displayNameProp` at render time regardless of what `_jrpDefaultCols()` returned — prevents the name column from being displaced when the picker is re-rendered. 1:1 default columns (`_jrpDefaultCols` in 1:1 mode): name col + join key col + first 3 `join_val_` columns, so the table starts populated. Mode tag spacing standardized: `1 : 1 lookup` and `1 : many` written with spaces around the colon everywhere — badge, subtitle, and modeTag. Shapes badge: `_applyShapeLayer` updates `#shapes-badge` with `· N shapes on <layer>` when shape mode is active; badge cleared when shape mode is off.
+
+---
+
+## Join Stats Development · Sep 23–25, 2026 · v946–v963
+
+### v963–v961
+Stabilization and edge-case fixes from join stats sessions.
+
+### v960
+Join stats with SF Supervisor Districts: `join_sum_Awarded` choropleth (YlOrRd), labels showing `join_count`, `join_sum_Awarded`, `sup_dist_abbrev`. Bbox-clipped source (`SF_Supervisor_Districts_bbox`).
+
+### v958
+Join stats: color by `join_avg_TOTAL_ENR` (YlOrRd), labels showing `join_count` and `join_avg_TOTAL_ENR`.
+
+### v955
+Join stats: color by `join_count` (YlOrRd), labels showing `short_name` and `join_sum_TOTAL_ENR`.
+
+### v952
+Join stats iteration.
+
+### v951
+Labels: `short_name` on SF neighborhood layer.
+
+### v949
+Join stats: YlOrRd ramp on `join_count` with quantile 7 stops; labels from `short_name`, `sup_dist_abbrev`, `sup_dist`, `join_count`.
+
+### v948
+Join stats iteration.
+
+### v947
+Join stats iteration.
+
+### v946
+Join stats development session: SF Schools dataset with elevation, color by `_source` (2 categorical values).
+
+---
+
+## Join Right Panel — GeoJSON Join & Refinement · Sep 18–23, 2026 · v912–v945
+
+### v945–v919
+GeoJSON → GeoJSON join support added (join a second GeoJSON file as the source, not just CSV). 1:many mode refinement: multiple CSV/GeoJSON rows matched to one geometry, aggregated stats (`join_count`, `join_sum_*`, `join_avg_*`) written as properties. Right panel `_jrpDefaultCols` logic established. Various join dialog and result table fixes across sessions.
+
+### v918
+SF Analysis Neighborhoods session: join pipeline exercised with neighborhood boundaries dataset.
+
+### v912–v917
+Post-v911 join right panel polish: field expansion and row-count expansion state handling consolidated; `_clearJoin` / `_clearFileData` reset paths verified; bidirectional map ↔ table sync edge cases addressed.
+
+---
+
 ## Join Right Panel (Step 3) · Sep 15–16, 2026 · v908–v911
 
 ### v911
