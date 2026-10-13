@@ -158,7 +158,8 @@ async function loadFromParams(params) {
     order: params.order || q.order || '',
     token: params.token || '',
   });
-  state.connector = new SocrataConnector(state.portal, { appToken: state.token || undefined });
+  state.connector = new SocrataConnector(state.portal, { appToken: state.token || undefined, log: true });
+  console.info('[socrata] loading', { portal: state.portal, id: state.id, limit: state.limit, mode: state.mode, where: state.where, geom: params.geom || '(auto)' });
   $('url-input').value = `${state.portal}/d/${state.id}`;
   $('limit-input').value = state.limit;
   document.querySelector(`input[name=mode][value=${state.mode}]`).checked = true;
@@ -167,6 +168,7 @@ async function loadFromParams(params) {
   try {
     state.schema = await state.connector.fetchSchema(state.id);
   } catch (err) {
+    console.error('[socrata] schema failed', err);
     return setStatus(`Couldn't read dataset: ${err.message}`, true);
   }
   $('title').innerHTML = `<a href="${esc(state.schema.permalink)}" target="_blank" rel="noopener">${esc(state.schema.name)}</a>`;
@@ -210,7 +212,11 @@ async function startLayer({ fit }) {
   if (state.layer) { state.layer.destroy(); state.layer = null; }
   state.geometry = state.geomString ? SocrataConnector.normalizeGeometry(resolveGeometry(state.geomString)) : null;
   if (!state.geometry) {
-    setNote('No geometry column detected. Pick one above, or choose two columns as latitude / longitude.');
+    const cols = state.schema?.columns || [];
+    console.warn('[socrata] no geometry column detected; columns:', cols);
+    setNote(cols.length
+      ? `No geometry column detected among: ${cols.map((c) => `${c.field} (${c.type})`).join(', ')}. Pick two columns as latitude / longitude, or check the console.`
+      : 'The dataset returned no rows to inspect, so there are no columns to pick from. Check the console for the requests.');
     return setStatus('waiting for a geometry column', true);
   }
   const bboxable = SocrataConnector.supportsBbox(state.geometry);
@@ -222,8 +228,10 @@ async function startLayer({ fit }) {
   try {
     if (fit) { setStatus('finding the data…'); await fitToSample(); }
   } catch (err) {
+    console.error('[socrata] initial fit failed', err);
     return setStatus(err.message, true);
   }
+  console.info('[socrata] layer', { geometry: state.geometry, mode: state.mode, limit: state.limit, bboxable });
   writeHash();
 
   state.layer = addSocrataLayer(map, state.connector, state.id, {
@@ -246,7 +254,7 @@ function resolveGeometry(str) {
 }
 
 function renderStatus({ shown, total, loading, error, mode, progress }) {
-  if (error) return setStatus(error.message, true);
+  if (error) { console.error('[socrata] load failed', error); return setStatus(error.message, true); }
   if (loading) return setStatus(progress ? `loaded ${fmt(progress)} rows…` : 'loading…');
   const where = mode === 'viewport' ? ' in view' : '';
   if (total != null && total > shown) {
