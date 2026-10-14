@@ -6,13 +6,17 @@ Active bugs, limitations, and environmental quirks. Updated as issues are found 
 
 ## Active bugs
 
-**Leading-zero key mismatch** — GeoJSON numeric property `1` and CSV string key `"01"` both normalize to different strings (`"1"` vs `"01"`) after `.toString()`, so they don't match. Affects FIPS codes, census tract IDs, ZIP codes, and any identifier where a leading zero is meaningful. No fix yet; workaround is to pre-process the CSV to strip leading zeros, or pre-process the GeoJSON to store IDs as strings with leading zeros preserved.
+**Leading-zero key mismatch** — GeoJSON numeric property `1` and CSV string key `"01"` both normalize to different strings (`"1"` vs `"01"`) after `.toString()`, so they don't match. Affects FIPS codes, census tract IDs, ZIP codes, and any identifier where a leading zero is meaningful. No fix yet; workaround is to pre-process the CSV to strip leading zeros, or pre-process the GeoJSON to store IDs as strings with leading zeros preserved. JoinKit's `makeKeyNormalizer({ stripLeadingZeros: true })` or `padStart` handles this; not yet exposed in Selecter's join dialog.
 
 **`_jrpCols` stale after column rename** — If the user adds a column, then a new join replaces the existing one with different property names, `_jrpCols` may still contain the old column name. The column chooser will show the old name as "active" but render nothing. Fix: clear `_jrpCols` in `_clearJoin()` before applying a new join.
 
 **Shape badge not clearing on layer reload** — `#shapes-badge` shows `· N shapes on <layer>` when shape mode is active. If the user loads a new GeoJSON without explicitly clearing shape mode, the badge text persists even though the old shape layer is gone. `_loadGeoJSON` should reset the badge, but currently doesn't always.
 
 **Popup flickers on rapid hover** — on layers with many features, moving the mouse quickly across feature boundaries causes the popup to flicker as it opens and closes. The hover debounce is currently 0ms. A 30–50ms debounce would fix it without making the popup feel sluggish.
+
+**Numeric `0` join key treated as empty** — `normVal(0)` returns `''`, so a row or feature whose key is the number 0 (not the string `"0"`) never matches. CSV keys are always strings so this only affects GeoJSON-to-GeoJSON joins. Kept in JoinKit's `normVal` for parity; `makeKeyNormalizer()` treats 0 as a real key.
+
+**Two copies of the numeric-column heuristic** — the stats-column picker in `_runJoinFlow` uses `_isForcecatQuick`, a shorter version of the forced-categorical list in `JoinKit.isForcedCategorical`. They disagree on a few column names (e.g. `region`, `area`, `mobile`), so a column can be offered for stats and then classified categorical. Fix: switch the picker to `JoinKit.classifyColumns`.
 
 ## Browser / environment quirks
 
@@ -24,7 +28,7 @@ Active bugs, limitations, and environmental quirks. Updated as issues are found 
 
 ## Performance limitations
 
-**Join aggregation O(n) for large CSVs** — `_applyJoin()` iterates all CSV rows for every GeoJSON feature to build `byGvid`. For a 100k-row CSV joined to a 1k-feature layer, that's 100M comparisons. In practice, SF-scale datasets (a few thousand rows) run instantly. For larger datasets, a pre-indexed approach (build a `Map` keyed on CSV join column first) would reduce to O(n + m).
+**Join aggregation for large CSVs** — resolved: matching is indexed (`JoinKit.buildFeatureIndex` builds a `Map` keyed on the normalized property value), so a join is O(rows + features).
 
 **`_jrpRender()` full innerHTML rebuild** — the right panel table is rebuilt from scratch on every sort, filter, or expand operation. For layers with thousands of features this causes a visible repaint delay. A virtual scroll or incremental render would fix it but adds significant complexity.
 
