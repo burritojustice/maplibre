@@ -10,6 +10,13 @@ are described by date and feature area only.
 
 ---
 
+## JoinKit extraction · Oct 14, 2026 · v966
+
+### v966
+Join logic moved out of `index.html` into a shared library, `../joinkit/joinkit.js` (loaded with one `<script>` tag, exposes `window.JoinKit`). Selecter's `normVal`, `_computeJoinAgg` and `_buildJoinStore` are now thin wrappers; the key-candidate search, multi-row detection and property index in `_runJoinFlow`, `_joinFromGeoJSON` and `_loadCSV` call `JoinKit.scoreKeyCandidates`, `JoinKit.detectMultiRow` and `JoinKit.buildPropIndex`. Behavior is unchanged: `joinkit/test/parity.test.js` runs the verbatim v964 code against JoinKit on 120 randomized datasets, and a headless run of v964 vs v966 on the same GeoJSON + CSV produced an identical `_joinStore`. JoinKit also adds features Selecter doesn't use yet: key normalizers (prefix stripping, alias crosswalks, case folding, leading zeros), multi-valued keys, multi-condition row filters, explicit column types, and point-in-polygon assignment. Shared with civic-joy-fund/joiner.
+
+---
+
 ## Welcome Panel Redesign & Docs Export · Oct 7–8, 2026 · v965
 
 ### v965

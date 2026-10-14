@@ -10,7 +10,7 @@ Reference for working inside `map-viewer.html` — conventions, module boundarie
 
 1. `<head>` — charset, viewport, title
 2. CDN `<link>` tags — MapLibre GL CSS, any icon font
-3. CDN `<script>` tags — MapLibre GL JS, Turf.js, Papa Parse, others
+3. CDN `<script>` tags — MapLibre GL JS, Turf.js, Papa Parse, others — plus `../joinkit/joinkit.js` (local, shared join library)
 4. `<style>` block — all CSS, including panel layout, join table, welcome screen
 5. `<body>` — DOM skeleton: `#map`, `#right-panel`, `#welcome`, dialogs, status bar
 6. `CONFIG` block — named constants at the top of the `<script>`
@@ -60,6 +60,8 @@ Reference for working inside `map-viewer.html` — conventions, module boundarie
 ## Key modules
 
 **`_loadGeoJSON(geojson)`** — entry point for all file loads. Assigns `_gvid` to every feature, sets `_geojsonData`, calls `_applyLayer()`, resets join and shape state.
+
+**`JoinKit` (`../joinkit/joinkit.js`)** — all pure join logic: key normalization, column typing, key matching, aggregation, key-candidate scoring, multi-row detection, row filters, point-in-polygon. No DOM or map access. Selecter's join functions below wrap it and keep the UI state (`_joinStore`, `_jrpCols`, dialogs, console logging). Change matching or stats behavior in JoinKit, not here, and run `node --test 'joinkit/test/*.test.js'`. See `joinkit/README.md`.
 
 **`_runJoin(file)`** — reads a CSV or GeoJSON join source, scores key candidates, opens the join dialog.
 
