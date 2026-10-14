@@ -17,6 +17,11 @@
  */
 
 const SPATIAL_TYPES = new Set(['point', 'location', 'multipoint', 'line', 'multiline', 'polygon', 'multipolygon']);
+// GeoJSON geometry type names (what a sample row's value says) -> Socrata dataTypeName
+const GEOJSON_TO_SOCRATA = {
+  point: 'point', multipoint: 'multipoint', linestring: 'line', multilinestring: 'multiline',
+  polygon: 'polygon', multipolygon: 'multipolygon',
+};
 const LAT_NAMES = ['latitude', 'lat', 'y_lat', 'lat_y', 'point_y', 'y'];
 const LON_NAMES = ['longitude', 'lon', 'lng', 'long', 'x_long', 'long_x', 'point_x', 'x'];
 
@@ -25,11 +30,16 @@ class SocrataConnector {
   // ID/secret pair (HTTP Basic Auth) is CORS-blocked cross-origin - its preflight omits
   // Access-Control-Allow-Headers for Authorization, unlike X-App-Token - so it only works
   // from server-side code (see the Python client in the same PR).
-  constructor(portalBaseUrl, { appToken } = {}) {
+  // `log`: true for console.info output prefixed [socrata], a function to receive
+  // (message, ...details), or false/omitted for silence.
+  constructor(portalBaseUrl, { appToken, log } = {}) {
     let base = String(portalBaseUrl).trim();
     if (!/^https?:\/\//i.test(base)) base = `https://${base}`;
     this.portalBaseUrl = base.replace(/\/+$/, '');
     this.appToken = appToken || null;
+    this.log = typeof log === 'function' ? log
+      : log ? (msg, ...rest) => console.info(`[socrata] ${msg}`, ...rest)
+      : () => {};
   }
 
   // ── URL parsing ────────────────────────────────────────────────────────────
@@ -64,35 +74,85 @@ class SocrataConnector {
   // ── Schema + geometry detection ────────────────────────────────────────────
 
   /**
-   * Fetch column metadata from /api/views/{id}.json and detect geometry candidates.
-   * Falls back to sniffing a single row if the metadata endpoint is unavailable.
-   * Returns { name, columns: [{field, type, name}], candidates: [spec...], geometry: spec|null, permalink }.
+   * Fetch column metadata from /api/views/{id}.json, merge in whatever a few sample rows
+   * actually contain, and detect geometry candidates. Metadata can be missing (CORS,
+   * private), or present but useless: map and derived views often list no columns, or
+   * columns whose names differ from what /resource/ returns. So the sample rows are the
+   * ground truth for which fields exist; metadata only adds types and display names.
+   * Returns { name, columns: [{field, type, name}], candidates: [spec...], geometry, permalink, meta }.
    */
   async fetchSchema(resourceId, { signal } = {}) {
     let name = resourceId;
-    let columns = null;
+    let metaColumns = [];
+    const meta = { status: null, viewType: null, displayType: null, columnCount: 0 };
     try {
       const res = await fetch(`${this.portalBaseUrl}/api/views/${resourceId}.json`, { headers: this._headers(), signal });
+      meta.status = res.status;
       if (res.ok) {
-        const meta = await res.json();
-        name = meta.name || name;
-        columns = (meta.columns || [])
+        const m = await res.json();
+        name = m.name || name;
+        meta.viewType = m.viewType || null;
+        meta.displayType = m.displayType || null;
+        metaColumns = (m.columns || [])
           .filter((c) => c.fieldName && !c.fieldName.startsWith(':'))
-          .map((c) => ({ field: c.fieldName, type: (c.dataTypeName || '').toLowerCase(), name: c.name || c.fieldName }));
+          .map((c) => ({ field: c.fieldName, type: SocrataConnector.normalizeType(c.dataTypeName), name: c.name || c.fieldName }));
+        meta.columnCount = metaColumns.length;
       }
     } catch (err) {
       if (err.name === 'AbortError') throw err;
+      meta.status = `failed: ${err.message}`;
     }
-    const [sample] = await this.fetchRows(resourceId, { limit: 1, signal });
-    if (!columns) columns = SocrataConnector.columnsFromRow(sample || {});
-    const candidates = SocrataConnector.detectGeometry(columns, sample || {});
-    return {
+    this.log(`metadata ${resourceId}: HTTP ${meta.status}, ${meta.columnCount} columns`
+      + (meta.displayType ? `, displayType ${meta.displayType}` : ''), metaColumns);
+
+    // Several rows, because Socrata omits null fields from each row object.
+    const samples = await this.fetchRows(resourceId, { limit: 5, signal });
+    const merged = SocrataConnector.mergeColumns(metaColumns, samples);
+    const sample = SocrataConnector.mergeRows(samples);
+    const candidates = SocrataConnector.detectGeometry(merged, sample);
+    const schema = {
       name,
-      columns,
+      columns: merged,
       candidates,
       geometry: candidates[0] || null,
       permalink: `${this.portalBaseUrl}/d/${resourceId}`,
+      meta,
     };
+    this.log(`schema ${resourceId}: ${merged.length} columns from ${samples.length} sample rows; `
+      + `geometry candidates: ${candidates.map(SocrataConnector.geometryToString).join(' | ') || 'none'}`,
+      { columns: merged, sample, candidates });
+    return schema;
+  }
+
+  static normalizeType(t) {
+    const k = String(t || '').toLowerCase();
+    return GEOJSON_TO_SOCRATA[k] || k;
+  }
+
+  // First non-null value of each field across the sample rows.
+  static mergeRows(rows) {
+    const out = {};
+    for (const r of rows) for (const [k, v] of Object.entries(r)) if (out[k] == null && v != null) out[k] = v;
+    return out;
+  }
+
+  // Columns that really come back from /resource/, typed by metadata where it agrees.
+  // A metadata column absent from every sample is kept only if samples were empty
+  // (it may just be null in those rows, but with no rows there's nothing better).
+  static mergeColumns(metaColumns, samples) {
+    const sample = SocrataConnector.mergeRows(samples);
+    const fromRows = SocrataConnector.columnsFromRow(sample);
+    const byField = new Map(metaColumns.map((c) => [c.field, c]));
+    const out = fromRows.map((c) => {
+      const m = byField.get(c.field);
+      if (!m) return c;
+      // trust the row's own GeoJSON over a metadata type that says otherwise
+      const type = SPATIAL_TYPES.has(c.type) ? c.type : m.type;
+      return { field: c.field, type, name: m.name };
+    });
+    const seen = new Set(out.map((c) => c.field));
+    for (const m of metaColumns) if (!seen.has(m.field)) out.push(m);
+    return out;
   }
 
   // Best-effort column typing from one row when /api/views isn't reachable.
@@ -100,7 +160,7 @@ class SocrataConnector {
     return Object.keys(row).filter((k) => !k.startsWith(':')).map((field) => {
       const v = row[field];
       let type = 'text';
-      if (v && typeof v === 'object') type = v.type ? String(v.type).toLowerCase() : ('latitude' in v ? 'location' : 'text');
+      if (v && typeof v === 'object') type = v.type ? SocrataConnector.normalizeType(v.type) : ('latitude' in v ? 'location' : 'text');
       else if (typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v))) type = 'number';
       return { field, type, name: field };
     });
@@ -212,6 +272,7 @@ class SocrataConnector {
   // ── Fetching ───────────────────────────────────────────────────────────────
 
   async _get(url, signal) {
+    const t0 = performance.now();
     const response = await fetch(url, { headers: this._headers(), signal });
     if (response.status === 403) {
       throw new Error(`Socrata rejected app token: ${await response.text()}`);
@@ -220,9 +281,12 @@ class SocrataConnector {
       // SODA puts the useful bit (e.g. "No such column: location") in the JSON body
       let detail = '';
       try { const body = await response.json(); detail = body.message || body.error || ''; } catch {}
+      this.log(`HTTP ${response.status} ${decodeURIComponent(url)}`, detail);
       throw new Error(`Socrata request failed: HTTP ${response.status}${detail ? ` - ${detail}` : ''}`);
     }
-    return response.json();
+    const body = await response.json();
+    this.log(`${Array.isArray(body) ? body.length : '?'} rows in ${Math.round(performance.now() - t0)} ms  ${decodeURIComponent(url)}`);
+    return body;
   }
 
   async fetchRows(resourceId, options = {}) {
@@ -242,7 +306,18 @@ class SocrataConnector {
 
   async fetchGeoJSON(resourceId, options = {}) {
     const rows = await this.fetchRows(resourceId, options);
-    return SocrataConnector.rowsToGeoJSON(rows, SocrataConnector.normalizeGeometry(options.geometry, options.geometryField));
+    return this._toGeoJSON(rows, options);
+  }
+
+  _toGeoJSON(rows, options) {
+    const geometry = SocrataConnector.normalizeGeometry(options.geometry, options.geometryField);
+    const gj = SocrataConnector.rowsToGeoJSON(rows, geometry);
+    const dropped = rows.length - gj.features.length;
+    if (dropped) {
+      const bad = rows.find((r) => !SocrataConnector.rowToFeature(r, geometry));
+      this.log(`${dropped} of ${rows.length} rows had no usable geometry in "${SocrataConnector.geometryToString(geometry)}"; first one:`, bad);
+    }
+    return gj;
   }
 
   // Pages through every row matching options (ignores options.limit/offset). Orders by
@@ -267,7 +342,7 @@ class SocrataConnector {
 
   async fetchAllGeoJSON(resourceId, options = {}, pagingOptions = {}) {
     const rows = await this.fetchAllRows(resourceId, options, pagingOptions);
-    return SocrataConnector.rowsToGeoJSON(rows, SocrataConnector.normalizeGeometry(options.geometry, options.geometryField));
+    return this._toGeoJSON(rows, options);
   }
 
   // ── Row → GeoJSON ──────────────────────────────────────────────────────────
