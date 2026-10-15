@@ -86,7 +86,7 @@
 const STYLE_URL = 'https://api.protomaps.com/styles/v5/white/en.json?key=ffc24a4325d458ce'; // Selecter's key
 const DEFAULT_URL = 'https://data.sf.gov/d/g8m3-pdis'; // SF registered business locations
 const DEFAULT_LIMIT = 1000;
-const HASH_KEYS = ['url', 'limit', 'geom', 'mode', 'where', 'select', 'order', 'map', 'token'];
+const HASH_KEYS = ['url', 'limit', 'geom', 'mode', 'where', 'select', 'order', 'map', 'token', 'soda'];
 
 const $ = (id) => document.getElementById(id);
 const statusEl = $('status');
@@ -124,6 +124,7 @@ function writeHash() {
   if (state.limit !== DEFAULT_LIMIT) parts.push(`limit=${state.limit}`);
   if (state.geomString && state.geomString !== state.autoGeomString) parts.push(`geom=${encodeURIComponent(state.geomString)}`);
   if (state.mode !== 'viewport') parts.push(`mode=${state.mode}`);
+  if (state.soda === '3') parts.push('soda=3');
   for (const k of ['where', 'select', 'order']) if (state[k]) parts.push(`${k}=${encodeURIComponent(state[k])}`);
   const c = map.getCenter();
   parts.push(`map=${map.getZoom().toFixed(2)}/${c.lat.toFixed(5)}/${c.lng.toFixed(5)}`);
@@ -135,7 +136,7 @@ function writeHash() {
 const state = {
   portal: null, id: null, connector: null, schema: null, layer: null,
   geometry: null, geomString: '', autoGeomString: '',
-  limit: DEFAULT_LIMIT, mode: 'viewport', where: '', select: '', order: '', token: '',
+  limit: DEFAULT_LIMIT, mode: 'viewport', where: '', select: '', order: '', token: '', soda: '2.1',
 };
 
 const map = new maplibregl.Map({ container: 'map', style: STYLE_URL, center: [-122.4194, 37.7749], zoom: 12, hash: false });
@@ -157,8 +158,9 @@ async function loadFromParams(params) {
     select: params.select || q.select || '',
     order: params.order || q.order || '',
     token: params.token || '',
+    soda: params.soda === '3' ? '3' : '2.1',
   });
-  state.connector = new SocrataConnector(state.portal, { appToken: state.token || undefined, log: true });
+  state.connector = new SocrataConnector(state.portal, { appToken: state.token || undefined, log: true, apiVersion: state.soda });
   console.info('[socrata] loading', { portal: state.portal, id: state.id, limit: state.limit, mode: state.mode, where: state.where, geom: params.geom || '(auto)' });
   $('url-input').value = `${state.portal}/d/${state.id}`;
   $('limit-input').value = state.limit;
