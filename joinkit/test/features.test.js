@@ -126,3 +126,23 @@ test('assignPointsToPolygons', () => {
     const features = [square('a', 0, 0), square('b', 1, 0), { type: 'Feature', geometry: { type: 'Point', coordinates: [0, 0] }, properties: { _gvid: 'p' } }];
     assert.deepEqual(JK.assignPointsToPolygons([[0.5, 0.5], [1.5, 0.2], [5, 5], null, [NaN, 1]], features), ['a', 'b', null, null, null]);
 });
+
+test('buildPolygonIndex agrees with pointInPolygon on real-world shapes', () => {
+    // Star-shaped polygons with holes and a multipolygon, plus many random points.
+    const star = (cx, cy, r1, r2, n) => { const ring = []; for (let i = 0; i <= 2 * n; i++) { const a = Math.PI * i / n, r = i % 2 ? r2 : r1; ring.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } ring[ring.length - 1] = ring[0]; return ring; };
+    const features = [
+        { type: 'Feature', properties: { _gvid: 'a' }, geometry: { type: 'Polygon', coordinates: [star(0, 0, 4, 2, 37), star(0, 0, 1, 0.5, 11).reverse()] } },
+        { type: 'Feature', properties: { _gvid: 'b' }, geometry: { type: 'MultiPolygon', coordinates: [[star(10, 0, 3, 1, 23)], [star(10, 8, 2, 1, 9)]] } },
+        { type: 'Feature', properties: { _gvid: 'c' }, geometry: { type: 'Polygon', coordinates: [[[5, -6], [7, -6], [7, -4], [5, -4], [5, -6]]] } },
+    ];
+    let s = 7; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    const pts = Array.from({ length: 20000 }, () => [-5 + r() * 20, -8 + r() * 20]);
+    const naive = pts.map(p => { for (const f of features) if (JK.pointInPolygon(p, f.geometry)) return f.properties._gvid; return null; });
+    const idx = JK.buildPolygonIndex(features);
+    assert.deepEqual(idx.locateAll(pts), naive);
+    assert.deepEqual(JK.assignPointsToPolygons(pts, features), naive);
+    assert.ok(naive.filter(x => x === 'a').length > 100 && naive.filter(x => x === 'b').length > 100);
+    assert.equal(idx.locate(null), null);
+    assert.equal(idx.locate([NaN, 1]), null);
+    assert.equal(idx.locate([100, 100]), null);
+});
