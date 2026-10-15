@@ -17,7 +17,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
 'use strict';
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 const noop = () => {};
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -652,24 +652,74 @@ function geomBbox(geometry) {
     return [minX, minY, maxX, maxY];
 }
 
-// For each [lng, lat], the id of the first polygon feature containing it (or null).
-// Bounding boxes are checked first, so this is fine for thousands of points
-// against city-scale polygon sets.
-function assignPointsToPolygons(points, features, opts) {
+// Spatial index for point-in-polygon over many points.
+// Each feature's edges are bucketed into horizontal strips, so a test only ray-casts the
+// edges whose latitude span covers the point (even-odd rule across all rings, which handles
+// holes and multipolygons); a coarse grid over feature bboxes picks the candidate features.
+// Results match pointInPolygon: the first feature (in input order) containing the point.
+function buildPolygonIndex(features, opts) {
     const idOf = (opts && opts.idOf) || defaultIdOf;
-    const polys = features
-        .filter(f => f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'))
-        .map(f => ({ id: idOf(f), geometry: f.geometry, bbox: geomBbox(f.geometry) }));
-    return points.map(p => {
-        if (!p || p[0] == null || p[1] == null || isNaN(p[0]) || isNaN(p[1])) return null;
-        const [x, y] = p;
-        for (const poly of polys) {
-            const b = poly.bbox;
-            if (x < b[0] || x > b[2] || y < b[1] || y > b[3]) continue;
-            if (pointInPolygon(p, poly.geometry)) return poly.id;
+    const polys = [];
+    for (const f of features) {
+        const g = f.geometry;
+        if (!g || (g.type !== 'Polygon' && g.type !== 'MultiPolygon')) continue;
+        const rings = g.type === 'Polygon' ? g.coordinates : g.coordinates.flat();
+        let nEdges = 0;
+        for (const r of rings) nEdges += Math.max(0, r.length - 1);
+        const bb = geomBbox(g);
+        const K = Math.max(1, Math.min(512, Math.round(Math.sqrt(nEdges) * 2)));
+        const h = (bb[3] - bb[1]) / K || 1;
+        const strips = Array.from({ length: K }, () => []);
+        for (const r of rings) {
+            for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+                const x1 = r[j][0], y1 = r[j][1], x2 = r[i][0], y2 = r[i][1];
+                if (y1 === y2) continue;   // horizontal edges never count as crossings
+                const lo = Math.max(0, Math.floor((Math.min(y1, y2) - bb[1]) / h));
+                const hi = Math.min(K - 1, Math.floor((Math.max(y1, y2) - bb[1]) / h));
+                for (let k = lo; k <= hi; k++) strips[k].push(x1, y1, x2, y2);
+            }
         }
-        return null;
+        polys.push({ id: idOf(f), bb, K, h, strips });
+    }
+    const all = unionOf(polys.map(p => p.bb));
+    const G = Math.max(1, Math.min(64, Math.ceil(Math.sqrt(polys.length) * 2)));
+    const gw = (all[2] - all[0]) / G || 1, gh = (all[3] - all[1]) / G || 1;
+    const grid = Array.from({ length: G * G }, () => []);
+    polys.forEach((p, n) => {
+        const c0 = Math.max(0, Math.floor((p.bb[0] - all[0]) / gw)), c1 = Math.min(G - 1, Math.floor((p.bb[2] - all[0]) / gw));
+        const r0 = Math.max(0, Math.floor((p.bb[1] - all[1]) / gh)), r1 = Math.min(G - 1, Math.floor((p.bb[3] - all[1]) / gh));
+        for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) grid[r * G + c].push(n);
     });
+    function inside(p, x, y) {
+        const b = p.bb;
+        if (x < b[0] || x > b[2] || y < b[1] || y > b[3]) return false;
+        const e = p.strips[Math.min(p.K - 1, Math.floor((y - b[1]) / p.h))];
+        let c = false;
+        for (let i = 0; i < e.length; i += 4) {
+            const y1 = e[i + 1], y2 = e[i + 3];
+            if ((y1 > y) !== (y2 > y) && x < (e[i + 2] - e[i]) * (y - y1) / (y2 - y1) + e[i]) c = !c;
+        }
+        return c;
+    }
+    function locate(pt) {
+        if (!pt || pt[0] == null || pt[1] == null || isNaN(pt[0]) || isNaN(pt[1])) return null;
+        const x = +pt[0], y = +pt[1];
+        if (x < all[0] || x > all[2] || y < all[1] || y > all[3]) return null;
+        const cell = grid[Math.min(G - 1, Math.floor((y - all[1]) / gh)) * G + Math.min(G - 1, Math.floor((x - all[0]) / gw))];
+        for (const n of cell) if (inside(polys[n], x, y)) return polys[n].id;
+        return null;
+    }
+    return { locate, locateAll: points => points.map(locate), size: polys.length };
+}
+
+function unionOf(bbs) {
+    return bbs.reduce((u, b) => [Math.min(u[0], b[0]), Math.min(u[1], b[1]), Math.max(u[2], b[2]), Math.max(u[3], b[3])],
+        [Infinity, Infinity, -Infinity, -Infinity]);
+}
+
+// For each [lng, lat], the id of the first polygon feature containing it (or null).
+function assignPointsToPolygons(points, features, opts) {
+    return buildPolygonIndex(features, opts).locateAll(points);
 }
 
 return {
@@ -686,6 +736,6 @@ return {
     // filtering
     matchCondition, filterRows,
     // spatial
-    pointInPolygon, assignPointsToPolygons,
+    pointInPolygon, assignPointsToPolygons, buildPolygonIndex,
 };
 });
