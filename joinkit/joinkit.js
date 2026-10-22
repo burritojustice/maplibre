@@ -17,7 +17,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
 'use strict';
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 const noop = () => {};
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -712,6 +712,388 @@ function buildPolygonIndex(features, opts) {
     return { locate, locateAll: points => points.map(locate), size: polys.length };
 }
 
+// ═════════════════════════════════════════════════════════════════════════
+// Forgiving matching (0.3): loose names, multi-value cells
+// ═════════════════════════════════════════════════════════════════════════
+
+// Case, spaces and punctuation removed: "Downtown / Civic Center" → "downtownciviccenter".
+const looseKey = s => String(s).toLowerCase().normalize('NFKD').replace(/[^a-z0-9]/g, '');
+
+// Levenshtein distance, giving up (max + 1) once it's over max.
+function editDistance(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+        const cur = [i]; let low = i;
+        for (let j = 1; j <= b.length; j++) { cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); low = Math.min(low, cur[j]); }
+        if (low > max) return max + 1;
+        prev = cur;
+    }
+    return prev[b.length];
+}
+
+// A normalizer that also forgives spelling, built from the feature side's keys (already run
+// through base): case, spaces and punctuation don't count; each side of a slashed or "&" name
+// matches it ("Treasure Island" → "Treasure Island/YBI"); a value of fuzzyMin+ letters one letter
+// off (two from 11 letters) a single key matches it. Values that match nothing come back as base
+// gave them. The result has .names (the set of feature keys).
+//   base      the layer's normalizer (makeKeyNormalizer), applied first
+//   fuzzyMin  shortest value fuzzy-matched (8: "Marin" mustn't become "Marina")
+function makeLooseNormalizer(keys, base, opts) {
+    const o = opts || {};
+    const b0 = base || makeKeyNormalizer();
+    const fuzzyMin = o.fuzzyMin ?? 8;
+    const names = new Set(), canon = new Map(), parts = new Map();
+    for (const raw of keys) {
+        const b = b0(raw);
+        if (!b) continue;
+        names.add(b); canon.set(looseKey(b), b);
+        for (const p of String(b).split(/\s*[\/&]\s*|\s+and\s+/)) {
+            const k = looseKey(p);
+            if (p !== b && k.length >= 4) parts.set(k, parts.has(k) ? null : b);   // a part shared by two names matches neither
+        }
+    }
+    for (const [k, b] of parts) if (b && !canon.has(k)) canon.set(k, b);
+    const fuzzyKeys = [...canon.keys()].filter(k => /[a-z]/.test(k)), memo = new Map();
+    const norm = v => {
+        const b = b0(v);
+        if (!b || names.has(b)) return b;
+        if (memo.has(b)) return memo.get(b);
+        const l = looseKey(b);
+        let out = canon.get(l);
+        if (out == null && /[a-z]/.test(l) && l.length >= fuzzyMin) {
+            const max = l.length >= 11 ? 2 : 1;
+            let best = null, bd = max + 1, tie = false;
+            for (const k of fuzzyKeys) { const d = editDistance(l, k, max); if (d < bd) { bd = d; best = k; tie = false; } else if (d === bd) tie = true; }
+            if (best && bd <= max && !tie) out = canon.get(best);
+        }
+        memo.set(b, out ?? b);
+        return out ?? b;
+    };
+    norm.names = names;
+    return norm;
+}
+
+// Cells listing several values: commas, semicolons, pipes or line breaks (not slashes, which
+// are in names like "Castro/Upper Market").
+const MULTI_DELIMITER = /\s*[,;|\n]\s*/;
+// MULTI_DELIMITER when at least share (5%) of a column's filled cells hold one of those, else null.
+function detectDelimiter(rows, col, opts) {
+    const o = opts || {};
+    let filled = 0, multi = 0;
+    for (const r of sampleRows(rows, o.sample ?? 5000)) {
+        const v = r[col];
+        if (v == null || v === '' || Array.isArray(v)) continue;
+        filled++;
+        if (/[,;|\n]/.test(String(v))) multi++;
+    }
+    return filled && multi / filled >= (o.share ?? 0.05) ? MULTI_DELIMITER : null;
+}
+
+// Up to n rows spread evenly through the table (all of them when it's smaller).
+function sampleRows(rows, n) {
+    if (rows.length <= n) return rows;
+    return Array.from({ length: n }, (_, i) => rows[Math.floor(i * rows.length / n)]);
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// Classes for a color ramp (0.3)
+// ═════════════════════════════════════════════════════════════════════════
+
+// Natural breaks (Ckmeans, Wang & Song 2011) on sorted values: k groups, each a slice of sorted.
+// Runs of equal values are one unit, and past maxUnits distinct values neighbors are pooled, so
+// thousands of values take milliseconds (the DP is O(k·units²)).
+function ckmeans(sorted, k, opts) {
+    const N = sorted.length, MAX = (opts && opts.maxUnits) || 1500;
+    const runs = [];
+    for (let i = 0; i < N;) { let j = i + 1; while (j < N && sorted[j] === sorted[i]) j++; runs.push([i, j]); i = j; }
+    const units = runs.length <= MAX ? runs : Array.from({ length: MAX }, (_, b) => {
+        const r0 = Math.floor(b * runs.length / MAX), r1 = Math.floor((b + 1) * runs.length / MAX) - 1;
+        return [runs[r0][0], runs[r1][1]];
+    });
+    const n = units.length;
+    k = Math.max(1, Math.min(k, n));
+    const W = new Float64Array(n + 1), S1 = new Float64Array(n + 1), S2 = new Float64Array(n + 1);
+    units.forEach(([a, b], i) => {
+        let s1 = 0, s2 = 0;
+        for (let t = a; t < b; t++) { s1 += sorted[t]; s2 += sorted[t] * sorted[t]; }
+        W[i + 1] = W[i] + (b - a); S1[i + 1] = S1[i] + s1; S2[i + 1] = S2[i] + s2;
+    });
+    const ssd = (j, i) => { const w = W[i + 1] - W[j], s1 = S1[i + 1] - S1[j]; return S2[i + 1] - S2[j] - s1 * s1 / w; };
+    const cost = Array.from({ length: k }, () => new Float64Array(n));
+    const back = Array.from({ length: k }, () => new Int32Array(n));
+    for (let i = 0; i < n; i++) cost[0][i] = ssd(0, i);
+    for (let c = 1; c < k; c++) for (let i = c; i < n; i++) {
+        let best = Infinity, arg = c;
+        for (let j = c; j <= i; j++) { const v = cost[c - 1][j - 1] + ssd(j, i); if (v < best) { best = v; arg = j; } }
+        cost[c][i] = best; back[c][i] = arg;
+    }
+    const groups = []; let end = n - 1;
+    for (let c = k - 1; c >= 0; c--) { const start = back[c][end]; groups.unshift(sorted.slice(units[start][0], units[end][1])); end = start - 1; }
+    return groups;
+}
+
+// Min, max, median and mean of sorted values.
+function summaryStats(sorted) {
+    const n = sorted.length, mid = n >> 1;
+    if (!n) return { n: 0, min: null, max: null, median: null, mean: null };
+    return { n, min: sorted[0], max: sorted[n - 1], median: n % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2,
+        mean: sorted.reduce((a, b) => a + b, 0) / n };
+}
+
+// Classes for values:
+//   method  'jenks' (natural breaks, around gaps), 'equal' (same span each) or 'quantile' (same count each)
+//   k       most classes (fewer when there are fewer distinct values)
+//   log     natural breaks and equal width on log10 of the values (values must be > 0)
+// Returns { k, uppers, ranges: [{ lo, hi, n, cls }], classOf(v) → 0…k-1 (or -1 for null), stats, method, log }.
+// Equal width keeps empty classes (their span), the others drop them.
+function classBreaks(values, opts) {
+    const o = opts || {};
+    const sorted = values.filter(v => v !== null && v !== undefined && isFinite(v)).sort((a, b) => a - b), n = sorted.length;
+    const method = o.method || 'jenks';
+    if (!n) return { k: 0, uppers: [], ranges: [], classOf: () => -1, stats: summaryStats([]), method, log: false };
+    const k = Math.min(o.k || 5, new Set(sorted).size);
+    const log = !!o.log && method !== 'quantile' && sorted[0] > 0;
+    const t = log ? Math.log10 : v => v, inv = log ? v => 10 ** v : v => v;
+    let uppers, bounds = null;
+    if (method === 'equal') {
+        const lo = t(sorted[0]), hi = t(sorted[n - 1]), w = (hi - lo) / k || 1;
+        bounds = Array.from({ length: k + 1 }, (_, i) => inv(lo + w * i));
+        bounds[0] = sorted[0]; bounds[k] = sorted[n - 1];
+        uppers = bounds.slice(1);
+    } else if (method === 'quantile') {
+        uppers = [...new Set(Array.from({ length: k }, (_, i) => sorted[Math.max(0, Math.ceil((i + 1) * n / k) - 1)]))];
+    } else {
+        const groups = ckmeans(sorted.map(t), k);
+        let at = 0;
+        uppers = groups.map(g => { at += g.length; return sorted[at - 1]; });
+    }
+    const kk = uppers.length;
+    const idx = v => { const i = uppers.findIndex(u => v <= u); return i < 0 ? kk - 1 : i; };
+    const members = uppers.map(() => []);
+    for (const v of sorted) members[idx(v)].push(v);
+    const ranges = members.map((g, i) => ({ lo: bounds ? bounds[i] : g[0], hi: bounds ? bounds[i + 1] : g[g.length - 1], n: g.length, cls: i }))
+        .filter(r => r.n || bounds);
+    return { k: kk, uppers, ranges, classOf: v => (v === null || v === undefined || !isFinite(v)) ? -1 : idx(v), stats: summaryStats(sorted), method, log };
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// Big tables, in chunks (0.3)
+// ═════════════════════════════════════════════════════════════════════════
+const defaultYield = () => new Promise(r => setTimeout(r, 0));
+
+// assignPointsToPolygons in chunks: onProgress(done, total) before each, yieldFn() between.
+async function assignPointsToPolygonsChunked(points, features, opts) {
+    const o = opts || {};
+    const index = buildPolygonIndex(features, o), n = points.length, CH = o.chunkSize || 20000;
+    const out = new Array(n), yieldFn = o.yieldFn || defaultYield;
+    for (let i = 0; i < n; i += CH) {
+        o.onProgress?.(i, n);
+        await yieldFn();
+        const got = index.locateAll(points.slice(i, i + CH));
+        for (let j = 0; j < got.length; j++) out[i + j] = got[j];
+    }
+    o.onProgress?.(n, n);
+    return out;
+}
+
+// A join for big tables: one pass over the rows in chunks, giving each feature its rows, count
+// and per-column count, sum, average and share of the column's total (sum_X, avg_X, count_X,
+// pct_X — not the median, stddev or mode buildJoin adds). Column types come from a sample.
+// Rows go to features by their key column, or by areaOf (a feature id per row, e.g. from
+// assignPointsToPolygons); a key cell can hold several keys (delimiter) and counts toward each.
+//   rows, headers, features, propKey, normalize, delimiter, idOf   as buildJoin
+//   keyCol      the row column to match (omit with areaOf)
+//   areaOf      array: the feature id for each row (or null)
+//   types       explicit column types, as classifyColumns; exclude: columns never summed
+//   chunkSize, onProgress(done, total), yieldFn
+// Returns { keyCol, byId, numericCols, currencyCols, matchedRows, nullRows, totals, rowArea,
+// rowAreas (keyCol only: each row's feature ids, in the cell's order), unmatched: [{ label, n }] }.
+async function buildJoinChunked(params) {
+    const { rows, headers, features } = params;
+    const n = rows.length, CH = params.chunkSize || 20000, yieldFn = params.yieldFn || defaultYield;
+    const idOf = params.idOf || defaultIdOf, normalize = params.normalize || normVal;
+    const types = classifyColumns(sampleRows(rows, 5000), headers, { exclude: [params.keyCol, ...(params.exclude || [])].filter(Boolean), types: params.types });
+    const numericCols = types.numericCols, m = numericCols.length;
+    const areaOf = params.areaOf || null;
+    const index = areaOf ? null : buildFeatureIndex(features, params.propKey, { normalize, idOf });
+    const byId = {}, tally = new Map(), totals = new Float64Array(m), nums = new Array(m);
+    const rowArea = new Array(n).fill(null), rowAreas = areaOf ? null : new Array(n);
+    let matchedRows = 0, nullRows = 0;
+    for (let i0 = 0; i0 < n; i0 += CH) {
+        params.onProgress?.(i0, n);
+        await yieldFn();
+        for (let i = i0; i < Math.min(n, i0 + CH); i++) {
+            const row = rows[i];
+            // Totals cover every row, matched or not: shares are of the whole column, as in buildJoin.
+            for (let j = 0; j < m; j++) { const v = parseNum(row[numericCols[j]]); nums[j] = v; if (v !== null) totals[j] += v; }
+            let ids;
+            if (areaOf) { if (areaOf[i] == null) { nullRows++; continue; } ids = [areaOf[i]]; }
+            else {
+                ids = []; let any = false;
+                const raw = row[params.keyCol];
+                const vals = (Array.isArray(raw) || params.delimiter) ? cellValues(raw, params.delimiter).map(cellText) : [raw];
+                for (const v of vals) {
+                    const k = normalize(v); if (!k) continue; any = true;
+                    const hit = index.get(k);
+                    if (!hit) { const t = tally.get(k) || tally.set(k, { label: String(cellText(v)).trim(), n: 0 }).get(k); t.n++; continue; }
+                    for (const id of hit) if (!ids.includes(id)) ids.push(id);
+                }
+                rowAreas[i] = ids;
+                if (!any) { nullRows++; continue; }
+            }
+            if (!ids.length) continue;
+            matchedRows++; rowArea[i] = ids[0];
+            for (const id of ids) {
+                const e = byId[id] || (byId[id] = { rows: [], agg: { count: 0 }, _s: new Float64Array(m), _c: new Uint32Array(m) });
+                e.rows.push(row); e.agg.count++;
+                for (let j = 0; j < m; j++) if (nums[j] !== null) { e._s[j] += nums[j]; e._c[j]++; }
+            }
+        }
+    }
+    params.onProgress?.(n, n);
+    for (const e of Object.values(byId)) {
+        numericCols.forEach((col, j) => {
+            const has = e._c[j] > 0;
+            e.agg['count_' + col] = e._c[j];
+            e.agg['sum_' + col] = has ? e._s[j] : null;
+            e.agg['avg_' + col] = has ? e._s[j] / e._c[j] : null;
+            if (totals[j] > 0) e.agg['pct_' + col] = has ? e._s[j] / totals[j] * 100 : null;
+        });
+        delete e._s; delete e._c;
+    }
+    return {
+        keyCol: params.keyCol ?? null, byId, numericCols, currencyCols: types.currencyCols, matchedRows, nullRows,
+        totals: Object.fromEntries(numericCols.map((c, j) => [c, totals[j]])), rowArea, rowAreas,
+        unmatched: [...tally.values()].sort((a, b) => b.n - a.n || a.label.localeCompare(b.label)),
+    };
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// Dissolve (0.3): merge polygons that share a property
+// ═════════════════════════════════════════════════════════════════════════
+// Election precincts into districts, say. Shared edges cancel and the rest are chained into
+// rings, which needs neighbors to share vertices exactly (true of files cut from one map);
+// otherwise the group falls back to a MultiPolygon of its members (same fill, inner lines show).
+const ptKey = p => p[0].toFixed(7) + ',' + p[1].toFixed(7);
+const signedArea = ring => { let a = 0; for (let i = 0, n = ring.length - 1; i < n; i++) a += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1]; return a / 2; };
+const polysOf = g => !g ? [] : g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
+
+function dissolveGeometries(geoms) {
+    const polys = geoms.flatMap(polysOf);
+    if (polys.length <= 1) return polys.length ? { type: 'Polygon', coordinates: polys[0] } : null;
+    const edges = new Map();
+    for (const poly of polys) poly.forEach((ring, r) => {
+        const rr = (signedArea(ring) > 0) === (r === 0) ? ring : [...ring].reverse();   // outers CCW, holes CW
+        for (let i = 0; i < rr.length - 1; i++) {
+            const a = rr[i], b = rr[i + 1], ka = ptKey(a), kb = ptKey(b);
+            if (ka === kb) continue;
+            const k = ka < kb ? ka + '|' + kb : kb + '|' + ka;
+            const e = edges.get(k);
+            if (e) e.n++; else edges.set(k, { a, b, ka, kb, n: 1 });
+        }
+    });
+    const left = [...edges.values()].filter(e => e.n === 1);
+    const from = new Map();
+    for (const e of left) (from.get(e.ka) || from.set(e.ka, []).get(e.ka)).push(e);
+    const used = new Set(), rings = [];
+    for (const e0 of left) {
+        if (used.has(e0)) continue;
+        const ring = [e0.a];
+        let e = e0, guard = 0;
+        while (e && !used.has(e) && guard++ < 1e6) {
+            used.add(e); ring.push(e.b);
+            if (e.kb === e0.ka) break;
+            e = (from.get(e.kb) || []).find(x => !used.has(x));
+        }
+        if (ptKey(ring[0]) !== ptKey(ring[ring.length - 1]) || ring.length < 4) return null;
+        rings.push(ring);
+    }
+    const outers = rings.filter(r => signedArea(r) > 0).map(r => [r]);
+    if (!outers.length) return null;
+    for (const h of rings.filter(r => signedArea(r) <= 0)) {
+        const home = outers.filter(o => ringContains(o[0], h[0][0], h[0][1])).sort((x, y) => Math.abs(signedArea(x[0])) - Math.abs(signedArea(y[0])))[0];
+        if (home) home.push(h);
+    }
+    return outers.length === 1 ? { type: 'Polygon', coordinates: outers[0] } : { type: 'MultiPolygon', coordinates: outers };
+}
+
+// One feature per value of prop: { [prop]: value, name, parts } and the merged outline.
+function dissolve(fc, prop, opts) {
+    const label = (opts && opts.label) || (v => v);
+    const groups = new Map();
+    for (const f of fc.features) {
+        const v = f.properties?.[prop];
+        if (v === null || v === undefined || v === '') continue;
+        const k = String(v);
+        (groups.get(k) || groups.set(k, []).get(k)).push(f);
+    }
+    const features = [...groups].sort((a, b) => a[0].localeCompare(b[0], 'en', { numeric: true })).map(([k, fs]) => ({
+        type: 'Feature', id: k, properties: { [prop]: k, name: String(label(k)), parts: fs.length },
+        geometry: dissolveGeometries(fs.map(f => f.geometry)) || { type: 'MultiPolygon', coordinates: fs.flatMap(f => polysOf(f.geometry)) },
+    }));
+    return { type: 'FeatureCollection', features };
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// H3 hexbins (0.3). Pass the h3-js module (v4) in: JoinKit itself stays dependency-free.
+// ═════════════════════════════════════════════════════════════════════════
+// Meters per pixel at a zoom and latitude (512 px tiles, as MapLibre).
+const metersPerPixel = (zoom, lat) => 78271.517 * Math.cos(lat * Math.PI / 180) / 2 ** zoom;
+// A hexagon's width (flat side to flat side) in pixels.
+const hexWidthPx = (h3, res, zoom, lat) => Math.sqrt(3) * h3.getHexagonEdgeLengthAvg(res, 'm') / metersPerPixel(zoom, lat);
+
+// The resolution whose hexagons are closest (on a log scale) to targetPx across at this zoom and
+// latitude, so the same rule works for a city or a continent. zoomShift moves the zoom side (±½
+// steps), bump moves the result by whole levels; min / max clamp it.
+function hexAutoResolution(h3, zoom, lat, opts) {
+    const o = opts || {}, target = o.targetPx || 32;
+    let best = 0, d = Infinity;
+    for (let r = 0; r <= 15; r++) { const e = Math.abs(Math.log(hexWidthPx(h3, r, zoom + (o.zoomShift || 0), lat) / target)); if (e < d) { d = e; best = r; } }
+    return Math.max(o.min ?? 0, Math.min(o.max ?? 15, best + (o.bump || 0)));
+}
+// The zoom (before any zoomShift) where hexAutoResolution moves from base res to res + 1.
+const hexSwitchZoom = (h3, res, lat, opts) => Math.log2((opts?.targetPx || 32) * metersPerPixel(0, lat)
+    / Math.sqrt(3 * h3.getHexagonEdgeLengthAvg(res, 'm') * h3.getHexagonEdgeLengthAvg(res + 1, 'm')));
+
+// Each point's cell at res ([lng, lat] in, cell id or null out).
+const hexCellsForPoints = (h3, points, res) => points.map(p => p ? h3.latLngToCell(p[1], p[0], res) : null);
+
+// Cells covering polygon features at res, each named for the feature covering most of it
+// (counted on cells two levels finer, so slivers along edges are caught).
+//   nameOf(feature)  the name to give (default its id); maxCells: return null if more than this
+// Returns Map(cell → name), or null when it would be too many.
+function hexCover(h3, features, res, opts) {
+    const o = opts || {}, nameOf = o.nameOf || (f => String(f.id)), fine = Math.min(15, res + 2);
+    const votes = new Map();
+    for (const f of features) {
+        const name = nameOf(f);
+        for (const p of polysOf(f.geometry)) for (const fc of h3.polygonToCells(p, fine, true)) {
+            const cell = fine === res ? fc : h3.cellToParent(fc, res);
+            const v = votes.get(cell) || votes.set(cell, new Map()).get(cell);
+            v.set(name, (v.get(name) || 0) + 1);
+            if (o.maxCells && votes.size > o.maxCells) return null;
+        }
+    }
+    return new Map([...votes].map(([cell, v]) => [cell, [...v].sort((a, b) => b[1] - a[1])[0][0]]));
+}
+
+// Short codes for a set of cells: each id without the digits they all share and without the
+// trailing f's of unused finer levels (a fixed number per resolution, so codes are the same
+// length): "8928308280fffff" → "#280". Returns Map(cell → code).
+function hexShortCodes(h3, cells) {
+    const ids = [...cells];
+    let pre = ids[0]?.length || 0;
+    for (const id of ids) { let k = 0; while (k < pre && id[k] === ids[0][k]) k++; pre = k; }
+    return new Map(ids.map(id => {
+        const tail = Math.floor(3 * (15 - h3.getResolution(id)) / 4);
+        return [id, '#' + id.slice(Math.min(pre, id.length - tail - 1), id.length - tail)];
+    }));
+}
+// A cell as a GeoJSON feature (id and properties.h3 = the cell).
+const hexFeature = (h3, cell, props) => ({ type: 'Feature', id: cell, properties: { h3: cell, ...(props || {}) },
+    geometry: { type: 'Polygon', coordinates: [h3.cellToBoundary(cell, true)] } });
+
 function unionOf(bbs) {
     return bbs.reduce((u, b) => [Math.min(u[0], b[0]), Math.min(u[1], b[1]), Math.max(u[2], b[2]), Math.max(u[3], b[3])],
         [Infinity, Infinity, -Infinity, -Infinity]);
@@ -737,5 +1119,12 @@ return {
     matchCondition, filterRows,
     // spatial
     pointInPolygon, assignPointsToPolygons, buildPolygonIndex,
+    // 0.3: forgiving matching, classes, big tables, dissolve, hexbins
+    looseKey, editDistance, makeLooseNormalizer, MULTI_DELIMITER, detectDelimiter, sampleRows,
+    ckmeans, summaryStats, classBreaks,
+    assignPointsToPolygonsChunked, buildJoinChunked,
+    dissolve, dissolveGeometries,
+    hex: { metersPerPixel, widthPx: hexWidthPx, autoResolution: hexAutoResolution, switchZoom: hexSwitchZoom,
+        cellsForPoints: hexCellsForPoints, cover: hexCover, shortCodes: hexShortCodes, feature: hexFeature },
 };
 });
