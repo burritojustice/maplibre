@@ -64,6 +64,17 @@ Per-feature stats in `agg` use Selecter's names: `count`, and for each numeric c
 | Filtering | `filterRows(rows, conditions, {mode})` | Any number of conditions, `and` / `or` |
 | Spatial | `pointInPolygon([lng, lat], geometry)` | Polygon and MultiPolygon, with holes |
 | | `assignPointsToPolygons(points, features)` | Containing polygon id for each point |
+| Matching (0.3) | `makeLooseNormalizer(keys, base)` | Forgiving names: case, spaces, punctuation; slash parts (“Treasure Island” → “Treasure Island/YBI”); one or two letters off for names of 8+ letters |
+| | `detectDelimiter(rows, col)`, `MULTI_DELIMITER` | Columns listing several values per cell (commas, semicolons, pipes, line breaks; not slashes) |
+| | `looseKey(s)`, `editDistance(a, b, max)`, `sampleRows(rows, n)` | Helpers |
+| Classes (0.3) | `classBreaks(values, {method, k, log})` | Natural breaks (`jenks`), equal width (`equal`) or quantiles, optionally on log10; ranges, `classOf`, min/max/median/mean |
+| | `ckmeans(sorted, k)`, `summaryStats(sorted)` | Natural breaks on runs of equal values (fast with thousands of areas) |
+| Big tables (0.3) | `buildJoinChunked(params)` | The join in chunks with `onProgress(done, total)`: counts, sums, averages, shares; by key column or by `areaOf` (a feature id per row); `rowAreas` and `unmatched` too |
+| | `assignPointsToPolygonsChunked(points, features, opts)` | Point-in-polygon in chunks with progress |
+| Dissolve (0.3) | `dissolve(fc, prop)`, `dissolveGeometries(geoms)` | Merge polygons sharing a property (precincts → districts) into clean outlines |
+| Hexbins (0.3) | `hex.autoResolution(h3, zoom, lat, opts)` | H3 resolution whose hexagons are ~`targetPx` (32) across at this zoom and latitude; `zoomShift`, `bump`, `min`, `max` |
+| | `hex.switchZoom`, `hex.widthPx`, `hex.metersPerPixel` | Where Auto changes level; hexagon size on screen |
+| | `hex.cellsForPoints`, `hex.cover`, `hex.shortCodes`, `hex.feature` | Cells for points, cells covering polygons (named by the polygon covering most of each), short codes (“#82c7”), cell → GeoJSON |
 
 ### Key normalizers and crosswalks
 
@@ -109,3 +120,15 @@ node --test 'joinkit/test/*.test.js'
 
 - A row never counts twice toward the same feature — e.g. multi-select keys `"D3"` and `"3"`, or a layer that contains the same `_gvid` twice. v964 could double-count in the second case.
 - `makeKeyNormalizer()` treats the number `0` as a key; `normVal(0)` returns `''` (kept for parity — see Selecter known issues).
+
+## 0.3: big tables, classes, hexbins
+
+Added for Joiner (2026-10-22), all new functions; nothing older changed.
+
+- **Big tables.** `buildJoinChunked` does the join in one pass over the rows, in chunks, calling `onProgress(done, total)` and yielding between chunks so a page can show a progress bar. With 367,000 rows it takes about 0.4 s where `buildJoin` takes about 3 s. It gives `count`, and per numeric column `count_X`, `sum_X`, `avg_X`, `pct_X` (share of the column's total over all rows), but not the median, stddev or mode; column types come from a 5,000-row sample.
+- **Classes.** `classBreaks` for color ramps: natural breaks, equal width or quantiles, with an optional log scale. `ckmeans` treats runs of equal values as one unit (and pools neighbors past 1,500 distinct values), so it stays fast with thousands of areas.
+- **Forgiving matching.** `makeLooseNormalizer` and `detectDelimiter`, for spreadsheets that list several areas in a cell or spell them loosely.
+- **Hexbins.** `JoinKit.hex.*` takes the h3-js (v4) module as its first argument, so JoinKit still has no dependencies.
+- **Dissolve.** `dissolve(fc, prop)` builds districts from precincts that share a district number.
+
+Tests: `node --test test/*.test.js` (the hexbin test runs when `h3-js` can be required, and is skipped otherwise).
