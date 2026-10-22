@@ -1,7 +1,7 @@
 # Socrata + MapLibre connector
 
 A small, dependency-free JS module that loads any [Socrata Open Data](https://dev.socrata.com/)
-portal (SODA 2.1 / SoQL) - `data.sf.gov`, `data.cityofchicago.org`, any city on the platform -
+portal (SODA 2.1 or SODA3 / SoQL) - `data.sf.gov`, `data.cityofchicago.org`, any city on the platform -
 as a live GeoJSON source for [MapLibre GL JS](https://maplibre.org/maplibre-gl-js/docs/).
 
 ## Usage
@@ -73,7 +73,15 @@ SocrataConnector.parseWkt('POINT(-122.4 37.7)');
 `new SocrataConnector(portal, { appToken: 'YOUR_TOKEN' })`. Only the app-token string works
 from a browser. Socrata's newer API key ID/secret pair is meant for HTTP Basic Auth, and
 Socrata's CORS policy doesn't allow the `Authorization` header cross-origin, so that pair
-only works server-side (see the Python `SocrataClient` in the same PR).
+only works server-side (see the Python `SocrataClient` in
+[Vibemap-Analysis](https://github.com/Vibemap/Vibemap-Analysis), `etl/scrapers/socrata/client.py`).
+
+**SODA3.** Socrata's newer API is `POST /api/v3/views/{id}/query.json` with one SoQL string
+in a JSON body, and portals that enforce it require an app token or user credentials on every
+request. Opt in with `new SocrataConnector(portal, { appToken, apiVersion: '3' })`. Everything
+else (`fetchRows`, `count`, `fetchAllGeoJSON`, `addSocrataLayer`) works unchanged. A browser
+POST with `Content-Type` and `X-App-Token` passes Socrata's CORS preflight, so it needs no
+proxy. SODA 2.1 stays the default, and `data.sf.gov` currently answers both without a token.
 
 **A `limit` smaller than the true match count returns Socrata's arbitrary scan order, not a
 representative sample** - with no `$order`, "first 2,000 of 13,629 matching rows" can come
@@ -97,7 +105,8 @@ are carried over. The last form - the URL pasted straight onto the path - goes t
 repo-root `404.html`, which moves it into the hash.
 
 Hash keys: `url`, `limit`, `geom` (`point` or `latitude,longitude`), `mode` (`viewport` |
-`all`), `where`, `select`, `order`, `token`, `map` (`zoom/lat/lng`, same as Selecter). The
+`all`), `where`, `select`, `order`, `token`, `soda` (`3` to use SODA3), `map` (`zoom/lat/lng`,
+same as Selecter). The
 page rewrites the hash as you change settings or pan, so the address bar is always a
 shareable link. If detection guesses wrong, or finds nothing, the geometry menu lists the
 candidates plus "pick latitude / longitude columns".

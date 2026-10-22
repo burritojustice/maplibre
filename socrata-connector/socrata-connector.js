@@ -1,5 +1,5 @@
 /**
- * SocrataConnector - load any Socrata Open Data portal (SODA 2.1 / SoQL), e.g.
+ * SocrataConnector - load any Socrata Open Data portal (SODA 2.1 or SODA3 / SoQL), e.g.
  * https://data.sf.gov, as a GeoJSON source for MapLibre GL JS. No build step,
  * no dependencies beyond `fetch`.
  *
@@ -30,9 +30,14 @@ class SocrataConnector {
   // ID/secret pair (HTTP Basic Auth) is CORS-blocked cross-origin - its preflight omits
   // Access-Control-Allow-Headers for Authorization, unlike X-App-Token - so it only works
   // from server-side code (see the Python client in the same PR).
+  // `apiVersion`: '2.1' (default, GET /resource/{id}.json) or '3' (POST /api/v3/views/{id}/query.json
+  // with one SoQL string). SODA3 requires an app token or user credentials on every request on
+  // portals that enforce it; a POST with Content-Type + X-App-Token passes Socrata's CORS preflight.
   // `log`: true for console.info output prefixed [socrata], a function to receive
   // (message, ...details), or false/omitted for silence.
-  constructor(portalBaseUrl, { appToken, log } = {}) {
+  constructor(portalBaseUrl, { appToken, log, apiVersion = '2.1' } = {}) {
+    if (apiVersion !== '2.1' && apiVersion !== '3') throw new Error(`apiVersion must be '2.1' or '3', not ${apiVersion}`);
+    this.apiVersion = apiVersion;
     let base = String(portalBaseUrl).trim();
     if (!/^https?:\/\//i.test(base)) base = `https://${base}`;
     this.portalBaseUrl = base.replace(/\/+$/, '');
@@ -274,34 +279,62 @@ class SocrataConnector {
   async _get(url, signal) {
     const t0 = performance.now();
     const response = await fetch(url, { headers: this._headers(), signal });
-    if (response.status === 403) {
-      throw new Error(`Socrata rejected app token: ${await response.text()}`);
+    return this._read(response, decodeURIComponent(url), t0);
+  }
+
+  // SODA3: one SoQL string in a JSON body. includeSynthetic:false keeps :id/:version out of rows.
+  async _post(resourceId, query, signal) {
+    const url = `${this.portalBaseUrl}/api/v3/views/${resourceId}/query.json`;
+    const t0 = performance.now();
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...this._headers() },
+      body: JSON.stringify({ query, includeSynthetic: false }),
+      signal,
+    });
+    return this._read(response, `${url}  ${query}`, t0);
+  }
+
+  async _read(response, label, t0) {
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(`Socrata rejected credentials: ${await response.text()}`);
     }
     if (!response.ok) {
       // SODA puts the useful bit (e.g. "No such column: location") in the JSON body
       let detail = '';
       try { const body = await response.json(); detail = body.message || body.error || ''; } catch {}
-      this.log(`HTTP ${response.status} ${decodeURIComponent(url)}`, detail);
+      this.log(`HTTP ${response.status} ${label}`, detail);
       throw new Error(`Socrata request failed: HTTP ${response.status}${detail ? ` - ${detail}` : ''}`);
     }
     const body = await response.json();
-    this.log(`${Array.isArray(body) ? body.length : '?'} rows in ${Math.round(performance.now() - t0)} ms  ${decodeURIComponent(url)}`);
+    this.log(`${Array.isArray(body) ? body.length : '?'} rows in ${Math.round(performance.now() - t0)} ms  ${label}`);
     return body;
+  }
+
+  _soda3Query({ select, order, limit = 1000, offset = 0, ...whereOptions }) {
+    const where = this._where(whereOptions);
+    return `SELECT ${select || '*'}${where ? ` WHERE ${where}` : ''}${order ? ` ORDER BY ${order}` : ''} LIMIT ${limit} OFFSET ${offset}`;
   }
 
   async fetchRows(resourceId, options = {}) {
     // Bare row fetch (schema sniffing) shouldn't add a NOT NULL clause for a guessed field.
     const opts = options.geometry || options.geometryField ? options : { ...options, skipNotNull: true };
+    if (this.apiVersion === '3') return this._post(resourceId, this._soda3Query(opts), options.signal);
     return this._get(this.buildUrl(resourceId, opts), options.signal);
   }
 
   // Total matching rows for the same where/bbox - lets the UI say "500 of 8,963".
   async count(resourceId, options = {}) {
-    const params = new URLSearchParams({ $select: 'count(*) AS n' });
     const clause = this._where(options);
-    if (clause) params.set('$where', clause);
-    const [row] = await this._get(`${this.portalBaseUrl}/resource/${resourceId}.json?${params}`, options.signal);
-    return Number(row?.n ?? 0);
+    let rows;
+    if (this.apiVersion === '3') {
+      rows = await this._post(resourceId, `SELECT count(*) AS n${clause ? ` WHERE ${clause}` : ''}`, options.signal);
+    } else {
+      const params = new URLSearchParams({ $select: 'count(*) AS n' });
+      if (clause) params.set('$where', clause);
+      rows = await this._get(`${this.portalBaseUrl}/resource/${resourceId}.json?${params}`, options.signal);
+    }
+    return Number(rows[0]?.n ?? 0);
   }
 
   async fetchGeoJSON(resourceId, options = {}) {
