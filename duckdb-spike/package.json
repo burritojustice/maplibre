@@ -3,7 +3,7 @@
   "private": true,
   "description": "Spike: shapes in the browser, attributes in DuckDB. The page needs no install; npm install is only for the Node scripts and tests.",
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test test/split.test.js test/sql.test.js",
     "build-tiles-db": "node scripts/build-tiles-db.js"
   },
   "devDependencies": {
