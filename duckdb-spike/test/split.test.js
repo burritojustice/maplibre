@@ -48,7 +48,7 @@ test('splitGeoJSON separates shapes from a typed table keyed by fid', () => {
     assert.equal(types.pop, 'VARCHAR');     // '1,200' forces text
     assert.equal(types.score, 'DOUBLE');
     assert.equal(types.flag, 'BOOLEAN');
-    assert.equal(types.zip, 'INTEGER');
+    assert.equal(types.zip, 'INTEGER');     // '94110': no leading zero
     assert.equal(types.extra, 'VARCHAR');   // nested object is stringified
     assert.equal(types._cx, 'DOUBLE');
 
@@ -109,4 +109,22 @@ test('formatBytes', () => {
 test('numericColumns skips ids and codes', () => {
     const s = Split.splitGeoJSON(fc);
     assert.deepEqual(Split.numericColumns(s.columns), ['score']);
+});
+
+test('codes with leading zeros stay text', () => {
+    assert.equal(Split.inferType(['02134', '94110']), 'VARCHAR');
+    assert.equal(Split.inferType(['06075010100']), 'VARCHAR');
+    assert.equal(Split.inferType(['0', '10']), 'INTEGER');
+    const s = Split.splitGeoJSON({ type: 'Feature', geometry: null, properties: { geoid: '06075010100' } });
+    assert.equal(s.rows[0].geoid, '06075010100');
+});
+
+test('property names that clash with fid, derived columns or each other are renamed', () => {
+    const s = Split.splitGeoJSON({ type: 'Feature', geometry: null, properties: { fid: 7, Name: 'a', name: 'b', _cx: 1 } });
+    assert.deepEqual(s.columns.map(c => c.name).slice(0, 5), ['fid', 'fid_1', 'Name', 'name_1', '_cx_1']);
+    assert.equal(s.rows[0].fid, 1);
+    assert.equal(s.rows[0].fid_1, 7);
+    assert.equal(s.rows[0].name_1, 'b');
+    const lower = s.columns.map(c => c.name.toLowerCase());
+    assert.equal(new Set(lower).size, lower.length);
 });

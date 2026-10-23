@@ -45,7 +45,7 @@ function addStyleLayers(L) {
     map.addLayer({ id: L.id + '-point', type: 'circle', source: src, ...sl, filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-color': fillColor, 'circle-radius': 5, 'circle-stroke-color': '#fff', 'circle-stroke-width': 0.8 } });
     for (const suffix of ['-fill', '-line', '-point']) {
         map.on('mousemove', L.id + suffix, e => hover(L, e.features[0]));
-        map.on('mouseleave', L.id + suffix, () => { $('hover').style.display = 'none'; });
+        map.on('mouseleave', L.id + suffix, () => { $('hover').style.display = 'none'; hoverLast = null; });
     }
 }
 
@@ -75,6 +75,7 @@ function hover(L, f) {
         if (!state.engine) return;
         try {
             const r = await state.engine.query(`SELECT * FROM "${L.table}" WHERE fid = ${Number(id)}`);
+            if (hoverLast !== id) return;   // a newer hover started while this query ran
             box.style.display = 'block';
             const st = f.state || {};
             box.textContent = (st.value !== undefined ? 'value: ' + st.value + '\n' : '') +
@@ -107,7 +108,14 @@ $('btn-md').onclick = () => timed('connect MotherDuck', async () => {
 });
 
 // ---- upload -----------------------------------------------------------
-const tableName = f => f.replace(/\.[^.]+$/, '').replace(/[^\w]+/g, '_').replace(/^_+|_+$/g, '').toLowerCase() || 'upload';
+// A second upload with the same name gets t_2, so an older layer keeps its own table.
+function tableName(f) {
+    const base = f.replace(/\.[^.]+$/, '').replace(/[^\w]+/g, '_').replace(/^_+|_+$/g, '').toLowerCase() || 'upload';
+    const used = new Set(Object.values(state.layers).map(L => L.table));
+    let name = base, n = 1;
+    while (used.has(name)) name = base + '_' + (++n);
+    return name;
+}
 
 async function loadGeoJSON(name, fc, fileBytes) {
     if (!state.engine) throw new Error('open an engine first (step 1)');

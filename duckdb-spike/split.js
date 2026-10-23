@@ -26,6 +26,7 @@
             if (typeof v === 'string') {
                 const s = v.trim();
                 if (s === 'true' || s === 'false') { bools++; continue; }
+                if (/^0\d/.test(s)) return 'VARCHAR';   // zip, FIPS, GEOID: leading zeros are part of the key
                 if (/^-?\d+$/.test(s)) { nums++; ints++; if (Math.abs(Number(s)) > 2147483647) bigints++; continue; }
                 if (/^-?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(s)) { nums++; continue; }
             }
@@ -85,11 +86,22 @@
         const features = fc && fc.type === 'FeatureCollection' ? fc.features
             : fc && fc.type === 'Feature' ? [fc] : [];
 
-        // column order: first appearance across all features
-        const names = [];
-        const nameSet = new Set();
+        // column order: first appearance across all features. DuckDB names are
+        // case-insensitive, so a key clashing with fid, a derived column or an
+        // earlier key (Name vs name) gets a _1, _2 suffix.
+        const names = [];       // property keys
+        const colNames = [];    // their table column names
+        const seenKeys = new Set();
+        const taken = new Set(['fid', ...(derived ? DERIVED : [])]);
         for (const f of features) {
-            for (const k in (f.properties || {})) if (!nameSet.has(k)) { nameSet.add(k); names.push(k); }
+            for (const k in (f.properties || {})) {
+                if (seenKeys.has(k)) continue;
+                seenKeys.add(k);
+                let col = k, n = 0;
+                while (taken.has(col.toLowerCase())) col = k + '_' + (++n);
+                taken.add(col.toLowerCase());
+                names.push(k); colNames.push(col);
+            }
         }
 
         const geometry = { type: 'FeatureCollection', features: new Array(features.length) };
@@ -120,13 +132,13 @@
 
         const columns = [{ name: 'fid', type: 'INTEGER', source: 'id' }];
         const types = names.map((k, c) => inferType(raw[c]));
-        names.forEach((k, c) => columns.push({ name: k, type: types[c], source: 'property' }));
+        names.forEach((k, c) => columns.push({ name: colNames[c], type: types[c], source: 'property' }));
         if (derived) for (const d of DERIVED) columns.push({ name: d, type: 'DOUBLE', source: 'derived' });
 
         const rows = new Array(features.length);
         for (let i = 0; i < features.length; i++) {
             const r = { fid: startId + i };
-            names.forEach((k, c) => { r[k] = coerce(raw[c][i], types[c]); });
+            names.forEach((k, c) => { r[colNames[c]] = coerce(raw[c][i], types[c]); });
             if (derived) DERIVED.forEach((d, j) => { r[d] = derivedCols[j][i]; });
             rows[i] = r;
         }
