@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DuckDB split spike</title>
+    <!-- Optional cross-origin isolation via service worker (?coi), so SharedArrayBuffer
+         works on static hosting where COOP/COEP headers cannot be set. Off by default:
+         the jsDelivr DuckDB-WASM bundles (mvp, eh) do not use threads, and the worker
+         blocks fetches to servers that send no Cross-Origin-Resource-Policy header,
+         such as duckdb-tileserver. Turn it on only if the MotherDuck client asks for it. -->
+    <script>
+        window.coi = {
+            shouldRegister: () => /[?&]coi/.test(location.search),
+            shouldDeregister: () => !/[?&]coi/.test(location.search),
+            coepCredentialless: () => true,
+            quiet: true,
+        };
+    </script>
+    <script src="coi-serviceworker.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.css" rel="stylesheet">
+    <script src="https://unpkg.com/maplibre-gl@5.16.0/dist/maplibre-gl.js"></script>
+    <script src="../joinkit/joinkit.js"></script>
+    <script src="split.js"></script>
+    <style>
+        :root { --bg: #fff; --fg: #1b1b1b; --muted: #6b6b6b; --line: #e3e3e3; --accent: #2457c5; --mono: ui-monospace, Menlo, Consolas, monospace; --sans: system-ui, -apple-system, "Segoe UI", sans-serif; }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; height: 100%; font: 13px/1.4 var(--sans); color: var(--fg); background: var(--bg); }
+        #app { display: grid; grid-template-columns: 380px 1fr; height: 100%; }
+        #panel { overflow: auto; border-right: 1px solid var(--line); padding: 12px 14px 40px; }
+        #map { position: relative; }
+        h1 { font-size: 15px; margin: 0 0 2px; }
+        h1 small { font-weight: normal; color: var(--muted); }
+        h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 6px; }
+        section { border-top: 1px solid var(--line); }
+        section:first-of-type { border-top: 0; }
+        .row { display: flex; gap: 6px; align-items: center; margin: 4px 0; flex-wrap: wrap; }
+        .row label { color: var(--muted); min-width: 60px; }
+        input[type=text], input[type=password], select, textarea { font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; flex: 1; min-width: 0; }
+        textarea { font-family: var(--mono); font-size: 12px; width: 100%; min-height: 70px; resize: vertical; }
+        button { font: inherit; padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: #f6f6f6; cursor: pointer; }
+        button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        button:disabled { opacity: .5; cursor: default; }
+        #status { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: pre-wrap; margin-top: 4px; min-height: 16px; }
+        #status.err { color: #b3261e; }
+        table.grid { border-collapse: collapse; width: 100%; font-size: 11px; font-family: var(--mono); margin-top: 6px; }
+        table.grid th, table.grid td { border-bottom: 1px solid var(--line); padding: 2px 4px; text-align: left; white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+        table.grid th { color: var(--muted); font-weight: normal; }
+        .scroll { overflow: auto; max-height: 220px; }
+        .pill { display: inline-block; border: 1px solid var(--line); border-radius: 10px; padding: 0 7px; font-size: 11px; color: var(--muted); }
+        #legend { display: flex; flex-direction: column; gap: 2px; font-size: 11px; margin-top: 6px; }
+        #legend .sw { display: inline-block; width: 14px; height: 11px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+        #hover { position: absolute; left: 10px; bottom: 10px; background: rgba(255,255,255,.95); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font: 11px/1.4 var(--mono); max-width: 360px; max-height: 45%; overflow: auto; display: none; }
+        #chart { margin-top: 6px; }
+        #chart svg { max-width: 100%; }
+        details summary { cursor: pointer; color: var(--muted); }
+        /* size panel: shapes (series 1) vs attributes (series 2) vs file overhead */
+        :root { --series-1: #2a78d6; --series-2: #eb6834; --overhead: #c9c7c0; --text-secondary: #52514e; }
+        #sizes { display: none; }
+        #sizes .sz-hero { font-size: 13px; margin: 4px 0 6px; }
+        #sizes .sz-hero b { font-weight: 600; }
+        .sz-bar { display: flex; gap: 2px; height: 18px; margin: 4px 0 2px; }
+        .sz-seg { border-radius: 3px; min-width: 2px; position: relative; }
+        .sz-seg:hover { outline: 2px solid var(--fg); outline-offset: 1px; z-index: 1; }
+        .sz-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--text-secondary); margin: 2px 0 8px; }
+        .sz-legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+        .sz-cols { display: grid; grid-template-columns: minmax(70px, max-content) 1fr max-content; gap: 3px 8px; align-items: center; font-size: 11px; }
+        .sz-cols .nm { font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sz-cols .nm.derived { color: var(--muted); }
+        .sz-cols .tr { height: 10px; background: var(--line); border-radius: 2px; overflow: hidden; }
+        .sz-cols .bar { height: 100%; background: var(--series-2); border-radius: 2px; }
+        .sz-cols .derived .bar { opacity: .45; }
+        .sz-cols .val { color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .sz-note { color: var(--muted); font-size: 11px; margin-top: 6px; }
+        code { font-family: var(--mono); font-size: 11px; background: #f3f3f3; padding: 0 3px; border-radius: 3px; }
+        @media (max-width: 760px) { #app { grid-template-columns: 1fr; grid-template-rows: 50% 50%; } #panel { border-right: 0; border-bottom: 1px solid var(--line); } }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div id="panel">
+        <h1>DuckDB split spike <small>shapes in the browser, attributes in DuckDB</small></h1>
+        <div id="status">idle</div>
+
+        <section>
+            <h2>1. Engine</h2>
+            <div class="row">
+                <button id="btn-local" class="primary">Local DuckDB-WASM</button>
+                <span id="engine-label" class="pill">none</span>
+            </div>
+            <div class="row">
+                <label for="md-token">MotherDuck</label>
+                <input id="md-token" type="password" placeholder="access token (app.motherduck.com → Settings)" autocomplete="off">
+                <button id="btn-md">Connect</button>
+            </div>
+            <details><summary>about tokens</summary>
+                <div style="color:var(--muted)">The token stays in this tab (sessionStorage) and goes only to app.motherduck.com through the official client. Use a read-scoped token for anything shared.</div>
+            </details>
+        </section>
+
+        <section>
+            <h2>2. Upload</h2>
+            <div class="row">
+                <input id="file" type="file" accept=".geojson,.json,.csv,.tsv,.parquet,.jsonl" style="flex:1">
+            </div>
+            <div class="row">
+                <label>samples</label>
+                <button class="sample" data-url="../selecter/geojson/SF_city_data/SF_Find_Micro_Neighborhoods.geojson">SF micro-neighborhoods</button>
+                <button class="sample" data-url="../selecter/geojson/SF_city_data/SF_Analysis_Neighborhoods.geojson">SF neighborhoods</button>
+                <button class="sample" data-url="../selecter/geojson/SF_city_data/Slow_Streets_20260903.geojson">Slow streets</button>
+            </div>
+            <div id="split-stats" style="color:var(--muted)"></div>
+            <div id="schema" class="scroll"></div>
+        </section>
+
+        <section id="sizes">
+            <h2>Where the bytes went</h2>
+            <div class="sz-hero" id="sz-hero"></div>
+            <div class="sz-bar" id="sz-bar" role="img"></div>
+            <div class="sz-legend" id="sz-legend"></div>
+            <div class="sz-cols" id="sz-cols"></div>
+            <div class="sz-note" id="sz-note"></div>
+        </section>
+
+        <section>
+            <h2>3. Query → paint</h2>
+            <div class="row">
+                <label for="target">paint</label>
+                <select id="target"><option value="">(no layer yet)</option></select>
+            </div>
+            <textarea id="sql" spellcheck="false" placeholder="SELECT fid, &lt;numeric column&gt; AS value FROM &lt;table&gt;"></textarea>
+            <div class="row">
+                <button id="btn-run" class="primary" disabled>Run</button>
+                <select id="breaks"><option value="jenks">natural breaks</option><option value="quantile">quantiles</option><option value="equal">equal width</option></select>
+                <span style="color:var(--muted)">a result with <code>fid</code> + <code>value</code> columns paints the map</span>
+            </div>
+            <div id="legend"></div>
+            <div id="result" class="scroll"></div>
+        </section>
+
+        <section>
+            <h2>4. Chart (Mosaic vgplot, local engine)</h2>
+            <div class="row">
+                <select id="chart-col"><option value="">(column)</option></select>
+                <button id="btn-chart" disabled>Histogram</button>
+            </div>
+            <div id="chart"></div>
+        </section>
+
+        <section>
+            <h2>5. duckdb-tileserver</h2>
+            <div class="row">
+                <input id="ts-base" type="text" value="http://localhost:9000" placeholder="tileserver base URL">
+                <button id="btn-ts-layers">List layers</button>
+            </div>
+            <div class="row">
+                <select id="ts-layer"><option value="">(layers)</option></select>
+                <input id="ts-idprop" type="text" placeholder="id property (promoteId)" style="max-width:150px">
+                <button id="btn-ts-add" disabled>Add</button>
+            </div>
+            <div id="ts-info" style="color:var(--muted)"></div>
+        </section>
+    </div>
+    <div id="map"><div id="hover"></div></div>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
