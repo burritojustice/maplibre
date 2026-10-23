@@ -54,6 +54,24 @@
         #chart { margin-top: 6px; }
         #chart svg { max-width: 100%; }
         details summary { cursor: pointer; color: var(--muted); }
+        /* size panel: shapes (series 1) vs attributes (series 2) vs file overhead */
+        :root { --series-1: #2a78d6; --series-2: #eb6834; --overhead: #c9c7c0; --text-secondary: #52514e; }
+        #sizes { display: none; }
+        #sizes .sz-hero { font-size: 13px; margin: 4px 0 6px; }
+        #sizes .sz-hero b { font-weight: 600; }
+        .sz-bar { display: flex; gap: 2px; height: 18px; margin: 4px 0 2px; }
+        .sz-seg { border-radius: 3px; min-width: 2px; position: relative; }
+        .sz-seg:hover { outline: 2px solid var(--fg); outline-offset: 1px; z-index: 1; }
+        .sz-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--text-secondary); margin: 2px 0 8px; }
+        .sz-legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+        .sz-cols { display: grid; grid-template-columns: minmax(70px, max-content) 1fr max-content; gap: 3px 8px; align-items: center; font-size: 11px; }
+        .sz-cols .nm { font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sz-cols .nm.derived { color: var(--muted); }
+        .sz-cols .tr { height: 10px; background: var(--line); border-radius: 2px; overflow: hidden; }
+        .sz-cols .bar { height: 100%; background: var(--series-2); border-radius: 2px; }
+        .sz-cols .derived .bar { opacity: .45; }
+        .sz-cols .val { color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .sz-note { color: var(--muted); font-size: 11px; margin-top: 6px; }
         code { font-family: var(--mono); font-size: 11px; background: #f3f3f3; padding: 0 3px; border-radius: 3px; }
         @media (max-width: 760px) { #app { grid-template-columns: 1fr; grid-template-rows: 50% 50%; } #panel { border-right: 0; border-bottom: 1px solid var(--line); } }
     </style>
@@ -93,6 +111,15 @@
             </div>
             <div id="split-stats" style="color:var(--muted)"></div>
             <div id="schema" class="scroll"></div>
+        </section>
+
+        <section id="sizes">
+            <h2>Where the bytes went</h2>
+            <div class="sz-hero" id="sz-hero"></div>
+            <div class="sz-bar" id="sz-bar" role="img"></div>
+            <div class="sz-legend" id="sz-legend"></div>
+            <div class="sz-cols" id="sz-cols"></div>
+            <div class="sz-note" id="sz-note"></div>
         </section>
 
         <section>

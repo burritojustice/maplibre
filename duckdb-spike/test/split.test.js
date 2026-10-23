@@ -81,6 +81,31 @@ test('SQL helpers quote identifiers and chunk inserts', () => {
     assert.match(chunks[1], /"fid":3/);
 });
 
+test('measure splits the bytes between the two halves', () => {
+    const text = JSON.stringify(fc);
+    const s = Split.splitGeoJSON(fc, { derived: false });
+    const m = Split.measure(s, Split.utf8Bytes(text));
+    assert.equal(m.coordinates, 15);                           // 3 squares × 5 ring points
+    assert.equal(m.geometryBytes, Split.utf8Bytes(JSON.stringify(s.geometry)));
+    assert.equal(m.attributeBytes, Split.utf8Bytes(JSON.stringify(s.rows)));
+    assert.deepEqual(m.columns.map(c => c.name), ['fid', 'name', 'pop', 'score', 'flag', 'zip', 'extra']);
+    const byName = Object.fromEntries(m.columns.map(c => [c.name, c]));
+    assert.equal(byName.name.bytes, 9);                        // "A" "B" "C" with quotes
+    assert.equal(byName.zip.nulls, 2);
+    assert.equal(byName.extra.bytes, 4 + 11 + 4);              // null, "{\"x\":1}" escaped, null
+    assert.ok(m.propertyBytes < m.attributeBytes);             // keys and fid are not property bytes
+    assert.ok(m.overhead > 0 && m.overhead < m.fileBytes);
+    assert.equal(Split.measure(s).overhead, null);
+    assert.equal(Split.utf8Bytes('é€😀'), 2 + 3 + 4);
+});
+
+test('formatBytes', () => {
+    assert.equal(Split.formatBytes(512), '512 B');
+    assert.equal(Split.formatBytes(2048), '2.0 KB');
+    assert.equal(Split.formatBytes(3 * 1048576), '3.00 MB');
+    assert.equal(Split.formatBytes(null), '');
+});
+
 test('numericColumns skips ids and codes', () => {
     const s = Split.splitGeoJSON(fc);
     assert.deepEqual(Split.numericColumns(s.columns), ['score']);

@@ -109,11 +109,12 @@ $('btn-md').onclick = () => timed('connect MotherDuck', async () => {
 // ---- upload -----------------------------------------------------------
 const tableName = f => f.replace(/\.[^.]+$/, '').replace(/[^\w]+/g, '_').replace(/^_+|_+$/g, '').toLowerCase() || 'upload';
 
-async function loadGeoJSON(name, fc) {
+async function loadGeoJSON(name, fc, fileBytes) {
     if (!state.engine) throw new Error('open an engine first (step 1)');
     const table = tableName(name);
     const split = await timed('split ' + name, async () => Split.splitGeoJSON(fc));
     const s = split.stats;
+    const sizes = Split.measure(split, fileBytes);
     $('split-stats').textContent = `${s.features} features (${Object.entries(s.geometryTypes).map(([k, v]) => k + ' ' + v).join(', ')}), ${s.propertyColumns} property columns → table "${table}"`;
 
     const id = 'L' + state.nextLayer++;
@@ -126,6 +127,7 @@ async function loadGeoJSON(name, fc) {
     await timed('load ' + split.rows.length + ' rows into ' + state.engine.kind, () => state.engine.loadSplit(table, split, Split));
     split.rows = null;   // the table owns the attributes now
     await showSchema(table);
+    await renderSizes(sizes, table);
     const numeric = Split.numericColumns(L.columns);
     $('sql').value = numeric.length
         ? `SELECT fid, "${numeric[0]}" AS value FROM "${table}"`
@@ -138,6 +140,48 @@ async function loadTabular(file) {
     await timed('load ' + file.name, () => state.engine.loadFile(table, file));
     $('split-stats').textContent = `no geometry: "${table}" is a plain table. Join it to a layer by key, e.g. SELECT t.key AS fid, t.x AS value FROM "${table}" t`;
     await showSchema(table);
+    await renderSizes({ fileBytes: file.size, geometryBytes: 0, attributeBytes: file.size, propertyBytes: file.size, coordinates: 0, columns: [], overhead: 0 }, table);
+}
+
+// ---- where the bytes went: file → shapes in the browser | attributes in DuckDB ----
+async function duckdbMemory(table) {
+    try {
+        const [db] = (await state.engine.query('PRAGMA database_size')).rows;
+        const [t] = (await state.engine.query(`SELECT estimated_size FROM duckdb_tables() WHERE table_name = '${table.replace(/'/g, "''")}'`)).rows;
+        return { memory: db && db.memory_usage, rows: t && t.estimated_size };
+    } catch (e) { return { error: e.message }; }
+}
+
+async function renderSizes(m, table) {
+    const fb = Split.formatBytes;
+    // The bar partitions the file: shapes + attribute values + overhead = file bytes.
+    // The JSON rows sent to DuckDB are bigger than the values (keys repeat per row).
+    const total = m.fileBytes || (m.geometryBytes + m.propertyBytes);
+    const parts = [
+        { key: 'shapes', label: 'shapes, in the browser', bytes: m.geometryBytes, color: 'var(--series-1)', detail: m.coordinates.toLocaleString() + ' coordinates as GeoJSON, id only' },
+        { key: 'attrs', label: 'attribute values, to DuckDB', bytes: m.propertyBytes, color: 'var(--series-2)', detail: m.columns.filter(c => c.source === 'property').length + ' property columns' },
+        { key: 'overhead', label: 'file overhead', bytes: m.overhead || 0, color: 'var(--overhead)', detail: 'whitespace and property names repeated per feature' },
+    ].filter(p => p.bytes > 0);
+    $('sizes').style.display = 'block';
+    $('sz-hero').innerHTML = `<b>${fb(m.fileBytes || total)}</b> ${m.fileBytes ? 'file' : 'split'} → <b style="color:var(--series-1)">${fb(m.geometryBytes)}</b> of shapes stay in the browser, <b style="color:var(--series-2)">${fb(m.propertyBytes)}</b> of attribute values go to DuckDB` +
+        (m.columns.length ? ` <span style="color:var(--text-secondary)">(${fb(m.attributeBytes)} as JSON rows with keys and derived columns)</span>` : '');
+    $('sz-bar').innerHTML = parts.map(p => `<div class="sz-seg" style="flex:${p.bytes} 0 0;background:${p.color}" title="${p.label}: ${fb(p.bytes)} (${(100 * p.bytes / total).toFixed(0)}%) · ${p.detail}"></div>`).join('');
+    $('sz-bar').setAttribute('aria-label', parts.map(p => p.label + ' ' + fb(p.bytes)).join(', '));
+    $('sz-legend').innerHTML = parts.map(p => `<span><span class="sw" style="background:${p.color}"></span>${p.label} ${fb(p.bytes)} (${(100 * p.bytes / total).toFixed(0)}%)</span>`).join('');
+
+    const cols = m.columns.slice().sort((a, b) => b.bytes - a.bytes);
+    const max = Math.max(1, ...cols.map(c => c.bytes));
+    $('sz-cols').innerHTML = cols.map(c => {
+        const cls = c.source === 'derived' ? ' derived' : '';
+        return `<div class="nm${cls}" title="${c.type}${c.nulls ? ', ' + c.nulls + ' nulls' : ''}">${c.name}</div>` +
+            `<div class="tr${cls}" title="${c.name}: ${fb(c.bytes)}"><div class="bar" style="width:${(100 * c.bytes / max).toFixed(1)}%"></div></div>` +
+            `<div class="val">${fb(c.bytes)}</div>`;
+    }).join('');
+
+    const d = await duckdbMemory(table);
+    $('sz-note').textContent = d.error ? 'DuckDB size: ' + d.error
+        : `DuckDB reports ${d.memory || '?'} in memory for the whole database after loading "${table}" (${d.rows ?? '?'} rows). ` +
+          `Bytes above are the JSON text of each half; MapLibre keeps its own tiled copy of the shapes in a worker.`;
 }
 
 async function showSchema(table) {
@@ -157,7 +201,7 @@ $('file').onchange = async e => {
         if (/\.(geojson|json)$/i.test(file.name)) {
             const text = await file.text();
             const fc = JSON.parse(text);
-            if (fc.type === 'FeatureCollection' || fc.type === 'Feature') await loadGeoJSON(file.name, fc);
+            if (fc.type === 'FeatureCollection' || fc.type === 'Feature') await loadGeoJSON(file.name, fc, file.size);
             else await loadTabular(file);
         } else await loadTabular(file);
     } catch (err) { status(err.message, err); }
@@ -167,8 +211,8 @@ $('file').onchange = async e => {
 for (const b of document.querySelectorAll('button.sample')) b.onclick = async () => {
     try {
         const url = b.dataset.url;
-        const fc = await timed('fetch sample', async () => (await fetch(url)).json());
-        await loadGeoJSON(url.split('/').pop(), fc);
+        const text = await timed('fetch sample', async () => (await fetch(url)).text());
+        await loadGeoJSON(url.split('/').pop(), JSON.parse(text), Split.utf8Bytes(text));
     } catch (err) { status(err.message, err); }
 };
 

@@ -19,6 +19,7 @@ then <http://localhost:8765/duckdb-spike/>. No build step; the only ES modules a
 3. **Query → paint.** Any SQL runs against the engine. A result with `fid` and `value` columns is painted onto the chosen layer with `map.setFeatureState`, classed with `JoinKit.classBreaks`. Geometry is never re-uploaded. Hovering a feature runs `SELECT * FROM table WHERE fid = ?`, because the feature itself carries nothing but its id.
 4. **Chart.** Mosaic vgplot draws a histogram on the **same** DuckDB-WASM instance (`vg.wasmConnector({ duckdb, connection })`), so the binning runs in DuckDB, not in JS. Local engine only for now.
 5. **duckdb-tileserver.** Lists a server's layers (`GET /layers`), adds one as a MapLibre vector source from its TileJSON (`GET /tiles/{layer}.json`), and lets the same SQL-to-feature-state path paint it.
+6. **Where the bytes went.** After an upload, a bar partitions the file: shapes kept in the browser (blue), attribute values sent to DuckDB (orange), and file overhead (whitespace, property names repeated per feature). Below it, one bar per column, so you can see which columns cost the most. The hero line also gives the size of the JSON rows actually sent to DuckDB (bigger than the values, because keys repeat per row) and what DuckDB reports as its memory use. Two samples tell the story: SF micro-neighborhoods is 92% shapes, Slow Streets (29 columns of lines) is 41% attributes and 39% overhead.
 
 Console access for poking: `window.map`, `window.spike` (`state`, `loadGeoJSON`, `loadTabular`, `paint`).
 
@@ -31,7 +32,22 @@ Console access for poking: `window.map`, `window.spike` (`state`, `loadGeoJSON`,
 | [app.js](app.js) | Page wiring: map, upload, feature state, Mosaic, tileserver. |
 | [index.html](index.html) | The page. |
 | [coi-serviceworker.js](coi-serviceworker.js) | Vendored [coi-serviceworker 0.1.7](https://github.com/gzuidhof/coi-serviceworker) (MIT); opt-in with `?coi`, see below. |
-| [test/split.test.js](test/split.test.js) | `node --test duckdb-spike/test/split.test.js` |
+| [test/split.test.js](test/split.test.js) | Splitter, SQL helpers and size measurement. No dependencies. |
+| [test/sql.test.js](test/sql.test.js) | Both load paths run against a real DuckDB in Node, so the MotherDuck-style `from_json` inserts are checked without a token. Skips itself when `@duckdb/node-api` is not installed. |
+| [scripts/build-tiles-db.js](scripts/build-tiles-db.js) | Builds a DuckDB file for duckdb-tileserver from GeoJSON (spatial extension, `fid`, R-tree index). |
+| [package.json](package.json) | Only for the Node tests and scripts: `npm install && npm test`. The page itself installs nothing. |
+
+## A local DuckDB for the tileserver
+
+duckdb-tileserver reads a local DuckDB file, so the spike ships a builder:
+
+```bash
+cd duckdb-spike && npm install
+node scripts/build-tiles-db.js tiles.db ../selecter/geojson/SF_city_data/SF_Analysis_Neighborhoods.geojson ../selecter/geojson/SF_city_data/Slow_Streets_20260903.geojson
+duckdb-tileserver --database-path tiles.db
+```
+
+Each file becomes a table with a `fid` INTEGER (so `promoteId: "fid"` works in the page), every property column, and a `geom` GEOMETRY('EPSG:4326') column with an R-tree index. Measured: the two samples above take about 0.8 s and write a 1.76 MB file. `*.db` is git-ignored. The tileserver binary itself is not run here; get it from the project's releases.
 
 ## Measured (local engine, this laptop, Chrome in the Claude desktop browser)
 
@@ -49,7 +65,7 @@ Not measured yet: anything large. The next test is a 100k-feature file to see wh
 ## How rows get into each engine
 
 * **Local:** `db.registerFileText('t.json', JSON.stringify(rows))` then `CREATE TABLE t AS SELECT * FROM read_json('t.json', columns = {...})` with the types the splitter inferred. Files with no geometry use `registerFileBuffer` plus `read_csv_auto` / `read_parquet` / `read_json_auto`.
-* **MotherDuck:** the wasm client has no file registration, so `Split.insertSQLChunks` emits `INSERT … SELECT unnest(from_json($j$[…]$j$::JSON, '[{"fid":"INTEGER",…}]'))` in chunks of 2,000 rows. Slow for big tables; the right path there is to upload the file to MotherDuck and only send the `fid` mapping. **Untested with a real token**: no token was available in this session. The module loads from jsDelivr and the code follows the documented `MDConnection.create({ mdToken })` / `evaluateQuery` / `data.toRows()` API.
+* **MotherDuck:** the wasm client has no file registration, so `Split.insertSQLChunks` emits `INSERT … SELECT unnest(from_json($j$[…]$j$::JSON, '[{"fid":"INTEGER",…}]'))` in chunks of 2,000 rows. Slow for big tables; the right path there is to upload the file to MotherDuck and only send the `fid` mapping. The SQL itself is verified against DuckDB 2.0 in Node by `test/sql.test.js` (types, row counts, a column named `:id`, the derived bbox). **Untested with a real token**: no token was available in this session. The module loads from jsDelivr and the code follows the documented `MDConnection.create({ mdToken })` / `evaluateQuery` / `data.toRows()` API.
 
 ## duckdb-tileserver, as it actually is
 

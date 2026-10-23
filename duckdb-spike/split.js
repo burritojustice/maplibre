@@ -171,11 +171,57 @@
         return out;
     }
 
+    // ---- sizes ----------------------------------------------------------
+    // How many bytes each half of the split takes, measured as the JSON text
+    // that would carry it: the geometry side is what the browser keeps (and
+    // sends to MapLibre), the attribute side is what goes to DuckDB.
+    // measure(split, fileBytes) -> { fileBytes, geometryBytes, attributeBytes,
+    //   coordinates, columns: [{ name, type, source, bytes, nulls }], overhead }
+    // `overhead` is file bytes not accounted for by either side (whitespace,
+    // the original property names repeated per feature, etc).
+    function utf8Bytes(s) {
+        let n = 0;
+        for (let i = 0; i < s.length; i++) {
+            const c = s.charCodeAt(i);
+            n += c < 0x80 ? 1 : c < 0x800 ? 2 : (c >= 0xd800 && c < 0xdc00) ? (i++, 4) : 3;
+        }
+        return n;
+    }
+
+    function measure(split, fileBytes) {
+        let coordinates = 0;
+        for (const f of split.geometry.features) walkCoords(f.geometry, () => { coordinates++; });
+        const geometryBytes = utf8Bytes(JSON.stringify(split.geometry));
+        const rows = split.rows || [];
+        const columns = split.columns.map(c => {
+            let bytes = 0, nulls = 0;
+            for (const r of rows) {
+                const v = r[c.name];
+                if (v === null || v === undefined) { nulls++; bytes += 4; }
+                else bytes += utf8Bytes(JSON.stringify(v));
+            }
+            return { name: c.name, type: c.type, source: c.source, bytes, nulls };
+        });
+        const attributeBytes = utf8Bytes(JSON.stringify(rows));
+        const propertyBytes = columns.filter(c => c.source === 'property').reduce((a, c) => a + c.bytes, 0);
+        return {
+            fileBytes: fileBytes || null, geometryBytes, attributeBytes, propertyBytes, coordinates, columns,
+            overhead: fileBytes ? Math.max(0, fileBytes - geometryBytes - propertyBytes) : null,
+        };
+    }
+
+    function formatBytes(b) {
+        if (b === null || b === undefined) return '';
+        if (b < 1024) return b + ' B';
+        if (b < 1048576) return (b / 1024).toFixed(b < 10240 ? 1 : 0) + ' KB';
+        return (b / 1048576).toFixed(b < 10485760 ? 2 : 1) + ' MB';
+    }
+
     // Column names that are safe to sum or average: numeric and not an id.
     function numericColumns(columns) {
         return columns.filter(c => c.source === 'property' && /INTEGER|BIGINT|DOUBLE/.test(c.type)
             && !/^(id|fid|objectid|gid|zip|fips|geoid|year|phone)$/i.test(c.name)).map(c => c.name);
     }
 
-    return { splitGeoJSON, inferType, coerce, bboxOf, quoteIdent, createTableSQL, insertSQLChunks, numericColumns, DERIVED };
+    return { splitGeoJSON, inferType, coerce, bboxOf, quoteIdent, createTableSQL, insertSQLChunks, numericColumns, measure, formatBytes, utf8Bytes, DERIVED };
 }));
